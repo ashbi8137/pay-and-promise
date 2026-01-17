@@ -8,6 +8,8 @@ export default function AuthScreen() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const signIn = async () => {
@@ -31,8 +33,8 @@ export default function AuthScreen() {
   };
 
   const signUp = async () => {
-    if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+    if (!email || !password || !fullName) {
+      Alert.alert('Error', 'Please enter email, password, and full name');
       return;
     }
 
@@ -40,6 +42,11 @@ export default function AuthScreen() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: fullName,
+        },
+      },
     });
 
     if (error) {
@@ -53,6 +60,8 @@ export default function AuthScreen() {
       const { error: profileError } = await supabase.from('profiles').insert({
         id: data.user.id,
         email: data.user.email,
+        // We aren't inserting full_name here yet because the table doesn't have it,
+        // but we saved it in Auth Metadata above.
       });
 
       if (profileError) {
@@ -68,7 +77,18 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome</Text>
+      <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+
+      {isSignUp && (
+        <TextInput
+          style={styles.input}
+          placeholder="Full Name"
+          placeholderTextColor="#aaaaaa"
+          value={fullName}
+          onChangeText={setFullName}
+          autoCapitalize="words"
+        />
+      )}
 
       <TextInput
         style={styles.input}
@@ -93,12 +113,14 @@ export default function AuthScreen() {
         <ActivityIndicator color="#ffffff" style={styles.loader} />
       ) : (
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={styles.button} onPress={signIn}>
-            <Text style={styles.buttonText}>Sign In</Text>
+          <TouchableOpacity style={styles.button} onPress={isSignUp ? signUp : signIn}>
+            <Text style={styles.buttonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={signUp}>
-            <Text style={styles.buttonText}>Create Account</Text>
+          <TouchableOpacity style={styles.linkButton} onPress={() => setIsSignUp(!isSignUp)}>
+            <Text style={styles.linkText}>
+              {isSignUp ? 'Already have an account? Sign In' : 'Don\'t have an account? Sign Up'}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -149,8 +171,16 @@ const styles = StyleSheet.create({
     borderColor: '#ffffff',
   },
   buttonText: {
-    color: '#000000', // Black text on white button
+    color: '#000000',
     fontSize: 16,
     fontWeight: '600',
+  },
+  linkButton: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  linkText: {
+    color: '#ffffff',
+    fontSize: 14,
   },
 });

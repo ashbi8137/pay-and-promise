@@ -1,8 +1,12 @@
 
 import { useRouter } from 'expo-router';
+import * as SplashScreenModule from 'expo-splash-screen';
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { Image, StyleSheet, View } from 'react-native';
+import { supabase } from '../../lib/supabase';
+
+// Prevent native splash screen from autohiding
+SplashScreenModule.preventAutoHideAsync();
 
 export default function SplashScreen() {
   const router = useRouter();
@@ -10,10 +14,14 @@ export default function SplashScreen() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Wait 1-2 seconds as requested
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
+        // Authenticate session
         const { data: { session } } = await supabase.auth.getSession();
+
+        // 1. Hide the NATIVE splash screen immediately so our custom design is visible
+        await SplashScreenModule.hideAsync();
+
+        // 2. Show OUR custom splash screen for 3 seconds (User requested 3 sec)
+        await new Promise(resolve => setTimeout(resolve, 3000));
 
         if (session) {
           router.replace('/screens/HomeScreen');
@@ -22,7 +30,7 @@ export default function SplashScreen() {
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        // Fallback to AuthScreen on error
+        await SplashScreenModule.hideAsync();
         router.replace('/screens/AuthScreen');
       }
     };
@@ -32,8 +40,11 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Pay & Promise</Text>
-      <Text style={styles.subtitle}>Promises with consequences</Text>
+      <Image
+        source={require('../../assets/images/logo.png')}
+        style={styles.logo}
+        resizeMode="contain"
+      />
     </View>
   );
 }
@@ -41,18 +52,12 @@ export default function SplashScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#121212', // Dark background
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#ffffff',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 18,
-    color: '#aaaaaa',
+  logo: {
+    width: 200,
+    height: 200,
   },
 });

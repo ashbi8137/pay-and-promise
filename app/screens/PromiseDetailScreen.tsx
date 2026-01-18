@@ -10,6 +10,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { supabase } from '../../lib/supabase';
 
 export default function PromiseDetailScreen() {
     const router = useRouter();
@@ -34,8 +35,57 @@ export default function PromiseDetailScreen() {
     // Removed description from destructuring
     const { title, duration, numPeople, amountPerPerson, totalAmount, participants } = promiseData;
 
-    const handleCheckIn = (status: 'done' | 'failed') => {
-        Alert.alert('Check-in', `Marked as ${status}. Daily check-in logic will be enforced later.`);
+    const [updating, setUpdating] = React.useState(false);
+
+    const handleCheckIn = async (status: 'done' | 'failed') => {
+        if (updating) return;
+
+        const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+        Alert.alert(
+            status === 'done' ? 'Mark as Done?' : 'Mark as Failed?',
+            status === 'done'
+                ? 'Great job today!'
+                : 'Marked as failed for today.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Confirm',
+                    style: status === 'failed' ? 'destructive' : 'default',
+                    onPress: async () => {
+                        setUpdating(true);
+                        try {
+                            const { data: { user } } = await supabase.auth.getUser();
+                            if (!user) return;
+
+                            const { error } = await supabase
+                                .from('daily_checkins')
+                                .insert({
+                                    promise_id: promiseData.id,
+                                    user_id: user.id,
+                                    date: dateStr,
+                                    status: status
+                                });
+
+                            if (error) {
+                                if (error.code === '23505') { // Unique violation
+                                    Alert.alert('Already Updated', 'You have already checked in for today.');
+                                } else {
+                                    Alert.alert('Error', 'Failed to save check-in.');
+                                    console.error(error);
+                                }
+                            } else {
+                                router.back();
+                            }
+                        } catch (e) {
+                            Alert.alert('Error', 'An unexpected error occurred.');
+                        } finally {
+                            setUpdating(false);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     return (

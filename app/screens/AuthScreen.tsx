@@ -1,19 +1,51 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
+} from 'react-native';
 import { supabase } from '../../lib/supabase';
 
 export default function AuthScreen() {
   const router = useRouter();
+
+  // Form State
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+
+  // UX State
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Clear errors when switching modes
+  const handleModeSwitch = () => {
+    setIsSignUp(!isSignUp);
+    setErrorMessage(null);
+    setEmail('');
+    setPassword('');
+    setFullName('');
+  };
 
   const signIn = async () => {
+    setErrorMessage(null);
+    Keyboard.dismiss();
+
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter both email and password');
+      setErrorMessage('Please enter both email and password.');
       return;
     }
 
@@ -25,15 +57,19 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Login Failed', error.message);
+      // User-friendly error message
+      setErrorMessage('Email or password is incorrect. Please try again.');
     } else {
       router.replace('/screens/HomeScreen');
     }
   };
 
   const signUp = async () => {
+    setErrorMessage(null);
+    Keyboard.dismiss();
+
     if (!email || !password || !fullName) {
-      Alert.alert('Error', 'Please enter email, password, and full name');
+      setErrorMessage('Please enter email, password, and full name.');
       return;
     }
 
@@ -50,12 +86,11 @@ export default function AuthScreen() {
 
     if (error) {
       setLoading(false);
-      Alert.alert('Sign Up Failed', error.message);
+      setErrorMessage(error.message || 'Sign up failed. Please try again.');
       return;
     }
 
     if (data.user) {
-      // Profile is now created by Database Trigger. No manual insert needed.
       console.log('User created:', data.user.id);
     }
 
@@ -67,78 +102,137 @@ export default function AuthScreen() {
         {
           text: 'OK',
           onPress: () => {
-            setIsSignUp(false); // Switch to Sign In mode
-            setPassword(''); // Optional: clear password for security
+            setIsSignUp(false);
+            setErrorMessage(null);
+            setPassword('');
           }
         }
       ]
     );
   };
 
+  const handleForgotPassword = () => {
+    Alert.alert('Forgot Password', 'Password reset functionality will be available in the next update.');
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Pay & Promise</Text>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Text style={styles.headerTitle}>Pay & Promise</Text>
 
-      <View style={styles.card}>
-        <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
-        <Text style={styles.subtitle}>Please sign in to continue</Text>
+          <View style={styles.card}>
+            <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+            <Text style={styles.subtitle}>
+              {isSignUp ? 'Sign up to start your journey' : 'Please sign in to continue'}
+            </Text>
 
-        {isSignUp && (
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="John Doe"
-              placeholderTextColor="#94A3B8"
-              value={fullName}
-              onChangeText={setFullName}
-              autoCapitalize="words"
-            />
+            {/* Error Message Display */}
+            {errorMessage && (
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                <Text style={styles.errorText}>{errorMessage}</Text>
+              </View>
+            )}
+
+            {isSignUp && (
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="John Doe"
+                  placeholderTextColor="#94A3B8"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  autoCapitalize="words"
+                />
+              </View>
+            )}
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Email Address</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="you@example.com"
+                placeholderTextColor="#94A3B8"
+                value={email}
+                onChangeText={setEmail}
+                autoCapitalize="none"
+                keyboardType="email-address"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Password</Text>
+              <View style={styles.passwordWrapper}>
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="••••••••"
+                  placeholderTextColor="#94A3B8"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  style={styles.eyeIcon}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#64748B"
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Forgot Password Link (Only for Sign In) */}
+            {!isSignUp && (
+              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
+                <Text style={styles.forgotText}>Forgot password?</Text>
+              </TouchableOpacity>
+            )}
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
+                onPress={isSignUp ? signUp : signIn}
+                disabled={loading}
+              >
+                {loading ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={styles.primaryButtonText}>
+                      {isSignUp ? 'Signing Up...' : 'Signing In...'}
+                    </Text>
+                  </View>
+                ) : (
+                  <Text style={styles.primaryButtonText}>
+                    {isSignUp ? 'Sign Up' : 'Sign In'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.toggleButton} onPress={handleModeSwitch} disabled={loading}>
+                <Text style={styles.toggleButtonText}>
+                  {isSignUp ? 'Already have an account? Log In' : 'Don\'t have an account? Sign Up'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        )}
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Email Address</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="you@example.com"
-            placeholderTextColor="#94A3B8"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Password</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="••••••••"
-            placeholderTextColor="#94A3B8"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-        </View>
-
-        {loading ? (
-          <ActivityIndicator color="#0F172A" style={styles.loader} />
-        ) : (
-          <View style={styles.buttonContainer}>
-            <TouchableOpacity style={styles.primaryButton} onPress={isSignUp ? signUp : signIn}>
-              <Text style={styles.primaryButtonText}>{isSignUp ? 'Sign Up' : 'Sign In'}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.toggleButton} onPress={() => setIsSignUp(!isSignUp)}>
-              <Text style={styles.toggleButtonText}>
-                {isSignUp ? 'Already have an account? Log In' : 'Don\'t have an account? Sign Up'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-    </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -146,6 +240,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F1F5F9', // Light Slate background
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
   },
@@ -161,11 +258,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF', // White Card
     borderRadius: 20,
     padding: 32,
-    shadowColor: '#64748B', // Softer shadow color
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.1,
     shadowRadius: 16,
     elevation: 8,
@@ -182,8 +276,25 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#64748B', // Muted text
-    marginBottom: 32,
+    marginBottom: 24,
     textAlign: 'center',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#FECACA'
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
   },
   inputContainer: {
     marginBottom: 20,
@@ -201,31 +312,56 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#CBD5E1', // Subtle border
+    borderColor: '#CBD5E1',
   },
-  loader: {
-    marginTop: 20,
+  passwordWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingRight: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    color: '#0F172A',
+    padding: 16,
+    fontSize: 16,
+  },
+  eyeIcon: {
+    padding: 4,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginBottom: 24,
+    marginTop: -8,
+  },
+  forgotText: {
+    color: '#0F172A',
+    fontSize: 14,
+    fontWeight: '600',
   },
   buttonContainer: {
-    marginTop: 12,
+    marginTop: 0,
     gap: 16,
   },
   primaryButton: {
-    backgroundColor: '#0F172A', // Navy button
+    backgroundColor: '#0F172A',
     padding: 18,
     borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#0F172A',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
+  primaryButtonDisabled: {
+    opacity: 0.7,
+  },
   primaryButtonText: {
-    color: '#FFFFFF', // White text on Navy button
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -234,7 +370,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   toggleButtonText: {
-    color: '#475569', // Slate-600
+    color: '#475569',
     fontSize: 14,
     fontWeight: '500',
   },

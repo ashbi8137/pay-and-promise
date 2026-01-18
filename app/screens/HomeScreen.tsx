@@ -32,6 +32,7 @@ export default function HomeScreen() {
     const router = useRouter();
     const [firstName, setFirstName] = useState<string>('Ashbin');
     const [activePromises, setActivePromises] = useState<PromiseItem[]>([]);
+    const [completedPromises, setCompletedPromises] = useState<PromiseItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -55,21 +56,47 @@ export default function HomeScreen() {
                     setFirstName(user.email.split('@')[0]);
                 }
 
-                // Fetch Active Promises
-                const { data, error } = await supabase
+                // 1. Fetch All Active Promises
+                const { data: promises, error: promiseError } = await supabase
                     .from('promises')
                     .select('*')
                     .eq('created_by', user.id)
-                    .eq('status', 'active')
+                    .eq('status', 'active') // Only fetch active promises
                     .order('created_at', { ascending: false });
 
-                if (error) {
-                    console.error('Fetch error:', error);
-                } else {
-                    setActivePromises(data || []);
+                // 2. Fetch Today's Checkins
+                const today = new Date().toISOString().split('T')[0];
+                const { data: checkins, error: checkinError } = await supabase
+                    .from('daily_checkins')
+                    .select('promise_id, status')
+                    .eq('user_id', user.id)
+                    .eq('date', today);
+
+                if (promiseError) console.error('Promise fetch error:', promiseError);
+                if (checkinError) console.error('Checkin fetch error:', checkinError);
+
+                if (promises) {
+                    const todayCheckinMap = new Map();
+                    checkins?.forEach(c => todayCheckinMap.set(c.promise_id, c.status));
+
+                    const pending = [];
+                    const doneToday = [];
+
+                    for (const p of promises) {
+                        if (todayCheckinMap.has(p.id)) {
+                            // It has been checked in today
+                            const status = todayCheckinMap.get(p.id);
+                            // Attach temporary status for display
+                            doneToday.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
+                        } else {
+                            // Not checked in yet
+                            pending.push(p);
+                        }
+                    }
+
+                    setActivePromises(pending);
+                    setCompletedPromises(doneToday);
                 }
-            } else {
-                // Handle unauthenticated case if needed
             }
         } catch (error) {
             console.log('Error fetching data:', error);
@@ -88,24 +115,13 @@ export default function HomeScreen() {
         router.push('/screens/CreatePromiseScreen');
     };
 
-    // Need to map the DB fields to the simpler structure if needed, or pass as is.
-    // PromiseDetailScreen expects camelCase props usually, but we updated it to use what we pass.
-    // Let's pass the raw DB item, and update PromiseDetailScreen to handle snake_case if strictly needed,
-    // OR we transform here. 
-    // Wait, PromiseDetailScreen uses { title, duration, ... }
-    // Our DB has `duration_days`.
-    // We should transform it for compatibility OR update Detail screen.
-    // Let's transform for navigation to keep Detail screen simpler / consistent if we used it elsewhere.
-
     const handlePromisePress = (item: PromiseItem) => {
-        // Transform to match Detail Screen expectations
         const mappedItem = {
             ...item,
             duration: item.duration_days,
             numPeople: item.number_of_people,
             amountPerPerson: item.amount_per_person,
             totalAmount: item.total_amount,
-            // participants is already correct (jsonb array)
         };
 
         router.push({
@@ -123,11 +139,11 @@ export default function HomeScreen() {
         }
     };
 
-    const renderActiveCard = (item: PromiseItem) => {
-        // Calculate progress (Mocking current day as 1 for now since we don't track it in DB yet)
+    const renderCard = (item: PromiseItem, isHistory: boolean) => {
         const currentDay = 1;
         const totalDays = item.duration_days;
-        const progressPercent = (currentDay / totalDays) * 100;
+        const progressPercent = isHistory ? 100 : (currentDay / totalDays) * 100;
+        const isFailed = item.status === 'failed';
 
         return (
             <TouchableOpacity
@@ -135,23 +151,40 @@ export default function HomeScreen() {
                 activeOpacity={0.9}
                 onPress={() => handlePromisePress(item)}
             >
-                <View style={styles.card}>
+                <View style={[styles.card, isHistory && styles.completedCard]}>
                     <View style={styles.cardHeader}>
                         <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={styles.cardTitle}>{item.title}</Text>
-                            <Text style={styles.cardSubtitle}>Day {currentDay} of {totalDays}</Text>
+                            <Text style={[styles.cardTitle, isHistory && styles.completedText]}>{item.title}</Text>
+                            <Text style={styles.cardSubtitle}>
+                                {isHistory ? (isFailed ? 'Failed' : 'Completed') : `Day ${currentDay} of ${totalDays}`}
+                            </Text>
                             <Text style={styles.cardMeta}>
                                 ₹{item.amount_per_person}/person • {item.participants?.length || 0} participants
                             </Text>
                         </View>
-                        <View style={styles.activeBadge}>
-                            <Text style={styles.activeBadgeText}>Active</Text>
+                        <View style={
+                            item.status === 'active' ? styles.activeBadge :
+                                item.status === 'failed' ? styles.failedBadge : styles.completedBadge
+                        }>
+                            <Text style={
+                                item.status === 'active' ? styles.activeBadgeText :
+                                    item.status === 'failed' ? styles.failedBadgeText : styles.completedBadgeText
+                            }>
+                                {item.status === 'active' ? 'Active' : (item.status === 'failed' ? 'Failed' : 'Done')}
+                            </Text>
                         </View>
                     </View>
 
                     {/* Progress Bar */}
                     <View style={styles.progressBarContainer}>
-                        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                        <View
+                            style={[
+                                styles.progressBarFill,
+                                { width: `${progressPercent}%` },
+                                item.status === 'completed' && { backgroundColor: '#94A3B8' }, // Grey for completed
+                                isFailed && { backgroundColor: '#EF4444' } // Red for failed
+                            ]}
+                        />
                     </View>
                 </View>
             </TouchableOpacity>
@@ -196,10 +229,22 @@ export default function HomeScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Active Promises</Text>
                     {activePromises.length > 0 ? (
-                        activePromises.map(renderActiveCard)
+                        activePromises.map(item => renderCard(item, false))
                     ) : (
                         <Text style={styles.emptyText}>
                             {loading ? 'Loading...' : 'No active promises found.'}
+                        </Text>
+                    )}
+                </View>
+
+                {/* Completed Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Completed Today</Text>
+                    {completedPromises.length > 0 ? (
+                        completedPromises.map(item => renderCard(item, true))
+                    ) : (
+                        <Text style={styles.emptyText}>
+                            {loading ? 'Loading...' : 'No promises completed yet today.'}
                         </Text>
                     )}
                 </View>
@@ -333,5 +378,37 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
         textAlign: 'center',
         marginTop: 8,
+    },
+    // Completed Styles
+    completedCard: {
+        opacity: 0.8,
+        backgroundColor: '#F8FAFC',
+    },
+    completedText: {
+        textDecorationLine: 'line-through',
+        color: '#94A3B8',
+    },
+    completedBadge: {
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    completedBadgeText: {
+        color: '#64748B',
+        fontSize: 12,
+        fontWeight: '700',
+    },
+    // Failed Styles
+    failedBadge: {
+        backgroundColor: '#FEF2F2',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 12,
+    },
+    failedBadgeText: {
+        color: '#EF4444',
+        fontSize: 12,
+        fontWeight: '700',
     },
 });

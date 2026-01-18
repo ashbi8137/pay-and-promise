@@ -18,6 +18,7 @@ export default function ProfileScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
+    const [latestContext, setLatestContext] = useState<{ desc: string; type: string } | null>(null);
     const [financials, setFinancials] = useState({
         winnings: 0,
         penalties: 0,
@@ -66,6 +67,22 @@ export default function ProfileScreen() {
                     penalties: absPenalties,
                     net: totalWinnings - absPenalties // Net P&L
                 });
+
+                // 3. Find latest context (from ledger description)
+                // Since we already fetched 'ledger' but without sorting in the first query (default order unknown),
+                // we should probably fetch the single latest entry separately or sort the array if small.
+                // Better: Fetch specifically for context.
+                const { data: latestEntry } = await supabase
+                    .from('ledger')
+                    .select('description, type, created_at')
+                    .eq('user_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (latestEntry && latestEntry.description) {
+                    setLatestContext({ desc: latestEntry.description, type: latestEntry.type });
+                }
             }
 
         } catch (error) {
@@ -152,10 +169,15 @@ export default function ProfileScreen() {
                         ) : (
                             <Text style={[styles.netValue, { color: '#94A3B8' }]}>₹0.00</Text>
                         )}
-                        <Text style={styles.netHelper}>
-                            {financials.net !== 0
-                                ? "Overall result from all your promises"
-                                : "Start your first promise to see your results here."}
+                        <Text style={[
+                            styles.netHelper,
+                            latestContext ? { color: latestContext.type === 'winnings' ? '#166534' : '#991B1B', fontWeight: '600' } : {}
+                        ]}>
+                            {latestContext
+                                ? latestContext.desc
+                                : (financials.net !== 0
+                                    ? "Overall result from all your promises"
+                                    : "Start your first promise to see your results here.")}
                         </Text>
                     </View>
 

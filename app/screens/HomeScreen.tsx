@@ -217,20 +217,31 @@ export default function HomeScreen() {
             >
 
                 {/* Header Section */}
+                {/* Header Section */}
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greetingText}>Good Morning, {firstName} 👋</Text>
-                        <Text style={styles.subGreetingText}>
-                            {activePromises.length > 0
-                                ? `You have ${activePromises.length} active promise${activePromises.length > 1 ? 's' : ''} today.`
-                                : "You have 0 active promises today. Let's create one!"}
-                        </Text>
+                    <View style={styles.headerTextContainer}>
+                        <Text style={styles.greetingText}>Good Morning,</Text>
+                        <Text style={styles.nameText}>{firstName}</Text>
+                        <View style={styles.statusPill}>
+                            <View style={[styles.statusDot, { backgroundColor: activePromises.length > 0 ? '#22C55E' : '#94A3B8' }]} />
+                            <Text style={styles.subGreetingText}>
+                                {activePromises.length > 0
+                                    ? `You have ${activePromises.length} active promise${activePromises.length > 1 ? 's' : ''}`
+                                    : "No active promises"}
+                            </Text>
+                        </View>
                     </View>
                     <TouchableOpacity
-                        style={styles.iconButton}
+                        style={styles.profileButton}
                         onPress={() => router.push('/screens/ProfileScreen')}
+                        activeOpacity={0.8}
                     >
-                        <Ionicons name="person-circle-outline" size={28} color="#334155" />
+                        <LinearGradient
+                            colors={['#4F46E5', '#4338ca']}
+                            style={styles.profileGradient}
+                        >
+                            <Text style={styles.profileInitials}>{firstName.charAt(0)}</Text>
+                        </LinearGradient>
                     </TouchableOpacity>
                 </View>
 
@@ -333,9 +344,12 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginBottom: 32,
         marginTop: 10,
+    },
+    headerTextContainer: {
+        flex: 1,
     },
     greetingText: {
         fontSize: 16,
@@ -344,17 +358,52 @@ const styles = StyleSheet.create({
         marginBottom: 4,
     },
     nameText: {
-        fontSize: 30,
+        fontSize: 32,
         fontWeight: '800',
         color: '#0F172A',
+        marginBottom: 8,
         letterSpacing: -0.5,
     },
-    iconButton: {
-        padding: 8,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
+    statusPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        alignSelf: 'flex-start',
+    },
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        marginRight: 8,
+    },
+    subGreetingText: {
+        fontSize: 14,
+        color: '#475569',
+        fontWeight: '600',
+    },
+    profileButton: {
+        shadowColor: '#4338ca',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    profileGradient: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+    },
+    profileInitials: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: '700',
     },
     ctaButton: {
         flexDirection: 'row',
@@ -497,11 +546,7 @@ const styles = StyleSheet.create({
     },
 
     // New Styles for Overhaul
-    subGreetingText: {
-        fontSize: 14,
-        color: '#64748B',
-        marginTop: 4,
-    },
+
     // Dashboard Stats
     statsContainer: {
         flexDirection: 'row',

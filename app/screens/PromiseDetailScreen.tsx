@@ -122,17 +122,18 @@ export default function PromiseDetailScreen() {
                                 // 2. If Failed -> Handle Penalty & Redistribution (Survivor Mode)
                                 if (status === 'failed') {
                                     // A. Record Penalty for ME
+                                    const myName = user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || "Someone";
+
                                     await supabase.from('ledger').insert({
                                         promise_id: promiseData.id,
                                         user_id: user.id,
                                         amount: -dailyStake,
-                                        type: 'penalty'
+                                        type: 'penalty',
+                                        description: `You missed a day in ${promiseData.title}`
                                     });
 
                                     // B. Calculate Redistribution
                                     // Get other ACTIVE participants (who haven't failed *today*? Or just all others?)
-                                    // Simplest Survivor: Split among all OTHER participants.
-                                    // Better: Split among those who marked 'done' today? 
                                     // MVP: Split among all other participants currently in the promise.
 
                                     const { data: others } = await supabase
@@ -147,7 +148,8 @@ export default function PromiseDetailScreen() {
                                             promise_id: promiseData.id,
                                             user_id: p.user_id,
                                             amount: share,
-                                            type: 'winnings'
+                                            type: 'winnings',
+                                            description: `${myName} missed a day in ${promiseData.title}`
                                         }));
 
                                         await supabase.from('ledger').insert(winningsInserts);

@@ -8,6 +8,8 @@ export default function RootLayout() {
       <Stack.Screen name="screens/SplashScreen" />
       <Stack.Screen name="screens/AuthScreen" />
       <Stack.Screen name="screens/HomeScreen" />
+      <Stack.Screen name="screens/CreatePromiseScreen" />
+      <Stack.Screen name="screens/PromiseDetailScreen" />
     </Stack>
   );
 }

@@ -1,64 +1,117 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
     Alert,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
-// Mock Data Interfaces
+// Data Interface matching Supabase Schema
 interface PromiseItem {
     id: string;
     title: string;
-    currentDay: number;
-    totalDays: number;
-    status: 'Active' | 'Completed';
+    description?: string;
+    duration_days: number;
+    number_of_people: number;
+    amount_per_person: number;
+    total_amount: number;
+    participants: any[]; // jsonb 
+    status: string;
+    created_at: string;
 }
 
 export default function HomeScreen() {
     const router = useRouter();
-    const [firstName, setFirstName] = useState<string>('User');
+    const [firstName, setFirstName] = useState<string>('Ashbin');
+    const [activePromises, setActivePromises] = useState<PromiseItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Mock Data
-    const activePromises: PromiseItem[] = [
-        { id: '1', title: 'Wake up at 6 AM', currentDay: 2, totalDays: 7, status: 'Active' },
-        { id: '2', title: 'No Sugar Challenge', currentDay: 5, totalDays: 30, status: 'Active' },
-    ];
+    // Fetch User and Promises when screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            fetchData();
+        }, [])
+    );
 
-    const completedPromises: PromiseItem[] = [
-        { id: '3', title: 'Read a Book', currentDay: 14, totalDays: 14, status: 'Completed' },
-    ];
-
-    useEffect(() => {
-        fetchProfile();
-    }, []);
-
-    const fetchProfile = async () => {
+    const fetchData = async () => {
+        setLoading(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
+                // Set Name
                 const metadataName = user.user_metadata?.full_name;
                 if (metadataName) {
-                    // Extract first name for a friendlier greeting
                     setFirstName(metadataName.split(' ')[0]);
                 } else if (user.email) {
                     setFirstName(user.email.split('@')[0]);
                 }
+
+                // Fetch Active Promises
+                const { data, error } = await supabase
+                    .from('promises')
+                    .select('*')
+                    .eq('created_by', user.id)
+                    .eq('status', 'active')
+                    .order('created_at', { ascending: false });
+
+                if (error) {
+                    console.error('Fetch error:', error);
+                } else {
+                    setActivePromises(data || []);
+                }
+            } else {
+                // Handle unauthenticated case if needed
             }
         } catch (error) {
-            console.log('Error fetching user:', error);
+            console.log('Error fetching data:', error);
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
         }
     };
 
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchData();
+    }, []);
+
     const handleCreatePromise = () => {
-        Alert.alert('Coming Soon', 'Create Promise functionality will be added next!');
+        router.push('/screens/CreatePromiseScreen');
+    };
+
+    // Need to map the DB fields to the simpler structure if needed, or pass as is.
+    // PromiseDetailScreen expects camelCase props usually, but we updated it to use what we pass.
+    // Let's pass the raw DB item, and update PromiseDetailScreen to handle snake_case if strictly needed,
+    // OR we transform here. 
+    // Wait, PromiseDetailScreen uses { title, duration, ... }
+    // Our DB has `duration_days`.
+    // We should transform it for compatibility OR update Detail screen.
+    // Let's transform for navigation to keep Detail screen simpler / consistent if we used it elsewhere.
+
+    const handlePromisePress = (item: PromiseItem) => {
+        // Transform to match Detail Screen expectations
+        const mappedItem = {
+            ...item,
+            duration: item.duration_days,
+            numPeople: item.number_of_people,
+            amountPerPerson: item.amount_per_person,
+            totalAmount: item.total_amount,
+            // participants is already correct (jsonb array)
+        };
+
+        router.push({
+            pathname: '/screens/PromiseDetailScreen',
+            params: { promise: JSON.stringify(mappedItem) }
+        });
     };
 
     const handleLogout = async () => {
@@ -71,43 +124,49 @@ export default function HomeScreen() {
     };
 
     const renderActiveCard = (item: PromiseItem) => {
-        const progressPercent = (item.currentDay / item.totalDays) * 100;
+        // Calculate progress (Mocking current day as 1 for now since we don't track it in DB yet)
+        const currentDay = 1;
+        const totalDays = item.duration_days;
+        const progressPercent = (currentDay / totalDays) * 100;
 
         return (
-            <View key={item.id} style={styles.card}>
-                <View style={styles.cardHeader}>
-                    <View>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
-                        <Text style={styles.cardSubtitle}>Day {item.currentDay} of {item.totalDays}</Text>
+            <TouchableOpacity
+                key={item.id}
+                activeOpacity={0.9}
+                onPress={() => handlePromisePress(item)}
+            >
+                <View style={styles.card}>
+                    <View style={styles.cardHeader}>
+                        <View style={{ flex: 1, marginRight: 8 }}>
+                            <Text style={styles.cardTitle}>{item.title}</Text>
+                            <Text style={styles.cardSubtitle}>Day {currentDay} of {totalDays}</Text>
+                            <Text style={styles.cardMeta}>
+                                ₹{item.amount_per_person}/person • {item.participants?.length || 0} participants
+                            </Text>
+                        </View>
+                        <View style={styles.activeBadge}>
+                            <Text style={styles.activeBadgeText}>Active</Text>
+                        </View>
                     </View>
-                    <View style={styles.activeBadge}>
-                        <Text style={styles.activeBadgeText}>Active</Text>
-                    </View>
-                </View>
 
-                {/* Progress Bar */}
-                <View style={styles.progressBarContainer}>
-                    <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                    {/* Progress Bar */}
+                    <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBarFill, { width: `${progressPercent}%` }]} />
+                    </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         );
     };
 
-    const renderCompletedCard = (item: PromiseItem) => (
-        <View key={item.id} style={[styles.card, styles.completedCard]}>
-            <View style={styles.cardHeader}>
-                <Text style={styles.completedTitle}>{item.title}</Text>
-                <View style={styles.completedBadge}>
-                    <Ionicons name="checkmark-circle" size={16} color="#64748B" />
-                    <Text style={styles.completedBadgeText}>Done</Text>
-                </View>
-            </View>
-        </View>
-    );
-
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                }
+            >
 
                 {/* Header Section */}
                 <View style={styles.header}>
@@ -120,10 +179,10 @@ export default function HomeScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Primary CTA - Floating Style */}
+                {/* Primary CTA */}
                 <TouchableOpacity onPress={handleCreatePromise} activeOpacity={0.8}>
                     <LinearGradient
-                        colors={['#0F172A', '#4338ca']} // Dark Navy to Indigo/Purple
+                        colors={['#0F172A', '#4338ca']}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                         style={styles.ctaButton}
@@ -139,17 +198,9 @@ export default function HomeScreen() {
                     {activePromises.length > 0 ? (
                         activePromises.map(renderActiveCard)
                     ) : (
-                        <Text style={styles.emptyText}>No active promises currently.</Text>
-                    )}
-                </View>
-
-                {/* Completed Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Completed</Text>
-                    {completedPromises.length > 0 ? (
-                        completedPromises.map(renderCompletedCard)
-                    ) : (
-                        <Text style={styles.emptyText}>No completed promises yet.</Text>
+                        <Text style={styles.emptyText}>
+                            {loading ? 'Loading...' : 'No active promises found.'}
+                        </Text>
                     )}
                 </View>
 
@@ -161,11 +212,11 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC', // Light Grey Background
+        backgroundColor: '#F8FAFC',
     },
     scrollContent: {
         padding: 24,
-        paddingTop: 60, // Increased to move content down approx 1cm visual equivalent
+        paddingTop: 60,
     },
     header: {
         flexDirection: 'row',
@@ -176,14 +227,14 @@ const styles = StyleSheet.create({
     },
     greetingText: {
         fontSize: 16,
-        color: '#64748B', // Secondary Text
+        color: '#64748B',
         fontWeight: '500',
         marginBottom: 4,
     },
     nameText: {
         fontSize: 30,
         fontWeight: '800',
-        color: '#0F172A', // Primary Navy
+        color: '#0F172A',
         letterSpacing: -0.5,
     },
     logoutIcon: {
@@ -248,6 +299,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#64748B',
         fontWeight: '500',
+        marginBottom: 4,
+    },
+    cardMeta: {
+        fontSize: 12,
+        color: '#94A3B8',
+        fontWeight: '500',
     },
     activeBadge: {
         backgroundColor: '#DCFCE7', // Light Green
@@ -270,26 +327,6 @@ const styles = StyleSheet.create({
         height: '100%',
         backgroundColor: '#22C55E', // Green Accent
         borderRadius: 3,
-    },
-    completedCard: {
-        backgroundColor: '#F8FAFC', // Slightly faded for completed
-        opacity: 0.8,
-    },
-    completedTitle: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#64748B',
-        textDecorationLine: 'line-through',
-    },
-    completedBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    completedBadgeText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#64748B',
     },
     emptyText: {
         color: '#94A3B8',

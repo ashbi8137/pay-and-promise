@@ -55,20 +55,24 @@ export default function AuthScreen() {
     }
 
     if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        email: data.user.email,
-        full_name: fullName,
-      });
-
-      if (profileError) {
-        // Log error but don't stop the user, profile fits can be retried or ignored non-critically
-        console.log('Profile creation error:', profileError);
-      }
+      // Profile is now created by Database Trigger. No manual insert needed.
+      console.log('User created:', data.user.id);
     }
 
     setLoading(false);
-    Alert.alert('Success', 'Account created. Please check your email for the confirmation link!');
+    Alert.alert(
+      'Success',
+      'Account created successfully! Please sign in.',
+      [
+        {
+          text: 'OK',
+          onPress: () => {
+            setIsSignUp(false); // Switch to Sign In mode
+            setPassword(''); // Optional: clear password for security
+          }
+        }
+      ]
+    );
   };
 
   return (

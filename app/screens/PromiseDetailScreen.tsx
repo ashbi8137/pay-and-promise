@@ -114,7 +114,7 @@ export default function PromiseDetailScreen() {
 
                             if (checkinError) {
                                 if (checkinError.code === '23505') { // Unique violation
-                                    Alert.alert('Already Updated', 'You checked in today.');
+                                    Alert.alert('Already Updated', 'You have already checked in for this promise today.');
                                 } else {
                                     throw checkinError;
                                 }

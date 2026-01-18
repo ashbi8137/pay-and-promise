@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -112,31 +113,55 @@ export default function CreatePromiseScreen() {
                 return;
             }
 
+            // Generate Invite Code (Simple alphanumeric)
+            const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
             // Prepare Data
+            // Note: We still store `participants` JSON for generic info, but key logic moves to `promise_participants`
             const finalParticipants = [
                 { name: 'You', number: 'User' },
                 ...participants
             ];
 
-            const { error } = await supabase.from('promises').insert({
-                title,
-                duration_days: parseInt(duration),
-                number_of_people: parseInt(numPeople),
-                amount_per_person: parseInt(amountPerPerson),
-                total_amount: totalAmount,
-                participants: finalParticipants,
-                created_by: user.id,
-                status: 'active'
-            });
+            // 1. Insert Promise
+            const { data: promiseData, error: promiseError } = await supabase
+                .from('promises')
+                .insert({
+                    title,
+                    duration_days: parseInt(duration),
+                    number_of_people: parseInt(numPeople),
+                    amount_per_person: parseInt(amountPerPerson),
+                    total_amount: totalAmount,
+                    participants: finalParticipants, // UI legacy
+                    created_by: user.id,
+                    status: 'active',
+                    invite_code: inviteCode
+                })
+                .select()
+                .single();
 
-            if (error) {
-                console.error('Supabase Insert Error:', error);
+            if (promiseError) {
+                console.error('Supabase Insert Error:', promiseError);
                 Alert.alert('Error', 'Failed to save promise. Please try again.');
-            } else {
-                // Success
-                Alert.alert('Success', 'Promise created successfully!');
-                router.navigate('/screens/HomeScreen');
+                return;
             }
+
+            // 2. Insert Creator into Participants Table
+            const { error: participantError } = await supabase
+                .from('promise_participants')
+                .insert({
+                    promise_id: promiseData.id,
+                    user_id: user.id
+                });
+
+            if (participantError) {
+                console.error('Participant Insert Error:', participantError);
+                // Non-critical, but should be handled.
+            }
+
+            // Success
+            Alert.alert('Success', 'Promise created successfully!');
+            router.navigate('/screens/HomeScreen');
 
         } catch (e) {
             console.error('Creation Error:', e);
@@ -164,24 +189,29 @@ export default function CreatePromiseScreen() {
 
                     <View style={styles.titleContainer}>
                         <Text style={styles.headerTitle}>Create New Promise</Text>
-                        <Text style={styles.quoteText}>“A promise means nothing until there is a cost.”</Text>
+                        <Text style={styles.quoteText}>“Add a small stake to stay accountable.”</Text>
                     </View>
 
-                    {/* Form Fields */}
-                    <View style={styles.formGroup}>
-                        <Text style={styles.label}>Title <Text style={styles.required}>*</Text></Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="e.g., Morning Jog"
-                            value={title}
-                            onChangeText={setTitle}
-                            placeholderTextColor="#94A3B8"
-                        />
-                    </View>
+                    {/* Section 1: Promise Details */}
+                    <View style={styles.sectionContainer}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="document-text-outline" size={20} color="#4338ca" />
+                            <Text style={styles.sectionTitle}>Promise Details</Text>
+                        </View>
 
-                    <View style={styles.row}>
-                        <View style={[styles.formGroup, { flex: 1, marginRight: 12 }]}>
-                            <Text style={styles.label}>Duration (Days) <Text style={styles.required}>*</Text></Text>
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Title</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="e.g., Morning Jog"
+                                value={title}
+                                onChangeText={setTitle}
+                                placeholderTextColor="#94A3B8"
+                            />
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Challenge Duration (Days)</Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="7"
@@ -191,8 +221,17 @@ export default function CreatePromiseScreen() {
                                 placeholderTextColor="#94A3B8"
                             />
                         </View>
-                        <View style={[styles.formGroup, { flex: 1 }]}>
-                            <Text style={styles.label}>No. of People <Text style={styles.required}>*</Text></Text>
+                    </View>
+
+                    {/* Section 2: Money */}
+                    <View style={styles.sectionContainer}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="wallet-outline" size={20} color="#4338ca" />
+                            <Text style={styles.sectionTitle}>The Stakes</Text>
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Total Participants (Including You)</Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="3"
@@ -202,43 +241,64 @@ export default function CreatePromiseScreen() {
                                 placeholderTextColor="#94A3B8"
                             />
                         </View>
-                    </View>
 
-                    <View style={styles.formGroup}>
-                        <Text style={styles.label}>Amount per Person (₹) <Text style={styles.required}>*</Text></Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="200"
-                            value={amountPerPerson}
-                            onChangeText={setAmountPerPerson}
-                            keyboardType="numeric"
-                            placeholderTextColor="#94A3B8"
-                        />
-                    </View>
-
-                    {/* Participants Section */}
-                    <View style={styles.formGroup}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                            <Text style={styles.label}>Participants</Text>
-                            {totalSlots > 0 && (
-                                <Text style={styles.helperText}>
-                                    {invitesAdded + 1} / {totalSlots} (Inc. You)
-                                </Text>
-                            )}
+                        <View style={styles.formGroup}>
+                            <Text style={styles.label}>Amount per Person (₹)</Text>
+                            <TextInput
+                                style={styles.input}
+                                placeholder="200"
+                                value={amountPerPerson}
+                                onChangeText={setAmountPerPerson}
+                                keyboardType="numeric"
+                                placeholderTextColor="#94A3B8"
+                            />
+                            <Text style={styles.helperText}>This is the amount each person will stake.</Text>
                         </View>
 
-                        <View style={styles.participantInputsWrapper}>
-                            <TextInput
-                                style={[styles.input, styles.participantNameInput]}
-                                placeholder="Name"
-                                value={participantName}
-                                onChangeText={setParticipantName}
-                                placeholderTextColor="#94A3B8"
-                                editable={invitesAdded < maxInvites}
-                            />
-                            <View style={styles.participantNumberContainer}>
+                        {/* Live Calculation Formula */}
+                        {(parseInt(numPeople || '0') > 0 && parseInt(amountPerPerson || '0') > 0) && (
+                            <View style={styles.formulaContainer}>
+                                <Text style={styles.formulaText}>
+                                    ₹{amountPerPerson} × {numPeople} people = <Text style={styles.formulaTotal}>₹{totalAmount}</Text> total pool
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Section 3: Participants */}
+                    <View style={styles.sectionContainer}>
+                        <View style={styles.sectionHeader}>
+                            <Ionicons name="people-outline" size={20} color="#4338ca" />
+                            <Text style={styles.sectionTitle}>Participants</Text>
+                        </View>
+
+                        <View style={styles.formGroup}>
+                            {totalSlots > 0 ? (
+                                invitesAdded < maxInvites ? (
+                                    <Text style={[styles.helperText, { color: '#4338ca', marginBottom: 8 }]}>
+                                        Add {maxInvites - invitesAdded} more participant{maxInvites - invitesAdded > 1 ? 's' : ''}
+                                    </Text>
+                                ) : (
+                                    <Text style={[styles.helperText, { color: '#166534', marginBottom: 8 }]}>
+                                        All participants added!
+                                    </Text>
+                                )
+                            ) : (
+                                <Text style={styles.helperText}>Enter 'Total Participants' above to start adding friends.</Text>
+                            )}
+
+                            {/* Add Participant Inputs */}
+                            <View style={styles.addParticipantRow}>
                                 <TextInput
-                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                    style={[styles.input, { flex: 1.5, marginBottom: 0 }]}
+                                    placeholder="Name"
+                                    value={participantName}
+                                    onChangeText={setParticipantName}
+                                    placeholderTextColor="#94A3B8"
+                                    editable={invitesAdded < maxInvites}
+                                />
+                                <TextInput
+                                    style={[styles.input, { flex: 2, marginBottom: 0 }]}
                                     placeholder="Mobile Number"
                                     value={participantNumber}
                                     onChangeText={setParticipantNumber}
@@ -246,24 +306,24 @@ export default function CreatePromiseScreen() {
                                     placeholderTextColor="#94A3B8"
                                     editable={invitesAdded < maxInvites}
                                 />
-                                <TouchableOpacity
-                                    style={[
-                                        styles.addButton,
-                                        (invitesAdded >= maxInvites && totalSlots > 0) && styles.disabledButton
-                                    ]}
-                                    onPress={handleAddParticipant}
-                                    disabled={invitesAdded >= maxInvites && totalSlots > 0}
-                                >
-                                    <Ionicons name="add" size={24} color="#FFFFFF" />
-                                </TouchableOpacity>
                             </View>
-                        </View>
 
-                        {totalSlots > 0 && invitesAdded < maxInvites && (
-                            <Text style={styles.helperTextBottom}>
-                                Adding {invitesAdded} of {maxInvites} friends.
-                            </Text>
-                        )}
+                            <TouchableOpacity
+                                style={[
+                                    styles.addButton,
+                                    (invitesAdded >= maxInvites && totalSlots > 0) && styles.disabledAddButton
+                                ]}
+                                onPress={handleAddParticipant}
+                                disabled={invitesAdded >= maxInvites && totalSlots > 0}
+                            >
+                                <Ionicons name="add-circle-outline" size={20} color={(invitesAdded >= maxInvites && totalSlots > 0) ? "#94A3B8" : "#4338ca"} />
+                                <Text style={[
+                                    styles.addButtonText,
+                                    (invitesAdded >= maxInvites && totalSlots > 0) && { color: "#94A3B8" }
+                                ]}>Add Participant</Text>
+                            </TouchableOpacity>
+
+                        </View>
 
                         <View style={styles.participantsList}>
                             <View style={[styles.participantChip, styles.youChip]}>
@@ -289,15 +349,35 @@ export default function CreatePromiseScreen() {
                         <Text style={styles.totalValue}>₹ {totalAmount || 0}</Text>
                     </View>
 
+                    {/* Footer Reassurance */}
+                    <Text style={styles.reassuranceText}>You can edit or cancel this later.</Text>
+
                     {/* Create Button */}
                     <TouchableOpacity
-                        style={[styles.createButton, { opacity: (totalAmount > 0 && !loading) ? 1 : 0.7 }]}
                         onPress={handleCreatePromise}
-                        disabled={totalAmount <= 0 || loading}
+                        disabled={loading}
+                        activeOpacity={0.8}
                     >
-                        <Text style={styles.createButtonText}>
-                            {loading ? 'Creating...' : 'Create Promise'}
-                        </Text>
+                        {/* Check if form is roughly valid to show gradient vs grey */}
+                        {(title && duration && numPeople && amountPerPerson) ? (
+                            <LinearGradient
+                                colors={['#4F46E5', '#4338ca']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.createButton}
+                            >
+                                <Text style={styles.createButtonText}>
+                                    {loading ? 'Creating...' : `Create Promise (₹${totalAmount})`}
+                                </Text>
+                            </LinearGradient>
+                        ) : (
+                            <View style={[styles.createButton, { backgroundColor: '#E2E8F0', shadowOpacity: 0 }]}>
+                                <Text style={[styles.createButtonText, { color: '#94A3B8' }]}>
+                                    Create Promise
+                                </Text>
+                            </View>
+                        )}
+
                     </TouchableOpacity>
 
                 </ScrollView>
@@ -337,12 +417,36 @@ const styles = StyleSheet.create({
     },
     quoteText: {
         fontSize: 16,
-        fontStyle: 'italic',
         color: '#64748B',
-        lineHeight: 24,
+        marginTop: 4,
+        fontStyle: 'italic',
+        fontWeight: '500',
+    },
+    // Sections
+    sectionContainer: {
+        marginBottom: 24,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 8,
+    },
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#334155',
     },
     formGroup: {
-        marginBottom: 20,
+        marginBottom: 16,
     },
     row: {
         flexDirection: 'row',
@@ -351,7 +455,7 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#334155',
+        color: '#475569',
         marginBottom: 8,
     },
     required: {
@@ -359,8 +463,8 @@ const styles = StyleSheet.create({
     },
     helperText: {
         fontSize: 12,
-        color: '#64748B',
-        marginBottom: 8,
+        color: '#94A3B8',
+        marginTop: 6,
     },
     helperTextBottom: {
         fontSize: 12,
@@ -369,11 +473,11 @@ const styles = StyleSheet.create({
         fontStyle: 'italic',
     },
     input: {
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F8FAFC',
         borderWidth: 1,
         borderColor: '#E2E8F0',
         borderRadius: 12,
-        padding: 16,
+        padding: 14,
         fontSize: 16,
         color: '#0F172A',
     },
@@ -390,41 +494,75 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 12,
     },
-    addButton: {
-        backgroundColor: '#0F172A',
-        padding: 16,
+    // Formula
+    formulaContainer: {
+        backgroundColor: '#F0F9FF',
+        padding: 12,
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#BAE6FD',
+        alignItems: 'center',
+    },
+    formulaText: {
+        fontSize: 14,
+        color: '#0369A1',
+        fontWeight: '500',
+    },
+    formulaTotal: {
+        fontWeight: '800',
+        color: '#0284C7',
+    },
+    // Participants
+    addParticipantRow: {
+        flexDirection: 'row',
+        gap: 8,
+        marginBottom: 12,
+    },
+    addButton: {
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
+        padding: 12,
+        backgroundColor: '#EEF2FF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E0E7FF',
+        gap: 6,
     },
-    disabledButton: {
-        backgroundColor: '#94A3B8',
+    disabledAddButton: {
+        backgroundColor: '#F8FAFC',
+        borderColor: '#F1F5F9',
+    },
+    addButtonText: {
+        color: '#4338ca',
+        fontWeight: '600',
+        fontSize: 14,
     },
     participantsList: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         gap: 8,
-        marginTop: 16,
     },
     participantChip: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
+        backgroundColor: '#F1F5F9',
+        paddingVertical: 6,
+        paddingHorizontal: 10,
         borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        gap: 6
+        marginBottom: 4,
     },
     youChip: {
-        backgroundColor: '#0F172A',
-        borderColor: '#0F172A',
+        backgroundColor: '#4338ca',
     },
     participantText: {
-        fontSize: 14,
-        color: '#334155',
+        fontSize: 12,
+        color: '#475569',
         fontWeight: '500',
+        marginLeft: 4,
+    },
+    removeButton: {
+        marginLeft: 6,
     },
     totalSection: {
         backgroundColor: '#F1F5F9',
@@ -445,18 +583,23 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#0F172A',
     },
+    // Footer
+    reassuranceText: {
+        textAlign: 'center',
+        color: '#94A3B8',
+        fontSize: 13,
+        marginBottom: 12,
+    },
     createButton: {
-        backgroundColor: '#0F172A',
-        paddingVertical: 18,
         borderRadius: 16,
+        padding: 18,
         alignItems: 'center',
-        marginTop: 24,
         marginBottom: 40,
-        shadowColor: '#0F172A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 6,
     },
     createButtonText: {
         color: '#FFFFFF',

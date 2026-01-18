@@ -3,7 +3,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useCallback, useState } from 'react';
 import {
-    Alert,
     RefreshControl,
     SafeAreaView,
     ScrollView,
@@ -56,13 +55,35 @@ export default function HomeScreen() {
                     setFirstName(user.email.split('@')[0]);
                 }
 
-                // 1. Fetch All Active Promises
-                const { data: promises, error: promiseError } = await supabase
-                    .from('promises')
-                    .select('*')
-                    .eq('created_by', user.id)
-                    .eq('status', 'active') // Only fetch active promises
-                    .order('created_at', { ascending: false });
+                // 1. Fetch Promsie IDs where user is a participant
+                const { data: myParticipations, error: partError } = await supabase
+                    .from('promise_participants')
+                    .select('promise_id')
+                    .eq('user_id', user.id);
+
+                if (partError) {
+                    console.error('Participant fetch error:', partError);
+                }
+
+                let promises: PromiseItem[] = [];
+
+                if (myParticipations && myParticipations.length > 0) {
+                    const promiseIds = myParticipations.map(p => p.promise_id);
+
+                    // 2. Fetch Promise Details for these IDs
+                    const { data: fetchedPromises, error: promiseError } = await supabase
+                        .from('promises')
+                        .select('*')
+                        .in('id', promiseIds)
+                        .eq('status', 'active') // Only fetch active promises
+                        .order('created_at', { ascending: false });
+
+                    if (promiseError) console.error('Promise details error:', promiseError);
+
+                    if (fetchedPromises) {
+                        promises = fetchedPromises;
+                    }
+                }
 
                 // 2. Fetch Today's Checkins
                 const today = new Date().toISOString().split('T')[0];
@@ -72,7 +93,8 @@ export default function HomeScreen() {
                     .eq('user_id', user.id)
                     .eq('date', today);
 
-                if (promiseError) console.error('Promise fetch error:', promiseError);
+                // Removed duplicate error check
+
                 if (checkinError) console.error('Checkin fetch error:', checkinError);
 
                 if (promises) {
@@ -130,14 +152,7 @@ export default function HomeScreen() {
         });
     };
 
-    const handleLogout = async () => {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-            Alert.alert('Error', error.message);
-        } else {
-            router.replace('/screens/AuthScreen');
-        }
-    };
+
 
     const renderCard = (item: PromiseItem, isHistory: boolean) => {
         const currentDay = 1;
@@ -204,50 +219,102 @@ export default function HomeScreen() {
                 {/* Header Section */}
                 <View style={styles.header}>
                     <View>
-                        <Text style={styles.greetingText}>Good Morning 👋</Text>
-                        <Text style={styles.nameText}>{firstName}</Text>
+                        <Text style={styles.greetingText}>Good Morning, {firstName} 👋</Text>
+                        <Text style={styles.subGreetingText}>
+                            {activePromises.length > 0
+                                ? `You have ${activePromises.length} active promise${activePromises.length > 1 ? 's' : ''} today.`
+                                : "You have 0 active promises today. Let's create one!"}
+                        </Text>
                     </View>
-                    <TouchableOpacity onPress={handleLogout} style={styles.logoutIcon}>
-                        <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+                    <TouchableOpacity
+                        style={styles.iconButton}
+                        onPress={() => router.push('/screens/ProfileScreen')}
+                    >
+                        <Ionicons name="person-circle-outline" size={28} color="#334155" />
                     </TouchableOpacity>
                 </View>
 
-                {/* Primary CTA */}
-                <TouchableOpacity onPress={handleCreatePromise} activeOpacity={0.8}>
-                    <LinearGradient
-                        colors={['#0F172A', '#4338ca']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.ctaButton}
+                {/* Dashboard Stats (New) */}
+                <View style={styles.statsContainer}>
+                    <View style={styles.statCard}>
+                        <View style={[styles.iconCircle, { backgroundColor: '#E0E7FF' }]}>
+                            <Ionicons name="flame" size={20} color="#4338ca" />
+                        </View>
+                        <View>
+                            <Text style={styles.statLabel}>Active Goals</Text>
+                            <Text style={styles.statValue}>{activePromises.length}</Text>
+                        </View>
+                    </View>
+                    <View style={styles.statCard}>
+                        <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
+                            <Ionicons name="checkmark-circle" size={20} color="#166534" />
+                        </View>
+                        <View>
+                            <Text style={styles.statLabel}>Done Today</Text>
+                            <Text style={styles.statValue}>{completedPromises.length}</Text>
+                        </View>
+                    </View>
+                </View>
+
+                {/* Action Buttons */}
+                <View style={styles.actionContainer}>
+                    <TouchableOpacity onPress={handleCreatePromise} activeOpacity={0.8} style={styles.primaryButtonWrapper}>
+                        <LinearGradient
+                            colors={['#4F46E5', '#4338ca']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.primaryButton}
+                        >
+                            <Ionicons name="add-circle" size={24} color="#FFFFFF" style={{ marginRight: 8 }} />
+                            <Text style={styles.primaryButtonText}>Create a Promise</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        onPress={() => router.push('/screens/JoinPromiseScreen')}
+                        activeOpacity={0.7}
+                        style={styles.secondaryButtonWrapper}
                     >
-                        <Ionicons name="add" size={24} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.ctaText}>Create New Promise</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
+                        <View style={styles.secondaryButton}>
+                            <Ionicons name="enter-outline" size={20} color="#4338ca" style={{ marginRight: 6 }} />
+                            <Text style={styles.secondaryButtonText}>Join a Promise</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Trust Indicator */}
+                <View style={styles.trustContainer}>
+                    <Ionicons name="shield-checkmark-outline" size={14} color="#64748B" />
+                    <Text style={styles.trustText}>Your promises are safe & tracked</Text>
+                </View>
 
                 {/* Active Section */}
-                <View style={styles.section}>
+                <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Active Promises</Text>
-                    {activePromises.length > 0 ? (
-                        activePromises.map(item => renderCard(item, false))
-                    ) : (
-                        <Text style={styles.emptyText}>
-                            {loading ? 'Loading...' : 'No active promises found.'}
-                        </Text>
-                    )}
                 </View>
 
-                {/* Completed Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Completed Today</Text>
-                    {completedPromises.length > 0 ? (
-                        completedPromises.map(item => renderCard(item, true))
-                    ) : (
-                        <Text style={styles.emptyText}>
-                            {loading ? 'Loading...' : 'No promises completed yet today.'}
-                        </Text>
-                    )}
-                </View>
+                {activePromises.length > 0 ? (
+                    activePromises.map(item => renderCard(item, false))
+                ) : (
+                    <View style={styles.emptyStateContainer}>
+                        <View style={styles.emptyIconCircle}>
+                            <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
+                        </View>
+                        <Text style={styles.emptyStateTitle}>You're free right now</Text>
+                        <Text style={styles.emptyStateText}>Start a new promise and stay accountable.</Text>
+
+                    </View>
+                )}
+
+                {/* Completed Section using new "History" style */}
+                {completedPromises.length > 0 && (
+                    <View style={{ marginTop: 24 }}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Today's Progress</Text>
+                        </View>
+                        {completedPromises.map(item => renderCard(item, true))}
+                    </View>
+                )}
 
             </ScrollView>
         </SafeAreaView>
@@ -282,24 +349,28 @@ const styles = StyleSheet.create({
         color: '#0F172A',
         letterSpacing: -0.5,
     },
-    logoutIcon: {
+    iconButton: {
         padding: 8,
-        backgroundColor: '#FEF2F2',
+        backgroundColor: '#FFFFFF',
         borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     ctaButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 18,
+        padding: 16,
         borderRadius: 16,
-        marginBottom: 40,
         shadowColor: '#4338ca',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
+
+
+
     ctaText: {
         color: '#FFFFFF',
         fontSize: 18,
@@ -410,5 +481,168 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         fontSize: 12,
         fontWeight: '700',
+    },
+    trustIndicator: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 16,
+        marginBottom: 8,
+        gap: 6,
+        backgroundColor: '#F1F5F9', // Subtle background
+        alignSelf: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+
+    // New Styles for Overhaul
+    subGreetingText: {
+        fontSize: 14,
+        color: '#64748B',
+        marginTop: 4,
+    },
+    // Dashboard Stats
+    statsContainer: {
+        flexDirection: 'row',
+        gap: 16,
+        marginBottom: 24,
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    iconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    statLabel: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    statValue: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#0F172A',
+    },
+    // Buttons Hierarchy
+    actionContainer: {
+        gap: 12,
+        marginBottom: 8,
+    },
+    primaryButtonWrapper: {
+        width: '100%',
+    },
+    primaryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 18,
+        borderRadius: 20,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.25,
+        shadowRadius: 16,
+        elevation: 6,
+    },
+    primaryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 18,
+        fontWeight: '700',
+    },
+    secondaryButtonWrapper: {
+        width: '100%',
+    },
+    secondaryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderRadius: 20,
+        backgroundColor: '#F8FAFC',
+        borderWidth: 1.5,
+        borderColor: '#E2E8F0',
+    },
+    secondaryButtonText: {
+        color: '#4338ca',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    // Refined Trust Indicator
+    trustContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 12,
+        marginBottom: 32,
+        gap: 6,
+    },
+    trustText: {
+        fontSize: 13,
+        color: '#64748B',
+        fontWeight: '500',
+    },
+    // Section Headers
+    sectionHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    // Empty States
+    emptyStateContainer: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: 32,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderStyle: 'dashed',
+        borderColor: '#CBD5E1',
+    },
+    emptyIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    emptyStateTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#334155',
+        marginBottom: 8,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        color: '#64748B',
+        textAlign: 'center',
+        marginBottom: 16,
+    },
+    miniCreateButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 16,
+        backgroundColor: '#EFF6FF',
+        borderRadius: 20,
+    },
+    miniCreateText: {
+        color: '#4338ca',
+        fontWeight: '700',
+        fontSize: 13,
     },
 });

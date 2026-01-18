@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -38,11 +37,12 @@ export default function ProfileScreen() {
             const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
             setProfile({ name, email: user.email || '' });
 
-            // 2. Fetch Ledger for Financials
+            // 2. Fetch Ledger for Financials AND History
             const { data: ledger, error } = await supabase
                 .from('ledger')
-                .select('amount, type')
-                .eq('user_id', user.id);
+                .select('amount, type, description, created_at')
+                .eq('user_id', user.id)
+                .order('created_at', { ascending: false });
 
             if (error) throw error;
 
@@ -53,35 +53,19 @@ export default function ProfileScreen() {
                 ledger.forEach(item => {
                     const val = Number(item.amount);
                     if (item.type === 'winnings') totalWinnings += val;
-                    if (item.type === 'penalty') totalPenalties += val; // Stored as negative usually, but check schema logic. 
-                    // In previous logic: penalty was stored as negative. winnings as positive.
-                    // Let's assume we want to display absolute values for the "Total" cards.
+                    if (item.type === 'penalty') totalPenalties += val;
                 });
 
-                // Adjust based on how we stored it. 
-                // If penalty is stored as -50, math.abs it for display
                 const absPenalties = Math.abs(totalPenalties);
 
                 setFinancials({
                     winnings: totalWinnings,
                     penalties: absPenalties,
-                    net: totalWinnings - absPenalties // Net P&L
+                    net: totalWinnings - absPenalties
                 });
 
-                // 3. Find latest context (from ledger description)
-                // Since we already fetched 'ledger' but without sorting in the first query (default order unknown),
-                // we should probably fetch the single latest entry separately or sort the array if small.
-                // Better: Fetch specifically for context.
-                const { data: latestEntry } = await supabase
-                    .from('ledger')
-                    .select('description, type, created_at')
-                    .eq('user_id', user.id)
-                    .order('created_at', { ascending: false })
-                    .limit(1)
-                    .single();
-
-                if (latestEntry && latestEntry.description) {
-                    setLatestContext({ desc: latestEntry.description, type: latestEntry.type });
+                if (ledger.length > 0) {
+                    setLatestContext({ desc: ledger[0].description, type: ledger[0].type });
                 }
             }
 
@@ -132,24 +116,17 @@ export default function ProfileScreen() {
 
                 {/* Profile Header */}
                 <View style={styles.profileHeader}>
-                    <View>
-                        <View style={styles.avatarContainer}>
-                            <Text style={styles.avatarText}>{profile?.name.charAt(0).toUpperCase()}</Text>
-                        </View>
-                        <View style={styles.editBadge}>
-                            <Ionicons name="camera" size={12} color="#FFFFFF" />
-                        </View>
-                    </View>
-                    <Text style={styles.profileName}>{profile?.name}</Text>
-                    <Text style={styles.profileEmail}>{profile?.email}</Text>
-
-                    <View style={styles.userBadge}>
-                        <Text style={styles.userBadgeText}>New Member</Text>
+                    <View style={styles.avatarContainer}>
+                        <Text style={styles.avatarText}>{profile?.name.charAt(0).toUpperCase()}</Text>
                     </View>
 
-                    <TouchableOpacity style={styles.editProfileLink}>
-                        <Text style={styles.editProfileText}>Edit Profile</Text>
-                    </TouchableOpacity>
+                    <View style={styles.profileInfo}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={styles.profileName}>{profile?.name}</Text>
+                            <Ionicons name="checkmark-circle" size={20} color="#4F46E5" />
+                        </View>
+                        <Text style={styles.profileEmail}>{profile?.email}</Text>
+                    </View>
                 </View>
 
                 {/* Financial Summary (Stock Style) */}
@@ -208,22 +185,23 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Actions */}
-                <TouchableOpacity style={styles.actionButton} activeOpacity={0.8}>
-                    <LinearGradient
-                        colors={['#4F46E5', '#4338ca']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.actionGradient}
-                    >
-                        <Ionicons name="people" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                        <Text style={styles.actionButtonText}>Invite Friends</Text>
-                    </LinearGradient>
-                </TouchableOpacity>
+
 
                 {/* Settings Section */}
                 <View style={styles.settingsSection}>
                     <Text style={styles.sectionTitle}>Account</Text>
+
+                    {/* NEW LINK TO HISTORY */}
+                    <TouchableOpacity
+                        style={styles.settingItem}
+                        onPress={() => router.push('/screens/TransactionHistoryScreen')}
+                    >
+                        <View style={styles.settingLeft}>
+                            <Ionicons name="time-outline" size={22} color="#475569" />
+                            <Text style={styles.settingText}>Transaction History</Text>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                    </TouchableOpacity>
 
                     <TouchableOpacity style={styles.settingItem}>
                         <View style={styles.settingLeft}>
@@ -233,30 +211,14 @@ export default function ProfileScreen() {
                         <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.settingItem}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="time-outline" size={22} color="#475569" />
-                            <Text style={styles.settingText}>Promise History</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                    </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.settingItem}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="shield-checkmark-outline" size={22} color="#475569" />
-                            <Text style={styles.settingText}>Verification</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                            <Text style={{ fontSize: 12, color: '#166534' }}>Verified</Text>
-                            <Ionicons name="checkmark-circle" size={16} color="#166534" />
-                        </View>
-                    </TouchableOpacity>
                 </View>
 
-                {/* Logout Button */}
+
+
                 {/* Logout Button */}
                 <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                    <Text style={styles.logoutText}>Sign Out</Text>
+                    <Text style={styles.logoutText}>Log Out</Text>
                 </TouchableOpacity>
 
                 {/* Trust Indicator */}
@@ -305,8 +267,10 @@ const styles = StyleSheet.create({
         color: '#0F172A',
     },
     profileHeader: {
+        flexDirection: 'row',
         alignItems: 'center',
         marginBottom: 32,
+        paddingHorizontal: 8,
     },
     avatarContainer: {
         width: 80,
@@ -315,7 +279,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#4338ca',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 16,
+        marginRight: 20,
         shadowColor: '#4338ca',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
@@ -323,9 +287,13 @@ const styles = StyleSheet.create({
         elevation: 6,
         position: 'relative',
     },
+    profileInfo: {
+        flex: 1,
+        justifyContent: 'center',
+    },
     editBadge: {
         position: 'absolute',
-        bottom: 12,
+        bottom: 0,
         right: 0,
         backgroundColor: '#0F172A',
         padding: 6,
@@ -334,7 +302,7 @@ const styles = StyleSheet.create({
         borderColor: '#FFFFFF',
     },
     editProfileLink: {
-        marginTop: 8,
+        marginTop: 6,
     },
     editProfileText: {
         fontSize: 14,
@@ -346,7 +314,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 4,
         borderRadius: 12,
-        marginTop: 8,
+        marginTop: 6,
+        alignSelf: 'flex-start',
     },
     userBadgeText: {
         color: '#4338ca',
@@ -548,5 +517,39 @@ const styles = StyleSheet.create({
         color: '#CBD5E1',
         fontSize: 12,
         marginBottom: 24,
-    }
+    },
+    // NEW HISTORY & MENU STYLES
+    section: {
+        marginBottom: 24,
+    },
+
+    // Preferences Menu Styles (to match added UI)
+    menuItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 12,
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    menuIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 12,
+        backgroundColor: '#F1F5F9',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 16,
+    },
+    menuText: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#0F172A',
+    },
 });

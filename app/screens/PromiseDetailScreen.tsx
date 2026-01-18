@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
     Alert,
+    Image,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -38,13 +40,127 @@ export default function PromiseDetailScreen() {
     const [updating, setUpdating] = React.useState(false);
     const [checkins, setCheckins] = React.useState<{ date: string, status: string }[]>([]);
     const [todayStatus, setTodayStatus] = React.useState<'done' | 'failed' | null>(null);
-    const [realParticipantCount, setRealParticipantCount] = React.useState(numPeople); // Default to created number
+    const [realParticipantCount, setRealParticipantCount] = React.useState(numPeople);
+
+    // NEW State for Peer Verification
+    const [submissions, setSubmissions] = React.useState<any[]>([]);
+    const [myVotes, setMyVotes] = React.useState<string[]>([]);
+    const [userId, setUserId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
+        // Fetch initial data
         fetchCheckins();
         fetchParticipantCount();
+        fetchDailyReview();
+
+        // Subscribe to Realtime Changes
+        const subChannel = supabase.channel('room_signatures')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'promise_submissions', filter: `promise_id=eq.${promiseData.id}` },
+                () => {
+                    console.log('Realtime update: promise_submissions');
+                    fetchDailyReview();
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'submission_verifications' },
+                () => {
+                    console.log('Realtime update: submission_verifications');
+                    fetchDailyReview();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(subChannel);
+        };
     }, []);
 
+    const [userNames, setUserNames] = React.useState<Record<string, string>>({});
+
+    const fetchDailyReview = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        // 1. Fetch Submissions for Today
+        const { data: subs, error } = await supabase
+            .from('promise_submissions')
+            .select('*')
+            .eq('promise_id', promiseData.id)
+            .eq('date', todayStr);
+
+        if (error) console.error("Error fetching submissions:", error);
+
+        if (subs) {
+            // Filter out auto-fail placeholders from the UI review list
+            // (Unless we want to show them as failed cards, which is better)
+            // But user asked to "fix automatic rejection placeholder", implying it looks bad.
+            // Let's filter placeholders out OR handle them as "Missed Day" cards.
+            // User request: "automatic rejection placeholder is also present. fix the isuue." -> Likely hide the image.
+
+            // Map names from the join logic? 
+            // supabase-js doesn't join auth.users easily unless we have a public profile table 
+            // OR we use the trick: select params if we have public wrapper.
+            // BUT: Standard way is to rely on 'promise_participants' having names or fetch them.
+            // Let's try to map from the 'participants' param we already have!
+
+            setSubmissions(subs);
+
+            // Fetch Names for these users
+            const userIds = subs.map(s => s.user_id);
+            if (userIds.length > 0) {
+                const { data: names } = await supabase
+                    .rpc('get_user_names', { user_ids: userIds });
+
+                if (names) {
+                    const nameMap: Record<string, string> = {};
+                    names.forEach((n: any) => {
+                        nameMap[n.user_id] = n.full_name;
+                    });
+                    setUserNames(nameMap);
+                }
+            }
+        }
+
+        // 2. Fetch My Votes on these submissions
+        if (subs && subs.length > 0) {
+            const subIds = subs.map(s => s.id);
+            const { data: votes } = await supabase
+                .from('submission_verifications')
+                .select('submission_id')
+                .in('submission_id', subIds)
+                .eq('verifier_user_id', user.id);
+
+            if (votes) setMyVotes(votes.map(v => v.submission_id));
+        }
+    };
+
+    const handleVote = async (submissionId: string, decision: 'confirm' | 'reject') => {
+        if (!userId) return;
+        setUpdating(true);
+        try {
+            const { error } = await supabase.from('submission_verifications').insert({
+                submission_id: submissionId,
+                verifier_user_id: userId,
+                decision: decision
+            });
+            if (error) throw error;
+
+            fetchDailyReview(); // Refresh UI
+        } catch (e) {
+            console.error(e);
+            Alert.alert("Error", "Could not record vote.");
+        } finally {
+            setUpdating(false);
+        }
+    };
+
+    // Existing functions...
     const fetchParticipantCount = async () => {
         const { count } = await supabase
             .from('promise_participants')
@@ -77,8 +193,104 @@ export default function PromiseDetailScreen() {
         }
     };
 
+    const handlePhotoCheckIn = async () => {
+        // 1. Request Permission
+        const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (permissionResult.granted === false) {
+            Alert.alert("Permission Refused", "You must allow camera access to prove your promise.");
+            return;
+        }
+
+        // 2. Launch Camera
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ["images"],
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.5, // Save bandwidth
+        });
+
+        if (!result.canceled) {
+            setUpdating(true); // Show loading
+
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                // 3. Upload Image
+                const photo = result.assets[0];
+                const ext = photo.uri.substring(photo.uri.lastIndexOf('.') + 1);
+                const fileName = `${user.id}/${new Date().getTime()}.${ext}`;
+                const formData = new FormData();
+
+                formData.append('file', {
+                    uri: photo.uri,
+                    name: fileName,
+                    type: photo.mimeType || `image/${ext}`
+                } as any);
+
+                const { data: uploadData, error: uploadError } = await supabase
+                    .storage
+                    .from('proofs')
+                    .upload(fileName, formData, {
+                        contentType: photo.mimeType || `image/${ext}`,
+                        upsert: false
+                    });
+
+                if (uploadError) {
+                    throw new Error('Upload failed: ' + uploadError.message);
+                }
+
+                // Get Public URL (if bucket is public) or simple path
+                const { data: { publicUrl } } = supabase
+                    .storage
+                    .from('proofs')
+                    .getPublicUrl(fileName);
+
+                // 4. Save Check-In (Pending Verification)
+                const dateStr = new Date().toISOString().split('T')[0];
+                const { error: checkinError } = await supabase
+                    .from('promise_submissions')
+                    .insert({
+                        promise_id: promiseData.id,
+                        user_id: user.id,
+                        date: dateStr,
+                        image_url: publicUrl,
+                        status: 'pending'
+                    });
+
+                if (checkinError) throw checkinError;
+
+                Alert.alert("Proof Submitted!", "Your Check-in is PENDING. Ask peers to verify it.");
+                fetchDailyReview(); // Refresh own list
+
+            } catch (e) {
+                Alert.alert("Error", "Failed to upload proof. Please try again.");
+                console.error(e);
+            } finally {
+                setUpdating(false);
+            }
+        }
+    };
+
     const handleCheckIn = async (status: 'done' | 'failed') => {
         if (updating) return;
+
+        // If 'Done', Require Photo (Branch Logic)
+        if (status === 'done') {
+            Alert.alert(
+                'Photo Proof Required',
+                'To mark this as done, you must take a live photo as proof.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Open Camera',
+                        onPress: handlePhotoCheckIn
+                    }
+                ]
+            );
+            return;
+        }
 
         const dateStr = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
@@ -87,20 +299,19 @@ export default function PromiseDetailScreen() {
         const dailyStake = amountPerPerson / duration;
 
         Alert.alert(
-            status === 'done' ? 'Mark as Done?' : 'Mark as Failed?',
-            status === 'done'
-                ? 'Great job! You kept your stake.'
-                : `You missed it. You will lose ₹${dailyStake.toFixed(0)} to the pool.`,
+            'Mark as Failed?',
+            `You missed it. You will lose ₹${dailyStake.toFixed(0)} to the pool.`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: 'Confirm',
-                    style: status === 'failed' ? 'destructive' : 'default',
+                    text: 'Confirm Failure',
+                    style: 'destructive',
                     onPress: async () => {
                         setUpdating(true);
                         try {
                             const { data: { user } } = await supabase.auth.getUser();
-                            if (!user) return;
+                            if (!user) return; // user is guaranteed if we are here
+
 
                             // 1. Record Check-in
                             const { error: checkinError } = await supabase
@@ -119,9 +330,18 @@ export default function PromiseDetailScreen() {
                                     throw checkinError;
                                 }
                             } else {
-                                // 2. If Failed -> Handle Penalty & Redistribution (Survivor Mode)
+                                // 2. If Failed -> Handle Penalty
                                 if (status === 'failed') {
-                                    // A. Record Penalty for ME
+                                    // A. Insert REJECTED submission (Strict Logic)
+                                    await supabase.from('promise_submissions').insert({
+                                        promise_id: promiseData.id,
+                                        user_id: user.id,
+                                        date: dateStr,
+                                        image_url: 'manual_fail',
+                                        status: 'rejected'
+                                    });
+
+                                    // B. Record Penalty for ME
                                     const myName = user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || "Someone";
 
                                     await supabase.from('ledger').insert({
@@ -132,32 +352,15 @@ export default function PromiseDetailScreen() {
                                         description: `You missed a day in ${promiseData.title}`
                                     });
 
-                                    // B. Calculate Redistribution
-                                    // Get other ACTIVE participants (who haven't failed *today*? Or just all others?)
-                                    // MVP: Split among all other participants currently in the promise.
-
-                                    const { data: others } = await supabase
-                                        .from('promise_participants')
-                                        .select('user_id')
-                                        .eq('promise_id', promiseData.id)
-                                        .neq('user_id', user.id);
-
-                                    if (others && others.length > 0) {
-                                        const share = dailyStake / others.length;
-                                        const winningsInserts = others.map(p => ({
-                                            promise_id: promiseData.id,
-                                            user_id: p.user_id,
-                                            amount: share,
-                                            type: 'winnings',
-                                            description: `${myName} missed a day in ${promiseData.title}`
-                                        }));
-
-                                        await supabase.from('ledger').insert(winningsInserts);
-                                    }
+                                    // Redistribution is now handled by the Backend 'check_and_settle_day' logic
+                                    // potentially triggered by other votes or a cron.
+                                    // ideally we call the RPC here to try settling if everyone else is done.
+                                    await supabase.rpc('check_and_settle_day', { p_promise_id: promiseData.id, p_date: dateStr });
                                 }
 
                                 setTodayStatus(status);
                                 fetchCheckins();
+                                fetchDailyReview();
                                 // Optionally show success feedback
                             }
                         } catch (e) {
@@ -183,15 +386,13 @@ export default function PromiseDetailScreen() {
             const dateStr = d.toISOString().split('T')[0];
 
             // Find status
-            // Note: DB dates are YYYY-MM-DD. 
-            // In a real app we might need timezone awareness, assuming UTC for now or local string match
             const checkin = checkins.find(c => c.date === dateStr);
 
             days.push({
                 date: dateStr,
                 dayLabel: d.toLocaleDateString('en-US', { weekday: 'narrow' }), // M, T, W
                 status: checkin ? checkin.status : 'pending',
-                isFuture: false // simplified, we are iterating backwards from today
+                isFuture: false
             });
         }
 
@@ -214,6 +415,90 @@ export default function PromiseDetailScreen() {
                     </View>
                     <Text style={styles.analyticsFooter}>Last 7 Days</Text>
                 </View>
+            </View>
+        );
+    };
+
+    const renderDailyReview = () => {
+        // Find my submission
+        const mySub = submissions.find(s => s.user_id === userId);
+
+        return (
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Daily Review</Text>
+
+                {submissions.length === 0 && (
+                    <Text style={styles.emptyText}>No submissions yet today.</Text>
+                )}
+
+                {submissions.map((sub) => {
+                    const isMe = sub.user_id === userId;
+                    const isVoted = myVotes.includes(sub.id);
+                    // Match user_id to participant name from params if available
+                    // participants -> [{name, number?}, ...] - Wait, we don't have user_id in params participants easily?
+                    // Actually, promises table stores participants as JSONB. 
+                    // Let's try to use the `users` select above if it worked, otherwise fallback.
+                    // Since joining auth.users is tricky,
+
+                    let name = isMe ? "You" : (userNames[sub.user_id] || `User ...${sub.user_id.slice(0, 4)}`);
+
+                    const isAutoFail = sub.image_url === 'auto_fail_placeholder' || sub.image_url === 'manual_fail';
+
+                    return (
+                        <View key={sub.id} style={styles.reviewCard}>
+                            <View style={styles.reviewHeader}>
+                                <Text style={styles.participantName}>{name}</Text>
+                                <View style={[styles.statusBadge,
+                                sub.status === 'verified' ? styles.badgeGreen :
+                                    sub.status === 'rejected' ? styles.badgeRed : styles.badgeYellow
+                                ]}>
+                                    <Text style={styles.statusText}>
+                                        {sub.status === 'rejected' ? 'FAILED' : sub.status.toUpperCase()}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {isAutoFail ? (
+                                <View style={styles.autoFailPlaceholder}>
+                                    <Ionicons name="alert-circle" size={40} color="#EF4444" />
+                                    <Text style={styles.autoFailText}>Missed Submission</Text>
+                                </View>
+                            ) : (
+                                <Image source={{ uri: sub.image_url }} style={styles.proofImage} />
+                            )}
+
+                            {!isMe && sub.status === 'pending' && !isVoted && !isAutoFail && (
+                                <View style={styles.voteButtons}>
+                                    <TouchableOpacity style={[styles.voteButton, styles.voteConfirm]}
+                                        onPress={() => handleVote(sub.id, 'confirm')}>
+                                        <Text style={styles.voteText}>Confirm</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity style={[styles.voteButton, styles.voteReject]}
+                                        onPress={() => handleVote(sub.id, 'reject')}>
+                                        <Text style={styles.voteText}>Reject</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            )}
+
+                            {!isMe && isVoted && (
+                                <Text style={styles.votedText}>You voted on this.</Text>
+                            )}
+                        </View>
+                    );
+                })}
+
+                {!mySub && todayStatus !== 'failed' && (
+                    <TouchableOpacity style={styles.cameraButton} onPress={handlePhotoCheckIn}>
+                        <Ionicons name="camera" size={24} color="#FFF" />
+                        <Text style={styles.cameraButtonText}>Submit Today's Proof</Text>
+                    </TouchableOpacity>
+                )}
+
+                {!mySub && todayStatus !== 'done' && (
+                    <TouchableOpacity onPress={() => handleCheckIn('failed')}>
+                        <Text style={styles.failLink}>I failed today (Instant Penalty)</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         );
     };
@@ -281,57 +566,7 @@ export default function PromiseDetailScreen() {
 
 
                 {/* Daily Check-in */}
-                <View style={styles.checkInSection}>
-                    <Text style={styles.checkInTitle}>Daily Check-in</Text>
-
-                    {todayStatus ? (
-                        <View style={[
-                            styles.statusCard,
-                            todayStatus === 'done' ? styles.statusCardSuccess : styles.statusCardFail
-                        ]}>
-                            <Ionicons
-                                name={todayStatus === 'done' ? "checkmark-circle" : "alert-circle"}
-                                size={32}
-                                color={todayStatus === 'done' ? "#166534" : "#991B1B"}
-                            />
-                            <View>
-                                <Text style={[
-                                    styles.statusTitle,
-                                    { color: todayStatus === 'done' ? "#166534" : "#991B1B" }
-                                ]}>
-                                    {todayStatus === 'done' ? "Completed" : "Failed"}
-                                </Text>
-                                <Text style={[
-                                    styles.statusSubtitle,
-                                    { color: todayStatus === 'done' ? "#15803d" : "#b91c1c" }
-                                ]}>
-                                    {todayStatus === 'done' ? "You kept your promise today!" : "Better luck tomorrow."}
-                                </Text>
-                            </View>
-                        </View>
-                    ) : (
-                        <>
-                            <Text style={styles.checkInSubtitle}>Have you stuck to your promise today?</Text>
-                            <View style={styles.checkInButtons}>
-                                <TouchableOpacity
-                                    style={[styles.checkInButton, styles.successButton]}
-                                    onPress={() => handleCheckIn('done')}
-                                >
-                                    <Ionicons name="checkmark-circle-outline" size={24} color="#FFFFFF" />
-                                    <Text style={styles.buttonText}>Mark as Done</Text>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity
-                                    style={[styles.checkInButton, styles.failButton]}
-                                    onPress={() => handleCheckIn('failed')}
-                                >
-                                    <Ionicons name="close-circle-outline" size={24} color="#FFFFFF" />
-                                    <Text style={styles.buttonText}>Mark as Failed</Text>
-                                </TouchableOpacity>
-                            </View>
-                        </>
-                    )}
-                </View>
+                {renderDailyReview()}
 
             </ScrollView>
         </SafeAreaView>
@@ -613,5 +848,86 @@ const styles = StyleSheet.create({
     statusSubtitle: {
         fontSize: 14,
         fontWeight: '500',
-    }
+    },
+    // NEW Peer Verification Styles
+    reviewCard: {
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 12,
+        shadowColor: '#000',
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 1,
+    },
+    reviewHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    participantName: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#334155',
+    },
+    statusBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 12,
+    },
+    badgeGreen: { backgroundColor: '#DCFCE7' },
+    badgeRed: { backgroundColor: '#FEE2E2' },
+    badgeYellow: { backgroundColor: '#FEF9C3' },
+    statusText: { fontSize: 10, fontWeight: '700', color: '#333' },
+    proofImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 8,
+        backgroundColor: '#F1F5F9',
+        marginBottom: 8,
+    },
+    voteButtons: {
+        flexDirection: 'row',
+        gap: 8,
+    },
+    voteButton: {
+        flex: 1,
+        padding: 10,
+        borderRadius: 8,
+        alignItems: 'center',
+    },
+    voteConfirm: { backgroundColor: '#16A34A' },
+    voteReject: { backgroundColor: '#DC2626' },
+    voteText: { color: '#FFF', fontWeight: '600', fontSize: 14 },
+    votedText: { color: '#64748B', fontSize: 12, fontStyle: 'italic', textAlign: 'center' },
+    emptyText: { textAlign: 'center', color: '#94A3B8', marginBottom: 20 },
+    cameraButton: {
+        backgroundColor: '#0F172A',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        borderRadius: 12,
+        gap: 8,
+    },
+    cameraButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
+    failLink: { textAlign: 'center', color: '#EF4444', marginTop: 16, textDecorationLine: 'underline' },
+    autoFailPlaceholder: {
+        height: 200,
+        backgroundColor: '#FEE2E2',
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: '#FCA5A5',
+        borderStyle: 'dashed',
+    },
+    autoFailText: {
+        fontSize: 16,
+        color: '#B91C1C',
+        fontWeight: '600',
+        marginTop: 8,
+    },
 });

@@ -89,33 +89,62 @@ export default function HomeScreen() {
                     }
                 }
 
-                // 2. Fetch Today's Checkins
+                // 2. Fetch Today's Submissions (My Upload Condition)
                 const today = new Date().toISOString().split('T')[0];
-                const { data: checkins, error: checkinError } = await supabase
-                    .from('daily_checkins')
+                const { data: mySubmissions, error: subError } = await supabase
+                    .from('promise_submissions')
                     .select('promise_id, status')
                     .eq('user_id', user.id)
                     .eq('date', today);
 
-                // Removed duplicate error check
+                if (subError) console.error('Submission fetch error:', subError);
 
-                if (checkinError) console.error('Checkin fetch error:', checkinError);
+                // 3. Fetch Today's Votes (My Voting Condition)
+                // We need to count how many times I have voted on distinct submissions for each promise today.
+                const { data: myVotes, error: voteError } = await supabase
+                    .from('submission_verifications')
+                    .select('submission_id, promise_submissions!inner(promise_id, date)')
+                    .eq('verifier_user_id', user.id)
+                    .eq('promise_submissions.date', today);
+
+                if (voteError) console.error('Vote fetch error:', voteError);
 
                 if (promises) {
-                    const todayCheckinMap = new Map();
-                    checkins?.forEach(c => todayCheckinMap.set(c.promise_id, c.status));
+                    // Map of PromiseID -> HasUploaded
+                    const uploadStatusMap = new Map();
+                    mySubmissions?.forEach(s => uploadStatusMap.set(s.promise_id, s.status || 'pending'));
+
+                    // Map of PromiseID -> VoteCount
+                    const voteCountMap = new Map<string, number>();
+                    myVotes?.forEach((v: any) => {
+                        const pid = v.promise_submissions.promise_id;
+                        voteCountMap.set(pid, (voteCountMap.get(pid) || 0) + 1);
+                    });
 
                     const pending = [];
                     const doneToday = [];
 
                     for (const p of promises) {
-                        if (todayCheckinMap.has(p.id)) {
-                            // It has been checked in today
-                            const status = todayCheckinMap.get(p.id);
-                            // Attach temporary status for display
-                            doneToday.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
+                        const hasUploaded = uploadStatusMap.has(p.id);
+                        const myStatus = uploadStatusMap.get(p.id); // 'verified', 'rejected', 'pending'
+
+                        // Condition 1: Must have uploaded (and not be rejected? No, even if rejected I might be "done" for the day, but user said "completed promise". Usually if I failed, it's done for me.)
+                        // Actually user said: "Move the promise card to Completed Promises"
+                        // If I uploaded and failed, is it completed? Yes, I can't do anything else.
+                        // But the prompt emphasizes "hasUploadedOwnImage" and "hasDecidedForAllOtherParticipants".
+
+                        const votesRequired = (p.number_of_people || 1) - 1;
+                        const votesCast = voteCountMap.get(p.id) || 0;
+                        const hasVotedAll = votesCast >= votesRequired;
+
+                        // STRICT COMPLETION LOGIC
+                        const isCompleted = hasUploaded && hasVotedAll;
+
+                        if (isCompleted) {
+                            // Completed for today
+                            doneToday.push({ ...p, status: myStatus === 'verified' ? 'completed' : myStatus === 'rejected' ? 'failed' : 'pending' });
                         } else {
-                            // Not checked in yet
+                            // Still active
                             pending.push(p);
                         }
                     }

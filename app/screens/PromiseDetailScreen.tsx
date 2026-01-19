@@ -1,14 +1,17 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
 import {
     Alert,
     Image,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
+    ToastAndroid,
     TouchableOpacity,
     View
 } from 'react-native';
@@ -61,6 +64,7 @@ export default function PromiseDetailScreen() {
                 () => {
                     console.log('Realtime update: promise_submissions');
                     fetchDailyReview();
+                    fetchCheckins();
                 }
             )
             .on(
@@ -69,6 +73,7 @@ export default function PromiseDetailScreen() {
                 () => {
                     console.log('Realtime update: submission_verifications');
                     fetchDailyReview();
+                    fetchCheckins();
                 }
             )
             .subscribe();
@@ -171,21 +176,42 @@ export default function PromiseDetailScreen() {
     };
 
     const fetchCheckins = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const currentUserId = user.id;
+
         try {
             const { data, error } = await supabase
-                .from('daily_checkins')
-                .select('date, status')
+                .from('promise_submissions')
+                .select('*')
                 .eq('promise_id', promiseData.id)
-                .order('date', { ascending: false });
+                .eq('user_id', currentUserId)
+                .order('date', { ascending: false }); // Added order for consistency
+
+            if (error) {
+                console.error('Error fetching submissions for checkins:', error);
+                return;
+            }
 
             if (data) {
-                setCheckins(data);
+                // Map submission status to UI status
+                // verified -> done
+                // rejected -> failed
+                // pending -> pending
+                const mapped = data.map(s => ({
+                    ...s,
+                    status: s.status === 'verified' ? 'done' :
+                        s.status === 'rejected' ? 'failed' : 'pending'
+                }));
+                setCheckins(mapped);
 
                 // Check if checked in today
                 const todayStr = new Date().toISOString().split('T')[0];
-                const todayEntry = data.find(c => c.date === todayStr);
+                const todayEntry = mapped.find(c => c.date === todayStr);
                 if (todayEntry) {
-                    setTodayStatus(todayEntry.status as 'done' | 'failed');
+                    setTodayStatus(todayEntry.status as 'done' | 'failed' | 'pending'); // 'pending' is also a valid status now
+                } else {
+                    setTodayStatus(null); // Reset if no entry for today
                 }
             }
         } catch (e) {
@@ -391,50 +417,131 @@ export default function PromiseDetailScreen() {
         }
     }, [promiseData.id]);
 
+
+
+    const handleCopyInviteCode = async () => {
+        if (invite_code) {
+            await Clipboard.setStringAsync(invite_code);
+            if (Platform.OS === 'android') {
+                ToastAndroid.show('Invite code copied!', ToastAndroid.SHORT);
+            } else {
+                Alert.alert('Copied', 'Invite code copied to clipboard!');
+            }
+        }
+    };
+
     const renderAnalytics = () => {
-        // Last N Days Logic
+        // Timeline Logic: Day 1 to Day N
         const days = [];
-        const today = new Date();
+        const startDate = new Date(promiseData.created_at);
         const totalDuration = duration || 7;
 
-        for (let i = totalDuration - 1; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(today.getDate() - i);
+        for (let i = 0; i < totalDuration; i++) {
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + i);
             const dateStr = d.toISOString().split('T')[0];
+
             const checkin = checkins.find(c => c.date === dateStr);
+
+            // Determine Status
+            // 1. If checkin exists -> use its status
+            // 2. If NO checkin:
+            //    - If date is in past (before today) -> 'failed' (Absent)
+            //    - If date is today or future -> 'pending'
+
+            let status = 'pending';
+            const todayStr = new Date().toISOString().split('T')[0];
+
+            if (checkin) {
+                status = checkin.status; // 'done', 'failed', 'pending'
+            } else {
+                if (dateStr < todayStr) {
+                    status = 'failed'; // Auto-fail logic for UI
+                }
+            }
+
             days.push({
+                dayNum: i + 1,
                 date: dateStr,
                 dayLabel: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-                status: checkin ? checkin.status : 'pending',
+                status: status,
             });
         }
 
         return (
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Progress (Last {totalDuration} Days)</Text>
+                <Text style={styles.sectionTitle}>Progress Tracker</Text>
                 <View style={styles.analyticsCard}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={styles.chartRow}>
-                            {days.map((day, index) => (
-                                <View key={index} style={styles.dayColumn}>
-                                    <View style={[
-                                        styles.chartBar,
-                                        day.status === 'done' && styles.barDone,
-                                        day.status === 'failed' && styles.barFailed,
-                                        day.status === 'pending' && styles.barPending
-                                    ]} />
-                                    <Text style={styles.dayLabel}>{day.dayLabel}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timelineContainer}>
+                        {days.map((day, index) => {
+                            const isLast = index === days.length - 1;
+                            return (
+                                <View key={index} style={styles.timelineItem}>
+                                    <View style={styles.timelineTopRow}>
+                                        {/* Status Dot */}
+                                        <View style={[
+                                            styles.statusDot,
+                                            day.status === 'done' && styles.dotDone,
+                                            day.status === 'failed' && styles.dotFailed,
+                                            day.status === 'pending' && styles.dotPending,
+                                            // Glow Effects
+                                            day.status === 'done' && styles.glowDone,
+                                            day.status === 'failed' && styles.glowFailed,
+                                        ]}>
+                                            {day.status === 'done' && <Ionicons name="checkmark" size={12} color="#FFF" />}
+                                            {day.status === 'failed' && <Ionicons name="close" size={12} color="#FFF" />}
+                                        </View>
+
+                                        {/* Connector Line */}
+                                        {!isLast && (
+                                            <View style={[
+                                                styles.connectorLine,
+                                                (day.status === 'done' || day.status === 'failed') && styles.connectorActive
+                                            ]} />
+                                        )}
+                                    </View>
+
+                                    <Text style={[
+                                        styles.dayNumText,
+                                        day.status !== 'pending' && styles.dayNumActive
+                                    ]}>
+                                        Day {day.dayNum}
+                                    </Text>
                                 </View>
-                            ))}
-                        </View>
+                            );
+                        })}
                     </ScrollView>
-                    <Text style={styles.analyticsFooter}>
-                        {checkins.filter(c => c.status === 'done').length} days completed out of {totalDuration}
-                    </Text>
+
+                    <View style={styles.progressSummary}>
+                        <Text style={styles.progressText}>
+                            {checkins.filter(c => c.status === 'done').length} <Text style={{ color: '#64748B' }}>Completed</Text>
+                        </Text>
+                        <View style={styles.verticalDivider} />
+                        <Text style={styles.progressText}>
+                            {checkins.filter(c => c.status === 'failed').length} <Text style={{ color: '#64748B' }}>Failed</Text>
+                        </Text>
+                    </View>
                 </View>
             </View>
         );
     };
+
+    // ... inside return ...
+    {/* Invite Code Card (Updated) */ }
+    {
+        invite_code && (
+            <TouchableOpacity style={styles.inviteCard} onPress={handleCopyInviteCode}>
+                <View>
+                    <Text style={styles.inviteLabel}>Invite Code</Text>
+                    <Text style={styles.inviteCode}>{invite_code}</Text>
+                </View>
+                <View style={styles.copyIconContainer}>
+                    <Ionicons name="copy-outline" size={20} color="#64748B" />
+                </View>
+            </TouchableOpacity>
+        )
+    }
+
 
     const renderDailyReview = () => {
         // Find my submission
@@ -947,4 +1054,105 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         marginTop: 8,
     },
+    // Progress Tracker Styles
+    timelineContainer: {
+        paddingVertical: 10,
+        paddingHorizontal: 4,
+        alignItems: 'center',
+    },
+    timelineItem: {
+        alignItems: 'center',
+        marginRight: 0,
+        width: 60, // Fixed width for alignment
+    },
+    timelineTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+        width: '100%',
+        justifyContent: 'center', // Center the dot
+    },
+    statusDot: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: '#E2E8F0',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 2,
+        borderWidth: 2,
+        borderColor: '#FFF',
+    },
+    dotDone: {
+        backgroundColor: '#22C55E',
+        borderColor: '#22C55E',
+    },
+    dotFailed: {
+        backgroundColor: '#EF4444',
+        borderColor: '#EF4444',
+    },
+    dotPending: {
+        backgroundColor: '#F1F5F9',
+        borderColor: '#CBD5E1',
+    },
+    glowDone: {
+        elevation: 6,
+        shadowColor: '#22C55E',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 8,
+    },
+    glowFailed: {
+        elevation: 6,
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.5,
+        shadowRadius: 8,
+    },
+    connectorLine: {
+        position: 'absolute',
+        top: 11, // Center vertically (24/2 - 1)
+        left: '50%', // Start from center of this item
+        width: 60, // Reach to next center (matches item width)
+        height: 2,
+        backgroundColor: '#E2E8F0',
+        zIndex: 1,
+    },
+    connectorActive: {
+        backgroundColor: '#CBD5E1', // Slightly darker for path taken
+    },
+    dayNumText: {
+        fontSize: 10,
+        color: '#94A3B8',
+        fontWeight: '600',
+    },
+    dayNumActive: {
+        color: '#334155',
+        fontWeight: '700',
+    },
+    progressSummary: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 16,
+        backgroundColor: '#F8FAFC',
+        paddingVertical: 8,
+        borderRadius: 12,
+    },
+    progressText: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#0F172A',
+    },
+    verticalDivider: {
+        width: 1,
+        height: 16,
+        backgroundColor: '#CBD5E1',
+        marginHorizontal: 16,
+    },
+    copyIconContainer: {
+        padding: 4,
+        backgroundColor: '#FFF',
+        borderRadius: 8,
+    }
 });

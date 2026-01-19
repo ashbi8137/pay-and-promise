@@ -599,6 +599,23 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         fontSize: 14,
     },
+    // Recent Chips
+    recentChip: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        backgroundColor: '#F1F5F9',
+        borderRadius: 20,
+        gap: 6,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    recentChipText: {
+        fontSize: 13,
+        color: '#475569',
+        fontWeight: '500',
+    },
     participantsList: {
         flexDirection: 'row',
         flexWrap: 'wrap',

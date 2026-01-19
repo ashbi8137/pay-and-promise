@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
@@ -20,6 +20,7 @@ import { supabase } from '../../lib/supabase';
 
 export default function AuthScreen() {
   const router = useRouter();
+  const { mode } = useLocalSearchParams();
 
   // Form State
   const [email, setEmail] = useState('');
@@ -27,12 +28,22 @@ export default function AuthScreen() {
   const [fullName, setFullName] = useState('');
 
   // UX State
-  const [isSignUp, setIsSignUp] = useState(false);
+  // Initialize based on navigation param (default to login if not 'signup')
+  const [isSignUp, setIsSignUp] = useState(mode === 'signup');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Clear errors when switching modes
+  // Update state when navigation params change
+  React.useEffect(() => {
+    if (mode) {
+      setIsSignUp(mode === 'signup');
+      // Clear errors on mode switch via navigation
+      setErrorMessage(null);
+    }
+  }, [mode]);
+
+  // Clear errors when switching modes manually
   const handleModeSwitch = () => {
     setIsSignUp(!isSignUp);
     setErrorMessage(null);

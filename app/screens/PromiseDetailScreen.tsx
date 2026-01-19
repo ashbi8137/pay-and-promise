@@ -46,7 +46,6 @@ export default function PromiseDetailScreen() {
     const [submissions, setSubmissions] = React.useState<any[]>([]);
     const [myVotes, setMyVotes] = React.useState<string[]>([]);
     const [userId, setUserId] = React.useState<string | null>(null);
-    const [participantList, setParticipantList] = React.useState<{ name: string, isMe: boolean }[]>([]);
 
     React.useEffect(() => {
         // Fetch initial data
@@ -161,103 +160,32 @@ export default function PromiseDetailScreen() {
         }
     };
 
+    // Existing functions...
     const fetchParticipantCount = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        setUserId(user.id);
-
-        // Fetch actual participant records
-        const { data, error, count } = await supabase
+        const { count } = await supabase
             .from('promise_participants')
-            .select('*', { count: 'exact' })
+            .select('*', { count: 'exact', head: true })
             .eq('promise_id', promiseData.id);
 
         if (count !== null) setRealParticipantCount(count);
-
-        if (data) {
-            // Fetch Names
-            const userIds = data.map(p => p.user_id);
-            if (userIds.length > 0) {
-                // Use RPC if available, or try to map roughly
-                const { data: names } = await supabase
-                    .rpc('get_user_names', { user_ids: userIds });
-
-                if (names) {
-                    const formatted: { name: string; isMe: boolean }[] = names.map((n: any) => ({
-                        name: n.user_id === user.id ? "You" : n.full_name,
-                        isMe: n.user_id === user.id
-                    }));
-                    // Sort so "You" is first
-                    // formatted.sort((a, b) => b.isMe ? 1 : -1); // Removed to avoid lint error and redundant sort
-
-                    const sorted = [
-                        ...formatted.filter(f => f.isMe),
-                        ...formatted.filter(f => !f.isMe)
-                    ];
-                    setParticipantList(sorted);
-                }
-            }
-        }
     };
 
     const fetchCheckins = async () => {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            // 1. Fetch My Daily Checkins
-            const { data: checkinData, error } = await supabase
+            const { data, error } = await supabase
                 .from('daily_checkins')
                 .select('date, status')
                 .eq('promise_id', promiseData.id)
-                .eq('user_id', user.id) // Filter by MY user ID
                 .order('date', { ascending: false });
 
-            // 2. Fetch My Submissions (to catch rejected/pending states not yet in checkins)
-            const { data: subData } = await supabase
-                .from('promise_submissions')
-                .select('date, status')
-                .eq('promise_id', promiseData.id)
-                .eq('user_id', user.id);
-
-            if (checkinData || subData) {
-                // Merge Data: Submission 'rejected' implies 'failed'. 
-                // Checkins are authoritative for 'done'.
-
-                const statusMap = new Map<string, any>();
-
-                // Default from Submissions
-                subData?.forEach(s => {
-                    let mappedStatus = 'pending';
-                    if (s.status === 'rejected') mappedStatus = 'failed';
-                    else if (s.status === 'verified') mappedStatus = 'done';
-                    // 'pending' remains 'pending'
-                    statusMap.set(s.date, { date: s.date, status: mappedStatus });
-                });
-
-                // Override/Augment with Checkins (Authoritative)
-                checkinData?.forEach(c => {
-                    statusMap.set(c.date, { date: c.date, status: c.status });
-                });
-
-                const merged = Array.from(statusMap.values());
-                setCheckins(merged);
+            if (data) {
+                setCheckins(data);
 
                 // Check if checked in today
                 const todayStr = new Date().toISOString().split('T')[0];
-                const todayEntry = merged.find(c => c.date === todayStr);
-
+                const todayEntry = data.find(c => c.date === todayStr);
                 if (todayEntry) {
                     setTodayStatus(todayEntry.status as 'done' | 'failed');
-                } else {
-                    // Also check if we have a pending submission for today that isn't in checkins
-                    const todaySub = subData?.find(s => s.date === todayStr);
-                    if (todaySub && todaySub.status === 'pending') {
-                        // If pending, we don't setTodayStatus to 'done'/'failed', 
-                        // but we might want UI to know we submitted.
-                        // The 'renderDailyReview' handles the "submitted but pending" UI.
-                        // setTodayStatus(null) is fine.
-                    }
                 }
             }
         } catch (e) {
@@ -464,91 +392,45 @@ export default function PromiseDetailScreen() {
     }, [promiseData.id]);
 
     const renderAnalytics = () => {
-        // Timeline Logic: Day 1 to Day N
+        // Last N Days Logic
         const days = [];
-        const startDate = new Date(promiseData.created_at);
+        const today = new Date();
         const totalDuration = duration || 7;
 
-        for (let i = 0; i < totalDuration; i++) {
-            const d = new Date(startDate);
-            d.setDate(startDate.getDate() + i);
+        for (let i = totalDuration - 1; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(today.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
-
             const checkin = checkins.find(c => c.date === dateStr);
-
-            // Determine Status
-            let status = 'pending';
-            const todayStr = new Date().toISOString().split('T')[0];
-
-            if (checkin) {
-                status = checkin.status; // 'done', 'failed', 'pending'
-            } else {
-                if (dateStr < todayStr) {
-                    status = 'failed'; // Auto-fail logic for UI
-                }
-            }
-
             days.push({
-                dayNum: i + 1,
                 date: dateStr,
                 dayLabel: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-                status: status,
+                status: checkin ? checkin.status : 'pending',
             });
         }
 
         return (
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Progress Tracker</Text>
+                <Text style={styles.sectionTitle}>Progress (Last {totalDuration} Days)</Text>
                 <View style={styles.analyticsCard}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timelineContainer}>
-                        {days.map((day, index) => {
-                            const isLast = index === days.length - 1;
-                            return (
-                                <View key={index} style={styles.timelineItem}>
-                                    <View style={styles.timelineTopRow}>
-                                        {/* Status Dot */}
-                                        <View style={[
-                                            styles.statusDot,
-                                            day.status === 'done' && styles.dotDone,
-                                            day.status === 'failed' && styles.dotFailed,
-                                            day.status === 'pending' && styles.dotPending,
-                                            // Glow Effects
-                                            day.status === 'done' && styles.glowDone,
-                                            day.status === 'failed' && styles.glowFailed,
-                                        ]}>
-                                            {day.status === 'done' && <Ionicons name="checkmark" size={12} color="#FFF" />}
-                                            {day.status === 'failed' && <Ionicons name="close" size={12} color="#FFF" />}
-                                        </View>
-
-                                        {/* Connector Line */}
-                                        {!isLast && (
-                                            <View style={[
-                                                styles.connectorLine,
-                                                (day.status === 'done' || day.status === 'failed') && styles.connectorActive
-                                            ]} />
-                                        )}
-                                    </View>
-
-                                    <Text style={[
-                                        styles.dayNumText,
-                                        day.status !== 'pending' && styles.dayNumActive
-                                    ]}>
-                                        Day {day.dayNum}
-                                    </Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={styles.chartRow}>
+                            {days.map((day, index) => (
+                                <View key={index} style={styles.dayColumn}>
+                                    <View style={[
+                                        styles.chartBar,
+                                        day.status === 'done' && styles.barDone,
+                                        day.status === 'failed' && styles.barFailed,
+                                        day.status === 'pending' && styles.barPending
+                                    ]} />
+                                    <Text style={styles.dayLabel}>{day.dayLabel}</Text>
                                 </View>
-                            );
-                        })}
+                            ))}
+                        </View>
                     </ScrollView>
-
-                    <View style={styles.progressSummary}>
-                        <Text style={styles.progressText}>
-                            {checkins.filter(c => c.status === 'done').length} <Text style={{ color: '#64748B' }}>Completed</Text>
-                        </Text>
-                        <View style={styles.verticalDivider} />
-                        <Text style={styles.progressText}>
-                            {checkins.filter(c => c.status === 'failed').length} <Text style={{ color: '#EF4444' }}>Failed</Text>
-                        </Text>
-                    </View>
+                    <Text style={styles.analyticsFooter}>
+                        {checkins.filter(c => c.status === 'done').length} days completed out of {totalDuration}
+                    </Text>
                 </View>
             </View>
         );
@@ -690,21 +572,12 @@ export default function PromiseDetailScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Participants ({realParticipantCount})</Text>
                     <View style={styles.participantsList}>
-                        {participantList.length > 0 ? (
-                            participantList.map((p, index) => (
-                                <View key={index} style={[styles.participantChip, p.isMe && { backgroundColor: '#4338ca' }]}>
-                                    <Ionicons name="person-circle" size={20} color={p.isMe ? "#FFF" : "#64748B"} />
-                                    <Text style={[styles.participantText, p.isMe && { color: '#FFF' }]}>{p.name}</Text>
-                                </View>
-                            ))
-                        ) : (
-                            participants?.map((p: any, index: number) => (
-                                <View key={index} style={styles.participantChip}>
-                                    <Ionicons name="person-circle" size={20} color="#64748B" />
-                                    <Text style={styles.participantText}>{p.name || p}</Text>
-                                </View>
-                            ))
-                        )}
+                        {participants?.map((p: any, index: number) => (
+                            <View key={index} style={styles.participantChip}>
+                                <Ionicons name="person-circle" size={20} color="#64748B" />
+                                <Text style={styles.participantText}>{p.name || p}</Text>
+                            </View>
+                        ))}
                     </View>
                 </View>
 
@@ -1085,7 +958,6 @@ const styles = StyleSheet.create({
         marginRight: 0,
         width: 60, // Fixed width for alignment
     },
-    // Timeline Styles
     timelineTopRow: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -1132,15 +1004,15 @@ const styles = StyleSheet.create({
     },
     connectorLine: {
         position: 'absolute',
-        top: 11, // Center vertically
-        left: '50%', // Start from center
-        width: 60, // Reach next item
+        top: 11, // Center vertically (24/2 - 1)
+        left: '50%', // Start from center of this item
+        width: 60, // Reach to next center (matches item width)
         height: 2,
         backgroundColor: '#E2E8F0',
         zIndex: 1,
     },
     connectorActive: {
-        backgroundColor: '#CBD5E1',
+        backgroundColor: '#CBD5E1', // Slightly darker for path taken
     },
     dayNumText: {
         fontSize: 10,

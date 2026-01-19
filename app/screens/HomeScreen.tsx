@@ -89,78 +89,31 @@ export default function HomeScreen() {
                     }
                 }
 
-                // 2. Fetch Today's Checkins & Submissions
+                // 2. Fetch Today's Checkins
                 const today = new Date().toISOString().split('T')[0];
+                const { data: checkins, error: checkinError } = await supabase
+                    .from('daily_checkins')
+                    .select('promise_id, status')
+                    .eq('user_id', user.id)
+                    .eq('date', today);
 
-                const [checkinRes, subRes] = await Promise.all([
-                    supabase
-                        .from('daily_checkins')
-                        .select('promise_id, status')
-                        .eq('user_id', user.id)
-                        .eq('date', today),
-                    supabase
-                        .from('promise_submissions')
-                        .select('promise_id, status')
-                        .eq('user_id', user.id)
-                        .eq('date', today)
-                ]);
+                // Removed duplicate error check
 
-                if (checkinRes.error) console.error('Checkin error:', checkinRes.error);
-                if (subRes.error) console.error('Submission error:', subRes.error);
+                if (checkinError) console.error('Checkin fetch error:', checkinError);
 
                 if (promises) {
-                    const statusMap = new Map();
-
-                    // Priority 1: Submissions (User has acted)
-                    subRes.data?.forEach(s => {
-                        // Pending or Verified -> We consider it "addressed" for today?
-                        // If 'verified', definitely done. 
-                        // If 'pending', user waits. 
-                        // If 'rejected', it might become failed.
-                        let st = 'pending';
-                        if (s.status === 'verified') st = 'done';
-                        if (s.status === 'rejected') st = 'failed';
-                        if (s.status === 'pending') st = 'pending';
-
-                        statusMap.set(s.promise_id, st);
-                    });
-
-                    // Priority 2: Checkins (Official Status overwrites)
-                    checkinRes.data?.forEach(c => {
-                        statusMap.set(c.promise_id, c.status);
-                    });
+                    const todayCheckinMap = new Map();
+                    checkins?.forEach(c => todayCheckinMap.set(c.promise_id, c.status));
 
                     const pending = [];
                     const doneToday = [];
 
                     for (const p of promises) {
-                        if (statusMap.has(p.id)) {
-                            // Checked in or Submitted
-                            const status = statusMap.get(p.id);
-
-                            // If pending, we might want to keep it in "Active" check list, 
-                            // OR move to "Done Today" with pending status.
-                            // For now, let's treat 'pending' as 'Active' (so user can see it needs attention/waiting),
-                            // BUT if 'verified' or 'done' or 'failed', move to DoneToday.
-
-                            if (status === 'pending') {
-                                // Keep in Active, but maybe indicate pending?
-                                // For now, simple push to pending.
-                                pending.push({ ...p, status: 'active' });
-                                // Actually, if they submitted, they can't submit again. 
-                                // So maybe move to completed list but show 'Pending'?
-                                // The user said "Completed promises are not going... only after..."
-                                // Let's move 'verified'/'done'/'failed' to doneToday.
-                                // 'pending' stays in active? Or moves?
-                                // Let's move Pending to doneToday to clear the queue, 
-                                // but we need UI to show 'Pending'.
-                                // Existing UI supports 'active', 'failed', 'done'.
-                                // Let's map pending -> 'active' status but put in doneToday list?
-                                // No, that confuses the Badge.
-                                // Let's keep pending in 'pending' list (Active).
-                            } else {
-                                doneToday.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
-                            }
+                        if (todayCheckinMap.has(p.id)) {
+                            // It has been checked in today
+                            const status = todayCheckinMap.get(p.id);
+                            // Attach temporary status for display
+                            doneToday.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
                         } else {
                             // Not checked in yet
                             pending.push(p);

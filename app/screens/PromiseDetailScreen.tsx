@@ -375,45 +375,62 @@ export default function PromiseDetailScreen() {
         );
     };
 
+    // State for Refresh
+    const [refreshing, setRefreshing] = React.useState(false);
+
+    const onRefresh = React.useCallback(async () => {
+        setRefreshing(true);
+        try {
+            await Promise.all([
+                fetchCheckins(),
+                fetchParticipantCount(),
+                fetchDailyReview()
+            ]);
+        } finally {
+            setRefreshing(false);
+        }
+    }, [promiseData.id]);
+
     const renderAnalytics = () => {
-        // Last 7 Days Logic
+        // Last N Days Logic
         const days = [];
         const today = new Date();
+        const totalDuration = duration || 7;
 
-        for (let i = 6; i >= 0; i--) {
+        for (let i = totalDuration - 1; i >= 0; i--) {
             const d = new Date();
             d.setDate(today.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
-
-            // Find status
             const checkin = checkins.find(c => c.date === dateStr);
-
             days.push({
                 date: dateStr,
-                dayLabel: d.toLocaleDateString('en-US', { weekday: 'narrow' }), // M, T, W
+                dayLabel: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
                 status: checkin ? checkin.status : 'pending',
-                isFuture: false
             });
         }
 
         return (
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Weekly Progress</Text>
+                <Text style={styles.sectionTitle}>Progress (Last {totalDuration} Days)</Text>
                 <View style={styles.analyticsCard}>
-                    <View style={styles.chartRow}>
-                        {days.map((day, index) => (
-                            <View key={index} style={styles.dayColumn}>
-                                <View style={[
-                                    styles.chartBar,
-                                    day.status === 'done' && styles.barDone,
-                                    day.status === 'failed' && styles.barFailed,
-                                    day.status === 'pending' && styles.barPending
-                                ]} />
-                                <Text style={styles.dayLabel}>{day.dayLabel}</Text>
-                            </View>
-                        ))}
-                    </View>
-                    <Text style={styles.analyticsFooter}>Last 7 Days</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                        <View style={styles.chartRow}>
+                            {days.map((day, index) => (
+                                <View key={index} style={styles.dayColumn}>
+                                    <View style={[
+                                        styles.chartBar,
+                                        day.status === 'done' && styles.barDone,
+                                        day.status === 'failed' && styles.barFailed,
+                                        day.status === 'pending' && styles.barPending
+                                    ]} />
+                                    <Text style={styles.dayLabel}>{day.dayLabel}</Text>
+                                </View>
+                            ))}
+                        </View>
+                    </ScrollView>
+                    <Text style={styles.analyticsFooter}>
+                        {checkins.filter(c => c.status === 'done').length} days completed out of {totalDuration}
+                    </Text>
                 </View>
             </View>
         );

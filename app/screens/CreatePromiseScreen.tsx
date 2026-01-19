@@ -35,6 +35,47 @@ export default function CreatePromiseScreen() {
     const [participantName, setParticipantName] = useState('');
     const [participantNumber, setParticipantNumber] = useState('');
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [recentConnections, setRecentConnections] = useState<Participant[]>([]);
+
+    React.useEffect(() => {
+        fetchRecentConnections();
+    }, []);
+
+    const fetchRecentConnections = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            // Simple Logic: Get promises I created, look at their participants
+            const { data: promises, error } = await supabase
+                .from('promises')
+                .select('participants')
+                .eq('created_by', user.id)
+                .order('created_at', { ascending: false })
+                .limit(10);
+
+            if (promises) {
+                const uniqueMap = new Map<string, Participant>();
+
+                promises.forEach(p => {
+                    const parts: Participant[] = p.participants || [];
+                    parts.forEach(part => {
+                        // Filter out "You" and invalid entries
+                        if (part.name !== 'You' && part.name && part.number) {
+                            // Use number as key for uniqueness
+                            if (!uniqueMap.has(part.number)) {
+                                uniqueMap.set(part.number, part);
+                            }
+                        }
+                    });
+                });
+
+                setRecentConnections(Array.from(uniqueMap.values()));
+            }
+        } catch (e) {
+            console.log("Error fetching recents:", e);
+        }
+    };
 
     // Computed Values
     const totalAmount = (parseInt(numPeople || '0') * parseInt(amountPerPerson || '0'));
@@ -50,10 +91,6 @@ export default function CreatePromiseScreen() {
             Alert.alert('Missing Name', 'Please enter a name for the participant.');
             return;
         }
-        if (!participantNumber.trim()) {
-            Alert.alert('Missing Number', 'Please enter a mobile number.');
-            return;
-        }
 
         // Check limit
         if (totalSlots > 0 && invitesAdded >= maxInvites) {
@@ -61,12 +98,19 @@ export default function CreatePromiseScreen() {
             return;
         }
 
-        if (participants.some(p => p.number === participantNumber.trim())) {
-            Alert.alert('Duplicate', 'This number is already added.');
+        // Duplicate Check (Name-based for manual entries)
+        if (participants.some(p => p.name.toLowerCase() === participantName.trim().toLowerCase())) {
+            Alert.alert('Duplicate', 'This person is already added.');
             return;
         }
 
-        setParticipants([...participants, { name: participantName.trim(), number: participantNumber.trim() }]);
+        // Use a placeholder for number if manual
+        const newParticipant = {
+            name: participantName.trim(),
+            number: participantNumber.trim() || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
+        };
+
+        setParticipants([...participants, newParticipant]);
         setParticipantName('');
         setParticipantNumber('');
     };
@@ -287,41 +331,58 @@ export default function CreatePromiseScreen() {
                                 <Text style={styles.helperText}>Enter 'Total Participants' above to start adding friends.</Text>
                             )}
 
-                            {/* Add Participant Inputs */}
+                            {/* Name Input Only (Mobile Removed) */}
                             <View style={styles.addParticipantRow}>
                                 <TextInput
-                                    style={[styles.input, { flex: 1.5, marginBottom: 0 }]}
-                                    placeholder="Name"
+                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                                    placeholder="Name (or select from below)"
                                     value={participantName}
                                     onChangeText={setParticipantName}
                                     placeholderTextColor="#94A3B8"
                                     editable={invitesAdded < maxInvites}
                                 />
-                                <TextInput
-                                    style={[styles.input, { flex: 2, marginBottom: 0 }]}
-                                    placeholder="Mobile Number"
-                                    value={participantNumber}
-                                    onChangeText={setParticipantNumber}
-                                    keyboardType="phone-pad"
-                                    placeholderTextColor="#94A3B8"
-                                    editable={invitesAdded < maxInvites}
-                                />
+
+                                <TouchableOpacity
+                                    style={[
+                                        styles.addButton,
+                                        (invitesAdded >= maxInvites && totalSlots > 0) && styles.disabledAddButton
+                                    ]}
+                                    onPress={handleAddParticipant}
+                                    disabled={invitesAdded >= maxInvites && totalSlots > 0}
+                                >
+                                    <Ionicons name="add-circle-outline" size={20} color={(invitesAdded >= maxInvites && totalSlots > 0) ? "#94A3B8" : "#4338ca"} />
+                                    <Text style={[
+                                        styles.addButtonText,
+                                        (invitesAdded >= maxInvites && totalSlots > 0) && { color: "#94A3B8" }
+                                    ]}>Add</Text>
+                                </TouchableOpacity>
                             </View>
 
-                            <TouchableOpacity
-                                style={[
-                                    styles.addButton,
-                                    (invitesAdded >= maxInvites && totalSlots > 0) && styles.disabledAddButton
-                                ]}
-                                onPress={handleAddParticipant}
-                                disabled={invitesAdded >= maxInvites && totalSlots > 0}
-                            >
-                                <Ionicons name="add-circle-outline" size={20} color={(invitesAdded >= maxInvites && totalSlots > 0) ? "#94A3B8" : "#4338ca"} />
-                                <Text style={[
-                                    styles.addButtonText,
-                                    (invitesAdded >= maxInvites && totalSlots > 0) && { color: "#94A3B8" }
-                                ]}>Add Participant</Text>
-                            </TouchableOpacity>
+                            {/* Recent Connections Section */}
+                            <Text style={[styles.label, { marginTop: 12, marginBottom: 8, fontSize: 13 }]}>Recently Connected</Text>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                                {recentConnections.length > 0 ? (
+                                    recentConnections.map((user, idx) => (
+                                        <TouchableOpacity
+                                            key={idx}
+                                            style={styles.recentChip}
+                                            onPress={() => {
+                                                // Auto-fill logic
+                                                if (invitesAdded < maxInvites) {
+                                                    setParticipants([...participants, { name: user.name, number: user.number || 'linked_user' }]);
+                                                } else {
+                                                    Alert.alert("Full", "No more slots available.");
+                                                }
+                                            }}
+                                        >
+                                            <Ionicons name="time-outline" size={14} color="#64748B" />
+                                            <Text style={styles.recentChipText}>{user.name}</Text>
+                                        </TouchableOpacity>
+                                    ))
+                                ) : (
+                                    <Text style={{ color: '#94A3B8', fontSize: 12, fontStyle: 'italic' }}>No recent connections found.</Text>
+                                )}
+                            </ScrollView>
 
                         </View>
 

@@ -1,7 +1,7 @@
 
 import { useRouter } from 'expo-router';
 import * as SplashScreenModule from 'expo-splash-screen';
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -26,7 +26,7 @@ export default function SplashScreen() {
         if (session) {
           router.replace('/screens/HomeScreen');
         } else {
-          router.replace('/screens/AuthScreen');
+          router.replace('/screens/LandingScreen');
         }
       } catch (error) {
         console.error('Auth check failed:', error);

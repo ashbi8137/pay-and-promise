@@ -1,8 +1,11 @@
+
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
+    Platform,
+    Pressable,
     RefreshControl,
     SafeAreaView,
     ScrollView,
@@ -11,6 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
 
 // Data Interface matching Supabase Schema
@@ -155,286 +159,441 @@ export default function HomeScreen() {
 
 
     const renderCard = (item: PromiseItem, isHistory: boolean) => {
-        const currentDay = 1;
+        const currentDay = 1; // Logic placeholder - ideally calculate from created_at
         const totalDays = item.duration_days;
         const progressPercent = isHistory ? 100 : (currentDay / totalDays) * 100;
         const isFailed = item.status === 'failed';
 
         return (
-            <TouchableOpacity
+            <Animated.View
+                entering={FadeInDown.delay(isHistory ? 400 : 300).springify()}
                 key={item.id}
-                activeOpacity={0.9}
-                onPress={() => handlePromisePress(item)}
             >
-                <View style={[styles.card, isHistory && styles.completedCard]}>
-                    <View style={styles.cardHeader}>
-                        <View style={{ flex: 1, marginRight: 8 }}>
-                            <Text style={[styles.cardTitle, isHistory && styles.completedText]}>{item.title}</Text>
-                            <Text style={styles.cardSubtitle}>
-                                {isHistory ? (isFailed ? 'Failed' : 'Completed') : `Day ${currentDay} of ${totalDays}`}
-                            </Text>
-                            <Text style={styles.cardMeta}>
-                                ₹{item.amount_per_person}/person • {item.participants?.length || 0} participants
-                            </Text>
-                        </View>
-                        <View style={
-                            item.status === 'active' ? styles.activeBadge :
-                                item.status === 'failed' ? styles.failedBadge : styles.completedBadge
-                        }>
-                            <Text style={
-                                item.status === 'active' ? styles.activeBadgeText :
-                                    item.status === 'failed' ? styles.failedBadgeText : styles.completedBadgeText
-                            }>
-                                {item.status === 'active' ? 'Active' : (item.status === 'failed' ? 'Failed' : 'Done')}
-                            </Text>
-                        </View>
-                    </View>
+                <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={() => handlePromisePress(item)}
+                >
+                    <View style={[styles.card, isHistory && styles.completedCard]}>
+                        <View style={styles.cardHeader}>
+                            <View style={{ flex: 1, marginRight: 8 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                                    <Text style={[styles.cardTitle, isHistory && styles.completedText]}>{item.title}</Text>
+                                    <View style={
+                                        item.status === 'active' ? styles.activeBadge :
+                                            item.status === 'failed' ? styles.failedBadge : styles.completedBadge
+                                    }>
+                                        <Text style={
+                                            item.status === 'active' ? styles.activeBadgeText :
+                                                item.status === 'failed' ? styles.failedBadgeText : styles.completedBadgeText
+                                        }>
+                                            {item.status === 'active' ? 'Active' : (item.status === 'failed' ? 'Failed' : 'Done')}
+                                        </Text>
+                                    </View>
+                                </View>
 
-                    {/* Progress Bar */}
-                    <View style={styles.progressBarContainer}>
-                        <View
-                            style={[
-                                styles.progressBarFill,
-                                { width: `${progressPercent}%` },
-                                item.status === 'completed' && { backgroundColor: '#94A3B8' }, // Grey for completed
-                                isFailed && { backgroundColor: '#EF4444' } // Red for failed
-                            ]}
-                        />
+                                <Text style={styles.cardSubtitle}>
+                                    {isHistory ? (isFailed ? 'Failed' : 'Completed') : `${currentDay} of ${totalDays} days completed`}
+                                </Text>
+                                <Text style={styles.cardMeta}>
+                                    ₹{item.amount_per_person}/person • {item.participants?.length || 0} participants
+                                </Text>
+                            </View>
+                        </View>
+
+                        {/* Progress Bar */}
+                        <View style={styles.progressBarContainer}>
+                            <View
+                                style={[
+                                    styles.progressBarFill,
+                                    { width: `${progressPercent}%` },
+                                    item.status === 'completed' && { backgroundColor: '#94A3B8' }, // Grey for completed
+                                    isFailed && { backgroundColor: '#EF4444' } // Red for failed
+                                ]}
+                            />
+                        </View>
                     </View>
-                </View>
-            </TouchableOpacity>
+                </TouchableOpacity>
+            </Animated.View>
         );
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={
-                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-                }
-            >
+        <View style={styles.container}>
+            <SafeAreaView style={{ flex: 1 }}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                    }
+                >
 
-                {/* Header Section */}
-                {/* Header Section */}
-                <View style={styles.header}>
-                    <View style={styles.headerTextContainer}>
-                        <Text style={styles.greetingText}>Good Morning,</Text>
-                        <Text style={styles.nameText}>{firstName}</Text>
-                        <View style={styles.statusPill}>
-                            <View style={[styles.statusDot, { backgroundColor: activePromises.length > 0 ? '#22C55E' : '#94A3B8' }]} />
-                            <Text style={styles.subGreetingText}>
-                                {activePromises.length > 0
-                                    ? `You have ${activePromises.length} active promise${activePromises.length > 1 ? 's' : ''}`
-                                    : "No active promises"}
+                    {/* Header Section */}
+                    <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
+                        <View style={styles.headerColumn}>
+                            <Text style={styles.dateText}>
+                                {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' }).toUpperCase()}
+                            </Text>
+                            <View style={styles.greetingRow}>
+                                <Text style={styles.greetingText}>Welcome back, </Text>
+                                <Text style={styles.nameText}>{firstName}</Text>
+                            </View>
+                        </View>
+
+                        <TouchableOpacity
+                            style={styles.profileButton}
+                            onPress={() => router.push('/screens/ProfileScreen')}
+                            activeOpacity={0.8}
+                        >
+                            <LinearGradient
+                                colors={['#4F46E5', '#4338ca']}
+                                style={styles.profileGradient}
+                            >
+                                <Text style={styles.profileInitials}>{firstName.charAt(0)}</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+                    </Animated.View>
+
+                    {/* ACTION SURFACE (Grouped Actions) */}
+                    <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.actionSurface}>
+                        <View>
+                            <Text style={styles.actionSurfaceTitle}>Start a new promise</Text>
+                            <Text style={styles.actionSurfaceSubtitle}>Stay accountable with real stakes</Text>
+                        </View>
+
+                        {/* Primary Trigger */}
+                        <Pressable
+                            onPress={handleCreatePromise}
+                            android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
+                            style={({ pressed }) => [
+                                styles.primaryButtonWrapper,
+                                Platform.OS === 'ios' && pressed && { opacity: 0.7 }
+                            ]}
+                        >
+                            <LinearGradient
+                                colors={['#4F46E5', '#4338ca']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.primaryButton}
+                            >
+                                <Ionicons name="add-circle" size={24} color="#FFFFFF" style={{ marginRight: 8 }} />
+                                <Text style={styles.primaryButtonText}>Create a Promise</Text>
+                            </LinearGradient>
+                        </Pressable>
+
+                        <View style={styles.divider} />
+
+                        {/* Secondary Trigger */}
+                        <TouchableOpacity
+                            onPress={() => router.push('/screens/JoinPromiseScreen')}
+                            activeOpacity={0.7}
+                            style={styles.secondaryButtonRow}
+                        >
+                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                <Ionicons name="enter-outline" size={20} color="#64748B" style={{ marginRight: 8 }} />
+                                <Text style={styles.secondaryButtonText}>Join an existing promise</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                        </TouchableOpacity>
+
+                        {/* Integrated Trust Footer */}
+                        <View style={styles.trustFooter}>
+                            <Ionicons name="lock-closed-outline" size={12} color="#94A3B8" />
+                            <Text style={styles.trustText}>Secure & Private</Text>
+                        </View>
+                    </Animated.View>
+
+                    {/* STATS ROW (If Data Exists) */}
+                    {(activePromises.length > 0 || completedPromises.length > 0) && (
+                        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.statsRow}>
+                            <View style={styles.statPill}>
+                                <View style={[styles.statPillIcon, { backgroundColor: '#EEF2FF' }]}>
+                                    <Ionicons name="flame" size={18} color="#4F46E5" />
+                                </View>
+                                <View>
+                                    <Text style={styles.statPillLabel}>Active</Text>
+                                    <Text style={styles.statPillValue}>{activePromises.length > 0 ? activePromises.length : '-'}</Text>
+                                </View>
+                            </View>
+                            <View style={styles.statPill}>
+                                <View style={[styles.statPillIcon, { backgroundColor: '#F0FDF4' }]}>
+                                    <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
+                                </View>
+                                <View>
+                                    <Text style={styles.statPillLabel}>Done Today</Text>
+                                    <Text style={styles.statPillValue}>{completedPromises.length > 0 ? completedPromises.length : '-'}</Text>
+                                </View>
+                            </View>
+                        </Animated.View>
+                    )}
+
+                    {/* Active Section Header */}
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Your Promises</Text>
+                    </View>
+
+                    {/* Active Promises List or Empty Card */}
+                    {activePromises.length > 0 ? (
+                        activePromises.map(item => renderCard(item, false))
+                    ) : (
+                        <View style={styles.emptyStateCard}>
+                            <View style={styles.emptyStateIcon}>
+                                <Ionicons name="compass-outline" size={32} color="#94A3B8" />
+                            </View>
+                            <Text style={styles.emptyStateTitle}>Ready when you are</Text>
+                            <Text style={styles.emptyStateText}>
+                                Your active promises will appear here.{"\n"}
+                                Create one to get started.
                             </Text>
                         </View>
-                    </View>
-                    <TouchableOpacity
-                        style={styles.profileButton}
-                        onPress={() => router.push('/screens/ProfileScreen')}
-                        activeOpacity={0.8}
-                    >
-                        <LinearGradient
-                            colors={['#4F46E5', '#4338ca']}
-                            style={styles.profileGradient}
-                        >
-                            <Text style={styles.profileInitials}>{firstName.charAt(0)}</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                </View>
+                    )}
 
-                {/* Dashboard Stats (New) */}
-                <View style={styles.statsContainer}>
-                    <View style={styles.statCard}>
-                        <View style={[styles.iconCircle, { backgroundColor: '#E0E7FF' }]}>
-                            <Ionicons name="flame" size={20} color="#4338ca" />
+                    {/* Completed Section (History) */}
+                    {completedPromises.length > 0 && (
+                        <View style={{ marginTop: 24 }}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Today's Wins</Text>
+                            </View>
+                            {completedPromises.map(item => renderCard(item, true))}
                         </View>
-                        <View>
-                            <Text style={styles.statLabel}>Active Goals</Text>
-                            <Text style={styles.statValue}>{activePromises.length}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.statCard}>
-                        <View style={[styles.iconCircle, { backgroundColor: '#DCFCE7' }]}>
-                            <Ionicons name="checkmark-circle" size={20} color="#166534" />
-                        </View>
-                        <View>
-                            <Text style={styles.statLabel}>Done Today</Text>
-                            <Text style={styles.statValue}>{completedPromises.length}</Text>
-                        </View>
-                    </View>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.actionContainer}>
-                    <TouchableOpacity onPress={handleCreatePromise} activeOpacity={0.8} style={styles.primaryButtonWrapper}>
-                        <LinearGradient
-                            colors={['#4F46E5', '#4338ca']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 1 }}
-                            style={styles.primaryButton}
-                        >
-                            <Ionicons name="add-circle" size={24} color="#FFFFFF" style={{ marginRight: 8 }} />
-                            <Text style={styles.primaryButtonText}>Create a Promise</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => router.push('/screens/JoinPromiseScreen')}
-                        activeOpacity={0.7}
-                        style={styles.secondaryButtonWrapper}
-                    >
-                        <View style={styles.secondaryButton}>
-                            <Ionicons name="enter-outline" size={20} color="#4338ca" style={{ marginRight: 6 }} />
-                            <Text style={styles.secondaryButtonText}>Join a Promise</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Trust Indicator */}
-                <View style={styles.trustContainer}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#64748B" />
-                    <Text style={styles.trustText}>Your promises are safe & tracked</Text>
-                </View>
-
-                {/* Active Section */}
-                <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Active Promises</Text>
-                </View>
-
-                {activePromises.length > 0 ? (
-                    activePromises.map(item => renderCard(item, false))
-                ) : (
-                    <View style={styles.emptyStateContainer}>
-                        <View style={styles.emptyIconCircle}>
-                            <Ionicons name="calendar-outline" size={32} color="#94A3B8" />
-                        </View>
-                        <Text style={styles.emptyStateTitle}>You're free right now</Text>
-                        <Text style={styles.emptyStateText}>Start a new promise and stay accountable.</Text>
-
-                    </View>
-                )}
-
-                {/* Completed Section using new "History" style */}
-                {completedPromises.length > 0 && (
-                    <View style={{ marginTop: 24 }}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Today's Progress</Text>
-                        </View>
-                        {completedPromises.map(item => renderCard(item, true))}
-                    </View>
-                )}
-
-            </ScrollView>
-        </SafeAreaView>
+                    )}
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
+        backgroundColor: '#F8FAFC', // Clean solid background
     },
     scrollContent: {
         padding: 24,
         paddingTop: 60,
+        paddingBottom: 40,
     },
+    // COMPACT HEADER
+    // PROFESSIONAL HEADER
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 32,
-        marginTop: 10,
+        alignItems: 'center',
+        marginBottom: 28,
     },
-    headerTextContainer: {
+    headerColumn: {
         flex: 1,
+        justifyContent: 'center',
+    },
+    dateText: {
+        fontSize: 10, // Smaller
+        fontWeight: '600',
+        color: '#CBD5E1', // Lighter
+        letterSpacing: 0.5,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    greetingRow: {
+        flexDirection: 'row', // Keep them on one line if possible, or wrap naturally
+        alignItems: 'baseline',
+        flexWrap: 'wrap',
     },
     greetingText: {
-        fontSize: 16,
+        fontSize: 20,
         color: '#64748B',
-        fontWeight: '500',
-        marginBottom: 4,
+        fontWeight: '400',
     },
     nameText: {
-        fontSize: 32,
-        fontWeight: '800',
+        fontSize: 20,
+        fontWeight: '700',
         color: '#0F172A',
-        marginBottom: 8,
-        letterSpacing: -0.5,
-    },
-    statusPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F1F5F9',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-        alignSelf: 'flex-start',
-    },
-    statusDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginRight: 8,
-    },
-    subGreetingText: {
-        fontSize: 14,
-        color: '#475569',
-        fontWeight: '600',
     },
     profileButton: {
-        shadowColor: '#4338ca',
+        // Removed relative position for dot
+    },
+    profileGradient: {
+        width: 42,
+        height: 42,
+        borderRadius: 14, // Squircle-ish
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#4F46E5',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
         elevation: 4,
     },
-    profileGradient: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
-    },
     profileInitials: {
-        color: '#FFFFFF',
-        fontSize: 20,
-        fontWeight: '700',
-    },
-    ctaButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        borderRadius: 16,
-        shadowColor: '#4338ca',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-
-
-
-    ctaText: {
         color: '#FFFFFF',
         fontSize: 18,
         fontWeight: '700',
     },
-    section: {
+    // Removed notificationDot style
+
+    // ACTION SURFACE (New Hero Card)
+    actionSurface: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 24,
         marginBottom: 32,
+        shadowColor: '#4F46E5', // Colored shadow for premium feel
+        shadowOffset: { width: 0, height: 8 }, // Slightly softer shadow
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        elevation: 6,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    actionSurfaceTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1E293B',
+        marginBottom: 4,
+        letterSpacing: -0.5,
+    },
+    actionSurfaceSubtitle: {
+        fontSize: 13,
+        color: '#64748B',
+        marginBottom: 20,
+    },
+    primaryButtonWrapper: {
+        width: '100%',
+        marginBottom: 16,
+        borderRadius: 16, // Ensure ripple effect is contained
+        overflow: 'hidden', // Ensure ripple effect is contained
+    },
+    primaryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 18,
+        borderRadius: 16,
+        // Gradient background handled inline
+    },
+    primaryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    divider: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
+        marginVertical: 4,
+        marginBottom: 16,
+    },
+    secondaryButtonRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 4,
+    },
+    secondaryButtonText: {
+        fontSize: 15,
+        fontWeight: '500', // Slightly lighter weight
+        color: '#475569',
+    },
+    secondaryButtonHelper: {
+        fontSize: 13,
+        color: '#94A3B8',
+        fontWeight: '500',
+    },
+    // Trust Footer Integrated
+    trustFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 20,
+        gap: 6,
+        opacity: 0.8,
+    },
+    trustText: {
+        fontSize: 11,
+        color: '#94A3B8',
+        fontWeight: '500',
+    },
+
+    // STATS ROW (Compact)
+    statsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 32,
+    },
+    statPill: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 12,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        // Removed most shadow for cleaner pill look
+    },
+    statPillIcon: {
+        width: 32,
+        height: 32,
+        borderRadius: 12, // Softer radius
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 10,
+    },
+    statPillLabel: {
+        fontSize: 11,
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    statPillValue: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#0F172A',
+        marginLeft: 'auto',
+    },
+
+    // EMPTY STATE CARD
+    emptyStateCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 32,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        borderStyle: 'dashed',
+    },
+    emptyStateIcon: {
+        width: 64,
+        height: 64,
+        backgroundColor: '#F8FAFC',
+        borderRadius: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    emptyStateTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#334155',
+        marginBottom: 6,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        color: '#94A3B8',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+
+    // SECTION HEADERS
+    sectionHeader: {
+        marginBottom: 16,
+        paddingLeft: 4,
     },
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#334155',
-        marginBottom: 16,
-        paddingLeft: 4,
+        color: '#0F172A',
+        letterSpacing: -0.5,
     },
+
+    // EXISTING CARD STYLES (Keep consistent)
     card: {
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
@@ -442,7 +601,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         shadowColor: '#64748B',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
+        shadowOpacity: 0.04, // Softer
         shadowRadius: 12,
         elevation: 2,
         borderWidth: 1,
@@ -452,19 +611,18 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 16,
+        marginBottom: 12,
     },
     cardTitle: {
-        fontSize: 18,
+        fontSize: 16,
         fontWeight: '700',
         color: '#0F172A',
         marginBottom: 4,
     },
     cardSubtitle: {
-        fontSize: 14,
+        fontSize: 13,
         color: '#64748B',
         fontWeight: '500',
-        marginBottom: 4,
     },
     cardMeta: {
         fontSize: 12,
@@ -472,36 +630,31 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     activeBadge: {
-        backgroundColor: '#DCFCE7', // Light Green
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        backgroundColor: '#DCFCE7',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6, // Slightly sharper
+        marginLeft: 8, // Add spacing to title
     },
     activeBadgeText: {
-        color: '#166534', // Dark Green
-        fontSize: 12,
+        color: '#166534',
+        fontSize: 11,
         fontWeight: '700',
     },
     progressBarContainer: {
-        height: 6,
+        height: 10, // Thicker
         backgroundColor: '#F1F5F9',
-        borderRadius: 3,
+        borderRadius: 5,
         overflow: 'hidden',
+        marginTop: 12,
     },
     progressBarFill: {
         height: '100%',
-        backgroundColor: '#22C55E', // Green Accent
-        borderRadius: 3,
+        backgroundColor: '#22C55E',
+        borderRadius: 5,
     },
-    emptyText: {
-        color: '#94A3B8',
-        fontStyle: 'italic',
-        textAlign: 'center',
-        marginTop: 8,
-    },
-    // Completed Styles
     completedCard: {
-        opacity: 0.8,
+        opacity: 0.7,
         backgroundColor: '#F8FAFC',
     },
     completedText: {
@@ -510,184 +663,24 @@ const styles = StyleSheet.create({
     },
     completedBadge: {
         backgroundColor: '#F1F5F9',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
     },
     completedBadgeText: {
         color: '#64748B',
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '700',
     },
-    // Failed Styles
     failedBadge: {
         backgroundColor: '#FEF2F2',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 8,
     },
     failedBadgeText: {
         color: '#EF4444',
-        fontSize: 12,
+        fontSize: 11,
         fontWeight: '700',
-    },
-    trustIndicator: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 16,
-        marginBottom: 8,
-        gap: 6,
-        backgroundColor: '#F1F5F9', // Subtle background
-        alignSelf: 'center',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-    },
-
-    // New Styles for Overhaul
-
-    // Dashboard Stats
-    statsContainer: {
-        flexDirection: 'row',
-        gap: 16,
-        marginBottom: 24,
-    },
-    statCard: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 16,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    iconCircle: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    statLabel: {
-        fontSize: 12,
-        color: '#64748B',
-        fontWeight: '600',
-    },
-    statValue: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#0F172A',
-    },
-    // Buttons Hierarchy
-    actionContainer: {
-        gap: 12,
-        marginBottom: 8,
-    },
-    primaryButtonWrapper: {
-        width: '100%',
-    },
-    primaryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 18,
-        borderRadius: 20,
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 6,
-    },
-    primaryButtonText: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    secondaryButtonWrapper: {
-        width: '100%',
-    },
-    secondaryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        borderRadius: 20,
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1.5,
-        borderColor: '#E2E8F0',
-    },
-    secondaryButtonText: {
-        color: '#4338ca',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    // Refined Trust Indicator
-    trustContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 12,
-        marginBottom: 32,
-        gap: 6,
-    },
-    trustText: {
-        fontSize: 13,
-        color: '#64748B',
-        fontWeight: '500',
-    },
-    // Section Headers
-    sectionHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    // Empty States
-    emptyStateContainer: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 32,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderStyle: 'dashed',
-        borderColor: '#CBD5E1',
-    },
-    emptyIconCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#F1F5F9',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    emptyStateTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#334155',
-        marginBottom: 8,
-    },
-    emptyStateText: {
-        fontSize: 14,
-        color: '#64748B',
-        textAlign: 'center',
-        marginBottom: 16,
-    },
-    miniCreateButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        backgroundColor: '#EFF6FF',
-        borderRadius: 20,
-    },
-    miniCreateText: {
-        color: '#4338ca',
-        fontWeight: '700',
-        fontSize: 13,
     },
 });

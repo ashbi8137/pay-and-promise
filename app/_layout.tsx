@@ -14,6 +14,12 @@ export default function RootLayout() {
       <Stack.Screen name="screens/ProfileScreen" />
       <Stack.Screen name="screens/TransactionHistoryScreen" />
       <Stack.Screen name="screens/LandingScreen" />
+      <Stack.Screen name="screens/SettingsScreen" />
+      <Stack.Screen name="screens/SupportScreen" />
+      <Stack.Screen name="screens/PrivacySecurityScreen" />
+      <Stack.Screen name="screens/PrivacyPolicyScreen" />
+      <Stack.Screen name="screens/TermsScreen" />
+      <Stack.Screen name="screens/AboutScreen" />
     </Stack>
   );
 }

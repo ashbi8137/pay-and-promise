@@ -5,6 +5,7 @@ import React from 'react';
 import {
     Alert,
     Image,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -597,7 +598,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 24,
-        paddingTop: 80, // Increased top spacing
+        paddingTop: Platform.OS === 'android' ? 100 : 80, // Increased top spacing
     },
     header: {
         flexDirection: 'row',

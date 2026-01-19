@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Keyboard,
   KeyboardAvoidingView,
   Platform,
@@ -127,7 +128,14 @@ export default function AuthScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.headerTitle}>Pay & Promise</Text>
+          {/* Logo Section */}
+          <View style={styles.logoContainer}>
+            <Image
+              source={require('../../assets/images/org_icon.png')}
+              style={styles.logoImage}
+              resizeMode="contain"
+            />
+          </View>
 
           <View style={styles.card}>
             <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
@@ -239,44 +247,47 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F1F5F9', // Light Slate background
+    backgroundColor: '#FFFFFF', // White Background (New Theme)
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 24,
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 0, // Reduced from 32 to minimize gap
+  },
+  logoImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 20,
+    marginBottom: 16,
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#0F172A', // Navy Title
+    color: '#0F172A',
     textAlign: 'center',
-    marginBottom: 32,
     letterSpacing: 0.5,
   },
   card: {
-    backgroundColor: '#FFFFFF', // White Card
+    backgroundColor: '#FFFFFF',
+    // Removed Card Shadow/Border for cleaner "On White" look, or kept minimal
     borderRadius: 20,
-    padding: 32,
-    shadowColor: '#64748B',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
+    // padding: 0, // Using full width of scrollview padding
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1E293B', // Dark Slate
+    color: '#1E293B',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748B', // Muted text
-    marginBottom: 24,
+    color: '#64748B',
+    marginBottom: 32,
     textAlign: 'center',
   },
   errorContainer: {
@@ -312,7 +323,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     fontSize: 16,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
   },
   passwordWrapper: {
     flexDirection: 'row',
@@ -320,7 +331,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: '#E2E8F0',
     paddingRight: 16,
   },
   passwordInput: {
@@ -338,23 +349,23 @@ const styles = StyleSheet.create({
     marginTop: -8,
   },
   forgotText: {
-    color: '#0F172A',
+    color: '#4F46E5', // Primary Blue
     fontSize: 14,
     fontWeight: '600',
   },
   buttonContainer: {
-    marginTop: 0,
+    marginTop: 8,
     gap: 16,
   },
   primaryButton: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#4F46E5', // Primary Blue (New Theme)
     padding: 18,
-    borderRadius: 12,
+    borderRadius: 30, // Pill Shape (New Theme)
     alignItems: 'center',
-    shadowColor: '#0F172A',
+    shadowColor: '#4F46E5',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
     elevation: 4,
   },
   primaryButtonDisabled: {
@@ -370,7 +381,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   toggleButtonText: {
-    color: '#475569',
+    color: '#64748B',
     fontSize: 14,
     fontWeight: '500',
   },

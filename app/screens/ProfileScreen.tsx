@@ -4,12 +4,13 @@ import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
+    Platform,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -111,7 +112,9 @@ export default function ProfileScreen() {
                         <Ionicons name="arrow-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Profile</Text>
-                    <View style={{ width: 40 }} />
+                    <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.backButton}>
+                        <Ionicons name="settings-outline" size={24} color="#0F172A" />
+                    </TouchableOpacity>
                 </View>
 
                 {/* Profile Header */}
@@ -187,39 +190,25 @@ export default function ProfileScreen() {
 
 
 
-                {/* Settings Section */}
+                {/* Activity Section */}
                 <View style={styles.settingsSection}>
-                    <Text style={styles.sectionTitle}>Account</Text>
+                    <Text style={styles.sectionTitle}>Activity</Text>
 
-                    {/* NEW LINK TO HISTORY */}
                     <TouchableOpacity
                         style={styles.settingItem}
                         onPress={() => router.push('/screens/TransactionHistoryScreen')}
                     >
                         <View style={styles.settingLeft}>
-                            <Ionicons name="time-outline" size={22} color="#475569" />
+                            <View style={[styles.menuIconContainer, { backgroundColor: '#F8FAFC' }]}>
+                                <Ionicons name="time-outline" size={20} color="#475569" />
+                            </View>
                             <Text style={styles.settingText}>Transaction History</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
                     </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.settingItem}>
-                        <View style={styles.settingLeft}>
-                            <Ionicons name="card-outline" size={22} color="#475569" />
-                            <Text style={styles.settingText}>Payment Methods</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                    </TouchableOpacity>
-
-
                 </View>
 
-
-
-                {/* Logout Button */}
-                <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                    <Text style={styles.logoutText}>Log Out</Text>
-                </TouchableOpacity>
+                {/* Trust Indicator */}
 
                 {/* Trust Indicator */}
                 <View style={styles.trustContainer}>
@@ -246,7 +235,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 24,
-        paddingTop: 40,
+        paddingTop: Platform.OS === 'android' ? 60 : 40,
     },
     header: {
         flexDirection: 'row',

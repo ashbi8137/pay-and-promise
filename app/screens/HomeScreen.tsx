@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 24,
-        paddingTop: 60,
+        paddingTop: Platform.OS === 'android' ? 80 : 60,
         paddingBottom: 40,
     },
     // COMPACT HEADER

@@ -3,6 +3,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
+    Platform,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -15,6 +17,7 @@ import { supabase } from '../../lib/supabase';
 export default function TransactionHistoryScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
 
 
@@ -44,8 +47,14 @@ export default function TransactionHistoryScreen() {
             console.error('Error loading history:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     };
+
+    const onRefresh = React.useCallback(() => {
+        setRefreshing(true);
+        fetchHistory();
+    }, []);
 
     const formatCurrency = (amount: number) => {
         return '₹ ' + Math.abs(amount).toFixed(0);
@@ -67,7 +76,10 @@ export default function TransactionHistoryScreen() {
                     <ActivityIndicator size="large" color="#4338ca" />
                 </View>
             ) : (
-                <ScrollView contentContainerStyle={styles.scrollContent}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+                >
                     {history.length === 0 ? (
                         <View style={styles.centerContent}>
                             <Text style={styles.emptyText}>No transactions yet.</Text>
@@ -120,7 +132,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: 24,
-        paddingTop: 40, // Increased to move header down
+        paddingTop: Platform.OS === 'android' ? 60 : 40,
         marginBottom: 16,
     },
     backButton: {

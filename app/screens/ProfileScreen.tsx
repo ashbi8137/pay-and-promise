@@ -5,6 +5,7 @@ import {
     ActivityIndicator,
     Alert,
     Platform,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -17,6 +18,7 @@ import { supabase } from '../../lib/supabase';
 export default function ProfileScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
     const [firstName, setFirstName] = useState<string>('Ashbin');
     console.log('ProfileScreen Render. Name:', firstName);
@@ -27,8 +29,6 @@ export default function ProfileScreen() {
         penalties: 0,
         net: 0
     });
-
-
 
     useFocusEffect(
         React.useCallback(() => {
@@ -89,7 +89,14 @@ export default function ProfileScreen() {
         } finally {
             setLoading(false);
         }
+        setLoading(false);
+        setRefreshing(false);
     };
+
+    const onRefresh = React.useCallback(() => {
+        setRefreshing(true);
+        fetchProfileData();
+    }, []);
 
     const handleLogout = async () => {
         Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -118,7 +125,10 @@ export default function ProfileScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
 
                 {/* Header */}
                 <View style={styles.header}>
@@ -256,7 +266,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 24,
-        paddingTop: Platform.OS === 'android' ? 60 : 40,
+        paddingTop: Platform.OS === 'android' ? 80 : 60,
     },
     header: {
         flexDirection: 'row',

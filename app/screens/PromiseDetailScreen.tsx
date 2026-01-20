@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as ExpoClipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React from 'react';
@@ -6,6 +7,7 @@ import {
     Alert,
     Image,
     Platform,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -94,6 +96,12 @@ export default function PromiseDetailScreen() {
     }, []);
 
     const [userNames, setUserNames] = React.useState<Record<string, string>>({});
+
+    const handleCopyCode = async () => {
+        if (!invite_code) return;
+        await ExpoClipboard.setStringAsync(invite_code);
+        Alert.alert("Copied!", "Invite code copied to clipboard.");
+    };
 
     const fetchDailyReview = async () => {
         const { data: { user } } = await supabase.auth.getUser();
@@ -614,7 +622,12 @@ export default function PromiseDetailScreen() {
 
     return (
         <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
+
 
                 {/* Header */}
                 <View style={styles.header}>
@@ -632,7 +645,9 @@ export default function PromiseDetailScreen() {
                             <Text style={[styles.inviteLabel, { color: theme.icon }]}>Invite Code</Text>
                             <Text style={[styles.inviteCode, { color: theme.text }]}>{invite_code}</Text>
                         </View>
-                        <Ionicons name="copy-outline" size={24} color={theme.icon} />
+                        <TouchableOpacity onPress={handleCopyCode} style={{ padding: 8 }}>
+                            <Ionicons name="copy-outline" size={24} color={theme.icon} />
+                        </TouchableOpacity>
                     </View>
                 )}
 

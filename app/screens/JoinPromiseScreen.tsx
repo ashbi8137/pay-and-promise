@@ -200,13 +200,14 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         padding: 24,
+        paddingTop: Platform.OS === 'android' ? 80 : 60,
     },
     header: {
         marginBottom: 20,
         alignItems: 'flex-start', // Align back button to left
     },
     backButton: {
-        padding: 10,
+        padding: 8,
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
         borderWidth: 1,

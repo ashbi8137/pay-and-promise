@@ -16,11 +16,6 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
-interface Participant {
-    name: string;
-    number: string;
-}
-
 export default function CreatePromiseScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
@@ -31,95 +26,10 @@ export default function CreatePromiseScreen() {
     const [numPeople, setNumPeople] = useState('');
     const [amountPerPerson, setAmountPerPerson] = useState('');
 
-    // Participants State
-    const [participantName, setParticipantName] = useState('');
-    const [participantNumber, setParticipantNumber] = useState('');
-    const [participants, setParticipants] = useState<Participant[]>([]);
-    const [recentConnections, setRecentConnections] = useState<Participant[]>([]);
-
-    React.useEffect(() => {
-        fetchRecentConnections();
-    }, []);
-
-    const fetchRecentConnections = async () => {
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            // Simple Logic: Get promises I created, look at their participants
-            const { data: promises, error } = await supabase
-                .from('promises')
-                .select('participants')
-                .eq('created_by', user.id)
-                .order('created_at', { ascending: false })
-                .limit(10);
-
-            if (promises) {
-                const uniqueMap = new Map<string, Participant>();
-
-                promises.forEach(p => {
-                    const parts: Participant[] = p.participants || [];
-                    parts.forEach(part => {
-                        // Filter out "You" and invalid entries
-                        if (part.name !== 'You' && part.name && part.number) {
-                            // Use number as key for uniqueness
-                            if (!uniqueMap.has(part.number)) {
-                                uniqueMap.set(part.number, part);
-                            }
-                        }
-                    });
-                });
-
-                setRecentConnections(Array.from(uniqueMap.values()));
-            }
-        } catch (e) {
-            console.log("Error fetching recents:", e);
-        }
-    };
-
     // Computed Values
     const totalAmount = (parseInt(numPeople || '0') * parseInt(amountPerPerson || '0'));
 
-    // Logic: Total People includes "You". So limit for invites is numPeople - 1.
-    const totalSlots = parseInt(numPeople || '0');
-    const maxInvites = totalSlots > 1 ? totalSlots - 1 : 0;
-
-    const invitesAdded = participants.length;
-
-    const handleAddParticipant = () => {
-        if (!participantName.trim()) {
-            Alert.alert('Missing Name', 'Please enter a name for the participant.');
-            return;
-        }
-
-        // Check limit
-        if (totalSlots > 0 && invitesAdded >= maxInvites) {
-            Alert.alert('Limit Reached', `You + ${maxInvites} others = ${totalSlots} people.`);
-            return;
-        }
-
-        // Duplicate Check (Name-based for manual entries)
-        if (participants.some(p => p.name.toLowerCase() === participantName.trim().toLowerCase())) {
-            Alert.alert('Duplicate', 'This person is already added.');
-            return;
-        }
-
-        // Use a placeholder for number if manual
-        const newParticipant = {
-            name: participantName.trim(),
-            number: participantNumber.trim() || `guest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`
-        };
-
-        setParticipants([...participants, newParticipant]);
-        setParticipantName('');
-        setParticipantNumber('');
-    };
-
-    const handleRemoveParticipant = (index: number) => {
-        const newParticipants = [...participants];
-        newParticipants.splice(index, 1);
-        setParticipants(newParticipants);
-    };
+    // Logic: Total People includes "You".
 
     const handleCreatePromise = async () => {
         if (loading) return;
@@ -137,13 +47,12 @@ export default function CreatePromiseScreen() {
             Alert.alert('Invalid Input', 'Please enter the number of people.');
             return;
         }
-        if (!amountPerPerson || parseInt(amountPerPerson) <= 0) {
-            Alert.alert('Invalid Input', 'Please enter the amount per person.');
+        if (parseInt(numPeople) > 10) {
+            Alert.alert('Limit Exceeded', 'Total participants cannot exceed 10.');
             return;
         }
-
-        if (invitesAdded < maxInvites) {
-            Alert.alert('Participants Missing', `Please add ${maxInvites - invitesAdded} more participants to match ${totalSlots} people.`);
+        if (!amountPerPerson || parseInt(amountPerPerson) <= 0) {
+            Alert.alert('Invalid Input', 'Please enter the amount per person.');
             return;
         }
 
@@ -161,10 +70,9 @@ export default function CreatePromiseScreen() {
             const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
             // Prepare Data
-            // Note: We still store `participants` JSON for generic info, but key logic moves to `promise_participants`
+            // Initial participant is just the creator
             const finalParticipants = [
-                { name: 'You', number: 'User' },
-                ...participants
+                { name: 'You', number: 'User' }
             ];
 
             // 1. Insert Promise
@@ -177,7 +85,7 @@ export default function CreatePromiseScreen() {
                     amount_per_person: parseInt(amountPerPerson),
                     total_amount: totalAmount,
                     stake_per_day: (parseInt(amountPerPerson) / parseInt(duration)),
-                    participants: finalParticipants, // UI legacy
+                    participants: finalParticipants,
                     created_by: user.id,
                     status: 'active',
                     invite_code: inviteCode
@@ -201,7 +109,6 @@ export default function CreatePromiseScreen() {
 
             if (participantError) {
                 console.error('Participant Insert Error:', participantError);
-                // Non-critical, but should be handled.
             }
 
             // Success
@@ -278,13 +185,18 @@ export default function CreatePromiseScreen() {
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Total Participants (Including You)</Text>
                             <TextInput
-                                style={styles.input}
+                                style={[styles.input, parseInt(numPeople) > 10 && { borderColor: '#EF4444', borderWidth: 1 }]}
                                 placeholder="3"
                                 value={numPeople}
                                 onChangeText={setNumPeople}
                                 keyboardType="numeric"
                                 placeholderTextColor="#94A3B8"
                             />
+                            {parseInt(numPeople) > 10 && (
+                                <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>
+                                    Maximum 10 participants allowed.
+                                </Text>
+                            )}
                         </View>
 
                         <View style={styles.formGroup}>
@@ -310,101 +222,6 @@ export default function CreatePromiseScreen() {
                         )}
                     </View>
 
-                    {/* Section 3: Participants */}
-                    <View style={styles.sectionContainer}>
-                        <View style={styles.sectionHeader}>
-                            <Ionicons name="people-outline" size={20} color="#4338ca" />
-                            <Text style={styles.sectionTitle}>Participants</Text>
-                        </View>
-
-                        <View style={styles.formGroup}>
-                            {totalSlots > 0 ? (
-                                invitesAdded < maxInvites ? (
-                                    <Text style={[styles.helperText, { color: '#4338ca', marginBottom: 8 }]}>
-                                        Add {maxInvites - invitesAdded} more participant{maxInvites - invitesAdded > 1 ? 's' : ''}
-                                    </Text>
-                                ) : (
-                                    <Text style={[styles.helperText, { color: '#166534', marginBottom: 8 }]}>
-                                        All participants added!
-                                    </Text>
-                                )
-                            ) : (
-                                <Text style={styles.helperText}>Enter 'Total Participants' above to start adding friends.</Text>
-                            )}
-
-                            {/* Name Input Only (Mobile Removed) */}
-                            <View style={styles.addParticipantRow}>
-                                <TextInput
-                                    style={[styles.input, { flex: 1, marginBottom: 0 }]}
-                                    placeholder="Name (or select from below)"
-                                    value={participantName}
-                                    onChangeText={setParticipantName}
-                                    placeholderTextColor="#94A3B8"
-                                    editable={invitesAdded < maxInvites}
-                                />
-
-                                <TouchableOpacity
-                                    style={[
-                                        styles.addButton,
-                                        (invitesAdded >= maxInvites && totalSlots > 0) && styles.disabledAddButton
-                                    ]}
-                                    onPress={handleAddParticipant}
-                                    disabled={invitesAdded >= maxInvites && totalSlots > 0}
-                                >
-                                    <Ionicons name="add-circle-outline" size={20} color={(invitesAdded >= maxInvites && totalSlots > 0) ? "#94A3B8" : "#4338ca"} />
-                                    <Text style={[
-                                        styles.addButtonText,
-                                        (invitesAdded >= maxInvites && totalSlots > 0) && { color: "#94A3B8" }
-                                    ]}>Add</Text>
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Recent Connections Section */}
-                            <Text style={[styles.label, { marginTop: 12, marginBottom: 8, fontSize: 13 }]}>Recently Connected</Text>
-                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                                {recentConnections.length > 0 ? (
-                                    recentConnections.map((user, idx) => (
-                                        <TouchableOpacity
-                                            key={idx}
-                                            style={styles.recentChip}
-                                            onPress={() => {
-                                                // Auto-fill logic
-                                                if (invitesAdded < maxInvites) {
-                                                    setParticipants([...participants, { name: user.name, number: user.number || 'linked_user' }]);
-                                                } else {
-                                                    Alert.alert("Full", "No more slots available.");
-                                                }
-                                            }}
-                                        >
-                                            <Ionicons name="time-outline" size={14} color="#64748B" />
-                                            <Text style={styles.recentChipText}>{user.name}</Text>
-                                        </TouchableOpacity>
-                                    ))
-                                ) : (
-                                    <Text style={{ color: '#94A3B8', fontSize: 12, fontStyle: 'italic' }}>No recent connections found.</Text>
-                                )}
-                            </ScrollView>
-
-                        </View>
-
-                        <View style={styles.participantsList}>
-                            <View style={[styles.participantChip, styles.youChip]}>
-                                <Ionicons name="person-circle" size={18} color="#FFFFFF" />
-                                <Text style={[styles.participantText, { color: '#FFFFFF' }]}>You</Text>
-                            </View>
-
-                            {participants.map((p, index) => (
-                                <View key={index} style={styles.participantChip}>
-                                    <Ionicons name="person-circle" size={18} color="#64748B" />
-                                    <Text style={styles.participantText}>{p.name}</Text>
-                                    <TouchableOpacity onPress={() => handleRemoveParticipant(index)} style={{ marginLeft: 4 }}>
-                                        <Ionicons name="close-circle" size={16} color="#94A3B8" />
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-
                     {/* Total Amount Section */}
                     <View style={styles.totalSection}>
                         <Text style={styles.totalLabel}>Total amount for this promise:</Text>
@@ -420,7 +237,6 @@ export default function CreatePromiseScreen() {
                         disabled={loading}
                         activeOpacity={0.8}
                     >
-                        {/* Check if form is roughly valid to show gradient vs grey */}
                         {(title && duration && numPeople && amountPerPerson) ? (
                             <LinearGradient
                                 colors={['#4F46E5', '#4338ca']}
@@ -510,29 +326,16 @@ const styles = StyleSheet.create({
     formGroup: {
         marginBottom: 16,
     },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
     label: {
         fontSize: 14,
         fontWeight: '600',
         color: '#475569',
         marginBottom: 8,
     },
-    required: {
-        color: '#EF4444',
-    },
     helperText: {
         fontSize: 12,
         color: '#94A3B8',
         marginTop: 6,
-    },
-    helperTextBottom: {
-        fontSize: 12,
-        color: '#94A3B8',
-        marginTop: 6,
-        fontStyle: 'italic',
     },
     input: {
         backgroundColor: '#F8FAFC',
@@ -542,19 +345,6 @@ const styles = StyleSheet.create({
         padding: 14,
         fontSize: 16,
         color: '#0F172A',
-    },
-    participantInputsWrapper: {
-        flexDirection: 'column',
-        gap: 12,
-    },
-    participantNameInput: {
-        flex: 1,
-        marginBottom: 0,
-    },
-    participantNumberContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
     },
     // Formula
     formulaContainer: {
@@ -574,75 +364,7 @@ const styles = StyleSheet.create({
         fontWeight: '800',
         color: '#0284C7',
     },
-    // Participants
-    addParticipantRow: {
-        flexDirection: 'row',
-        gap: 8,
-        marginBottom: 12,
-    },
-    addButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 12,
-        backgroundColor: '#EEF2FF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E0E7FF',
-        gap: 6,
-    },
-    disabledAddButton: {
-        backgroundColor: '#F8FAFC',
-        borderColor: '#F1F5F9',
-    },
-    addButtonText: {
-        color: '#4338ca',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    // Recent Chips
-    recentChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 12,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 20,
-        gap: 6,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    recentChipText: {
-        fontSize: 13,
-        color: '#475569',
-        fontWeight: '500',
-    },
-    participantsList: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 8,
-    },
-    participantChip: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#F1F5F9',
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        borderRadius: 20,
-        marginBottom: 4,
-    },
-    youChip: {
-        backgroundColor: '#4338ca',
-    },
-    participantText: {
-        fontSize: 12,
-        color: '#475569',
-        fontWeight: '500',
-        marginLeft: 4,
-    },
-    removeButton: {
-        marginLeft: 6,
-    },
+    // Total Section
     totalSection: {
         backgroundColor: '#F1F5F9',
         padding: 20,

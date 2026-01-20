@@ -8,7 +8,8 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    useColorScheme
 } from 'react-native';
 import Animated, {
     FadeIn,
@@ -21,16 +22,21 @@ import Animated, {
     withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '../../constants/theme';
 
 export default function LandingScreen() {
     const router = useRouter();
+    const colorScheme = useColorScheme() ?? 'light';
+    const theme = Colors[colorScheme];
+
+    // Theme-derived shared values if needed, but for now we use style updates
     const [step, setStep] = useState(0);
 
     // Animation Values
     const scale = useSharedValue(1);
     const shake = useSharedValue(0);
     const glowOpacity = useSharedValue(0);
-    const borderColor = useSharedValue('#E2E8F0');
+    const borderColor = useSharedValue(theme.border); // Initial border
 
     useEffect(() => {
         // Step 0: "Promises are easy..." (0-2s)
@@ -53,7 +59,7 @@ export default function LandingScreen() {
         const t2 = setTimeout(() => {
             setStep(2);
             glowOpacity.value = withTiming(1, { duration: 1000 });
-            borderColor.value = withTiming('#4F46E5', { duration: 1000 });
+            borderColor.value = withTiming(theme.tint, { duration: 1000 });
             scale.value = withSpring(1.1); // Scale up
         }, 4500);
 
@@ -76,15 +82,15 @@ export default function LandingScreen() {
             { scale: scale.value }
         ],
         // Step 3: Make card transparent/invisible effectively
-        backgroundColor: step === 3 ? 'transparent' : '#FFFFFF',
+        backgroundColor: step === 3 ? 'transparent' : theme.card,
         shadowOpacity: step === 3 ? 0 : (glowOpacity.value ? 0.3 : 0.08),
         elevation: step === 3 ? 0 : 4,
         borderColor: step === 3 ? 'transparent' : borderColor.value,
-        shadowColor: step === 3 ? 'transparent' : '#64748B',
+        shadowColor: step === 3 ? 'transparent' : theme.icon,
         // Force reset other shadow props
         shadowRadius: step === 3 ? 0 : 24,
         shadowOffset: step === 3 ? { width: 0, height: 0 } : { width: 0, height: 12 },
-    }), [step]);
+    }), [step, theme]);
 
     const renderTextContent = () => {
         switch (step) {
@@ -92,7 +98,7 @@ export default function LandingScreen() {
                 return (
                     <Animated.Text
                         entering={FadeIn.duration(800)}
-                        style={styles.textEasy}
+                        style={[styles.textEasy, { color: theme.icon }]}
                     >
                         Promises are easy...
                     </Animated.Text>
@@ -101,7 +107,7 @@ export default function LandingScreen() {
                 return (
                     <Animated.Text
                         entering={FadeInDown.springify().damping(12)}
-                        style={styles.textHard}
+                        style={[styles.textHard, { color: theme.text }]}
                     >
                         Keeping them is hard.
                     </Animated.Text>
@@ -111,14 +117,14 @@ export default function LandingScreen() {
                     <View style={{ alignItems: 'center' }}>
                         <Animated.Text
                             entering={FadeInDown.duration(600)}
-                            style={styles.textSoMakeThem}
+                            style={[styles.textSoMakeThem, { color: theme.icon }]}
                         >
                             So make them
                         </Animated.Text>
 
                         <Animated.View entering={FadeInDown.delay(200).springify()}>
                             <LinearGradient
-                                colors={['#F59E0B', '#B45309']} // Gold Gradient
+                                colors={[theme.gold, '#B45309']} // Gold Gradient using theme
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.expensiveBadge}
@@ -139,7 +145,7 @@ export default function LandingScreen() {
                 return (
                     <Animated.Text
                         entering={FadeInDown.delay(200).springify()}
-                        style={styles.textBrand}
+                        style={[styles.textBrand, { color: theme.text }]}
                     >
                         Pay & Promise
                     </Animated.Text>
@@ -148,14 +154,9 @@ export default function LandingScreen() {
         }
     };
 
-    const renderSubText = () => {
-        if (step === 3) return "Where discipline begins.";
-        return "";
-    };
-
     return (
-        <View style={styles.background}>
-            <StatusBar style="dark" />
+        <View style={[styles.background, { backgroundColor: theme.background }]}>
+            <StatusBar style={colorScheme === 'dark' ? "light" : "dark"} />
 
             <SafeAreaView style={styles.container}>
                 {/* Main Content Centered */}
@@ -166,6 +167,8 @@ export default function LandingScreen() {
                     <Animated.View
                         style={[
                             styles.card,
+                            // Base style needs dynamic border/bg but processed in animated style
+                            // We can set static defaults here if needed
                             animatedCardStyle,
                             // Double-safety: force transparency via React props if step is 3
                             step === 3 && {
@@ -179,7 +182,7 @@ export default function LandingScreen() {
                         {step === 3 && (
                             <Animated.View entering={FadeIn.duration(500)} style={styles.iconContainer}>
                                 <Image
-                                    source={require('../../assets/images/org_icon.png')}
+                                    source={require('../../assets/images/icon.png')} // Changed to correct icon
                                     style={styles.logoImage}
                                     resizeMode="contain"
                                 />
@@ -189,7 +192,7 @@ export default function LandingScreen() {
                         {renderTextContent()}
 
                         {step === 3 && (
-                            <Animated.Text entering={FadeInDown.delay(400)} style={styles.subText}>
+                            <Animated.Text entering={FadeInDown.delay(400)} style={[styles.subText, { color: theme.icon }]}>
                                 Where discipline begins.
                             </Animated.Text>
                         )}
@@ -201,7 +204,7 @@ export default function LandingScreen() {
                 {step === 3 && (
                     <Animated.View entering={FadeIn.delay(400).duration(800)} style={styles.bottomSection}>
                         <TouchableOpacity
-                            style={styles.primaryButton}
+                            style={[styles.primaryButton, { backgroundColor: theme.tint, shadowColor: theme.tint }]}
                             onPress={() => router.push({ pathname: '/screens/AuthScreen', params: { mode: 'signup' } })}
                         >
                             <Text style={styles.primaryButtonText}>Create Account</Text>
@@ -212,7 +215,7 @@ export default function LandingScreen() {
                             style={styles.secondaryButton}
                             onPress={() => router.push({ pathname: '/screens/AuthScreen', params: { mode: 'signin' } })}
                         >
-                            <Text style={styles.secondaryButtonText}>I already have an account</Text>
+                            <Text style={[styles.secondaryButtonText, { color: theme.icon }]}>I already have an account</Text>
                         </TouchableOpacity>
                     </Animated.View>
                 )}
@@ -224,7 +227,7 @@ export default function LandingScreen() {
 const styles = StyleSheet.create({
     background: {
         flex: 1,
-        backgroundColor: '#F3F4F6', // Neutral calm background
+        // backgroundColor: '#F3F4F6', // Handled via theme
     },
     container: {
         flex: 1,
@@ -239,19 +242,17 @@ const styles = StyleSheet.create({
     },
     card: {
         width: '100%',
-        paddingVertical: 48, // More vertical breathing room
+        paddingVertical: 48,
         paddingHorizontal: 24,
-        borderRadius: 40, // Much rounder, less boring usage
+        borderRadius: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 0,
-        // Background handled by animated style to ensure transparency
+        borderWidth: 1, // Ensure default width for animation
+        // Colors handled by animated style
 
         // Base Shadow
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 12 }, // Deeper shadow
-        shadowOpacity: 0.08,
-        shadowRadius: 24, // Softer shadow
+        shadowOffset: { width: 0, height: 12 },
+        shadowRadius: 24,
         elevation: 4,
     },
     iconContainer: {
@@ -266,24 +267,21 @@ const styles = StyleSheet.create({
     // Unique Text Styles
     textEasy: {
         fontSize: 24,
-        fontWeight: '300', // Light font
-        fontStyle: 'italic', // Casual feel
-        color: '#9CA3AF',
+        fontWeight: '300',
+        fontStyle: 'italic',
         textAlign: 'center',
     },
     textHard: {
         fontSize: 28,
-        fontWeight: '900', // Heavy impact
-        color: '#334155',
+        fontWeight: '900',
         textAlign: 'center',
-        letterSpacing: -0.5, // Tight spacing
+        letterSpacing: -0.5,
     },
 
     // Step 2 Styles
     textSoMakeThem: {
         fontSize: 20,
         fontWeight: '500',
-        color: '#64748B',
         marginBottom: 12,
         letterSpacing: 1,
     },
@@ -297,7 +295,7 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.4,
         shadowRadius: 12,
         elevation: 8,
-        transform: [{ rotate: '-2deg' }], // Slight tilt for flair
+        transform: [{ rotate: '-2deg' }],
     },
     textExpensiveWhite: {
         fontSize: 28,
@@ -311,22 +309,14 @@ const styles = StyleSheet.create({
     textBridge: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#B45309', // Dark Gold/Amber to match
+        color: '#B45309', // Keep dark gold
         textAlign: 'center',
         fontStyle: 'italic',
         marginTop: 8,
     },
-    separator: {
-        width: 40,
-        height: 2,
-        backgroundColor: '#E2E8F0',
-        marginVertical: 16,
-        borderRadius: 1,
-    },
     textBrand: {
         fontSize: 32,
-        fontWeight: '800', // Extra-Bold
-        color: '#0F172A', // App name color
+        fontWeight: '800',
         textAlign: 'center',
         letterSpacing: 0.5,
     },
@@ -334,7 +324,6 @@ const styles = StyleSheet.create({
     subText: {
         marginTop: 12,
         fontSize: 16,
-        color: '#94A3B8', // Muted grey tagline
         fontWeight: '500',
         letterSpacing: 0.5,
     },
@@ -344,14 +333,14 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     primaryButton: {
-        backgroundColor: '#4F46E5',
+        // backgroundColor: '#4F46E5', // Handled via theme
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         paddingVertical: 18,
         borderRadius: 16,
         gap: 8,
-        shadowColor: '#4F46E5',
+        // shadowColor: '#4F46E5', // Handled via theme
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 12,
@@ -367,7 +356,6 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     secondaryButtonText: {
-        color: '#64748B',
         fontSize: 15,
         fontWeight: '600',
     },

@@ -176,6 +176,7 @@ export default function CreatePromiseScreen() {
                     number_of_people: parseInt(numPeople),
                     amount_per_person: parseInt(amountPerPerson),
                     total_amount: totalAmount,
+                    stake_per_day: (parseInt(amountPerPerson) / parseInt(duration)),
                     participants: finalParticipants, // UI legacy
                     created_by: user.id,
                     status: 'active',

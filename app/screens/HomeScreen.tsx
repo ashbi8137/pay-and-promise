@@ -1,4 +1,3 @@
-
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -12,9 +11,11 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    useColorScheme
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 
 // Data Interface matching Supabase Schema
@@ -33,13 +34,15 @@ interface PromiseItem {
 
 export default function HomeScreen() {
     const router = useRouter();
+    const colorScheme = useColorScheme() ?? 'light';
+    const theme = Colors[colorScheme];
+
     const [firstName, setFirstName] = useState<string>('Ashbin');
     const [activePromises, setActivePromises] = useState<PromiseItem[]>([]);
     const [completedPromises, setCompletedPromises] = useState<PromiseItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Fetch User and Promises when screen comes into focus
     useFocusEffect(
         useCallback(() => {
             fetchData();
@@ -79,7 +82,6 @@ export default function HomeScreen() {
                         .from('promises')
                         .select('*')
                         .in('id', promiseIds)
-                        .eq('status', 'active') // Only fetch active promises
                         .order('created_at', { ascending: false });
 
                     if (promiseError) console.error('Promise details error:', promiseError);
@@ -97,23 +99,28 @@ export default function HomeScreen() {
                     .eq('user_id', user.id)
                     .eq('date', today);
 
-                // Removed duplicate error check
-
                 if (checkinError) console.error('Checkin fetch error:', checkinError);
 
                 if (promises) {
                     const todayCheckinMap = new Map();
                     checkins?.forEach(c => todayCheckinMap.set(c.promise_id, c.status));
 
-                    const pending = [];
-                    const doneToday = [];
+                    const pending: PromiseItem[] = [];
+                    const done: PromiseItem[] = [];
 
                     for (const p of promises) {
+                        // 1. If Promise is finalized (Completed/Failed), it goes to Completed Tab
+                        if (p.status !== 'active') {
+                            done.push(p);
+                            continue;
+                        }
+
+                        // 2. If Active, check if done TODAY
                         if (todayCheckinMap.has(p.id)) {
                             // It has been checked in today
                             const status = todayCheckinMap.get(p.id);
                             // Attach temporary status for display
-                            doneToday.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
+                            done.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
                         } else {
                             // Not checked in yet
                             pending.push(p);
@@ -121,7 +128,7 @@ export default function HomeScreen() {
                     }
 
                     setActivePromises(pending);
-                    setCompletedPromises(doneToday);
+                    setCompletedPromises(done);
                 }
             }
         } catch (error) {
@@ -156,8 +163,6 @@ export default function HomeScreen() {
         });
     };
 
-
-
     const renderCard = (item: PromiseItem, isHistory: boolean) => {
         const currentDay = 1; // Logic placeholder - ideally calculate from created_at
         const totalDays = item.duration_days;
@@ -173,11 +178,11 @@ export default function HomeScreen() {
                     activeOpacity={0.9}
                     onPress={() => handlePromisePress(item)}
                 >
-                    <View style={[styles.card, isHistory && styles.completedCard]}>
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, isHistory && styles.completedCard]}>
                         <View style={styles.cardHeader}>
                             <View style={{ flex: 1, marginRight: 8 }}>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                    <Text style={[styles.cardTitle, isHistory && styles.completedText]}>{item.title}</Text>
+                                    <Text style={[styles.cardTitle, { color: theme.text }, isHistory && styles.completedText]}>{item.title}</Text>
                                     <View style={
                                         item.status === 'active' ? styles.activeBadge :
                                             item.status === 'failed' ? styles.failedBadge : styles.completedBadge
@@ -191,22 +196,22 @@ export default function HomeScreen() {
                                     </View>
                                 </View>
 
-                                <Text style={styles.cardSubtitle}>
+                                <Text style={[styles.cardSubtitle, { color: theme.icon }]}>
                                     {isHistory ? (isFailed ? 'Failed' : 'Completed') : `${currentDay} of ${totalDays} days completed`}
                                 </Text>
-                                <Text style={styles.cardMeta}>
+                                <Text style={[styles.cardMeta, { color: theme.icon }]}>
                                     ₹{item.amount_per_person}/person • {item.participants?.length || 0} participants
                                 </Text>
                             </View>
                         </View>
 
                         {/* Progress Bar */}
-                        <View style={styles.progressBarContainer}>
+                        <View style={[styles.progressBarContainer, { backgroundColor: theme.background }]}>
                             <View
                                 style={[
                                     styles.progressBarFill,
                                     { width: `${progressPercent}%` },
-                                    item.status === 'completed' && { backgroundColor: '#94A3B8' }, // Grey for completed
+                                    item.status === 'completed' && { backgroundColor: theme.icon }, // Grey for completed
                                     isFailed && { backgroundColor: '#EF4444' } // Red for failed
                                 ]}
                             />
@@ -218,25 +223,25 @@ export default function HomeScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <SafeAreaView style={{ flex: 1 }}>
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tint} />
                     }
                 >
 
                     {/* Header Section */}
                     <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
                         <View style={styles.headerColumn}>
-                            <Text style={styles.dateText}>
+                            <Text style={[styles.dateText, { color: theme.icon }]}>
                                 {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' }).toUpperCase()}
                             </Text>
                             <View style={styles.greetingRow}>
-                                <Text style={styles.greetingText}>Welcome back, </Text>
-                                <Text style={styles.nameText}>{firstName}</Text>
+                                <Text style={[styles.greetingText, { color: theme.icon }]}>Welcome back, </Text>
+                                <Text style={[styles.nameText, { color: theme.text }]}>{firstName}</Text>
                             </View>
                         </View>
 
@@ -246,7 +251,9 @@ export default function HomeScreen() {
                             activeOpacity={0.8}
                         >
                             <LinearGradient
-                                colors={['#4F46E5', '#4338ca']}
+                                colors={[theme.tint, theme.gold]}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
                                 style={styles.profileGradient}
                             >
                                 <Text style={styles.profileInitials}>{firstName.charAt(0)}</Text>
@@ -255,10 +262,10 @@ export default function HomeScreen() {
                     </Animated.View>
 
                     {/* ACTION SURFACE (Grouped Actions) */}
-                    <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.actionSurface}>
+                    <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.actionSurface, { backgroundColor: theme.card, shadowColor: theme.tint, borderColor: theme.border }]}>
                         <View>
-                            <Text style={styles.actionSurfaceTitle}>Start a new promise</Text>
-                            <Text style={styles.actionSurfaceSubtitle}>Stay accountable with real stakes</Text>
+                            <Text style={[styles.actionSurfaceTitle, { color: theme.text }]}>Start a new promise</Text>
+                            <Text style={[styles.actionSurfaceSubtitle, { color: theme.icon }]}>Stay accountable with real stakes</Text>
                         </View>
 
                         {/* Primary Trigger */}
@@ -271,7 +278,7 @@ export default function HomeScreen() {
                             ]}
                         >
                             <LinearGradient
-                                colors={['#4F46E5', '#4338ca']}
+                                colors={[theme.tint, '#1e40af']}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 1 }}
                                 style={styles.primaryButton}
@@ -281,7 +288,7 @@ export default function HomeScreen() {
                             </LinearGradient>
                         </Pressable>
 
-                        <View style={styles.divider} />
+                        <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
                         {/* Secondary Trigger */}
                         <TouchableOpacity
@@ -290,38 +297,34 @@ export default function HomeScreen() {
                             style={styles.secondaryButtonRow}
                         >
                             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="enter-outline" size={20} color="#64748B" style={{ marginRight: 8 }} />
-                                <Text style={styles.secondaryButtonText}>Join an existing promise</Text>
+                                <Ionicons name="enter-outline" size={20} color={theme.icon} style={{ marginRight: 8 }} />
+                                <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Join an existing promise</Text>
                             </View>
-                            <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                            <Ionicons name="chevron-forward" size={16} color={theme.border} />
                         </TouchableOpacity>
 
-                        {/* Integrated Trust Footer */}
-                        <View style={styles.trustFooter}>
-                            <Ionicons name="lock-closed-outline" size={12} color="#94A3B8" />
-                            <Text style={styles.trustText}>Secure & Private</Text>
-                        </View>
+
                     </Animated.View>
 
                     {/* STATS ROW (If Data Exists) */}
                     {(activePromises.length > 0 || completedPromises.length > 0) && (
                         <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.statsRow}>
-                            <View style={styles.statPill}>
-                                <View style={[styles.statPillIcon, { backgroundColor: '#EEF2FF' }]}>
-                                    <Ionicons name="flame" size={18} color="#4F46E5" />
+                            <View style={[styles.statPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                <View style={[styles.statPillIcon, { backgroundColor: theme.background }]}>
+                                    <Ionicons name="flame" size={18} color={theme.tint} />
                                 </View>
                                 <View>
-                                    <Text style={styles.statPillLabel}>Active</Text>
-                                    <Text style={styles.statPillValue}>{activePromises.length > 0 ? activePromises.length : '-'}</Text>
+                                    <Text style={[styles.statPillLabel, { color: theme.icon }]}>Active</Text>
+                                    <Text style={[styles.statPillValue, { color: theme.text }]}>{activePromises.length > 0 ? activePromises.length : '-'}</Text>
                                 </View>
                             </View>
-                            <View style={styles.statPill}>
-                                <View style={[styles.statPillIcon, { backgroundColor: '#F0FDF4' }]}>
+                            <View style={[styles.statPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                <View style={[styles.statPillIcon, { backgroundColor: theme.background }]}>
                                     <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
                                 </View>
                                 <View>
-                                    <Text style={styles.statPillLabel}>Done Today</Text>
-                                    <Text style={styles.statPillValue}>{completedPromises.length > 0 ? completedPromises.length : '-'}</Text>
+                                    <Text style={[styles.statPillLabel, { color: theme.icon }]}>Done Today</Text>
+                                    <Text style={[styles.statPillValue, { color: theme.text }]}>{completedPromises.length > 0 ? completedPromises.length : '-'}</Text>
                                 </View>
                             </View>
                         </Animated.View>
@@ -329,19 +332,19 @@ export default function HomeScreen() {
 
                     {/* Active Section Header */}
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Your Promises</Text>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Promises</Text>
                     </View>
 
                     {/* Active Promises List or Empty Card */}
                     {activePromises.length > 0 ? (
                         activePromises.map(item => renderCard(item, false))
                     ) : (
-                        <View style={styles.emptyStateCard}>
-                            <View style={styles.emptyStateIcon}>
-                                <Ionicons name="compass-outline" size={32} color="#94A3B8" />
+                        <View style={[styles.emptyStateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                            <View style={[styles.emptyStateIcon, { backgroundColor: theme.background }]}>
+                                <Ionicons name="compass-outline" size={32} color={theme.icon} />
                             </View>
-                            <Text style={styles.emptyStateTitle}>Ready when you are</Text>
-                            <Text style={styles.emptyStateText}>
+                            <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Ready when you are</Text>
+                            <Text style={[styles.emptyStateText, { color: theme.icon }]}>
                                 Your active promises will appear here.{"\n"}
                                 Create one to get started.
                             </Text>
@@ -352,11 +355,16 @@ export default function HomeScreen() {
                     {completedPromises.length > 0 && (
                         <View style={{ marginTop: 24 }}>
                             <View style={styles.sectionHeader}>
-                                <Text style={styles.sectionTitle}>Today's Wins</Text>
+                                <Text style={[styles.sectionTitle, { color: theme.text }]}>Today's Wins</Text>
                             </View>
                             {completedPromises.map(item => renderCard(item, true))}
                         </View>
                     )}
+                    {/* Integrated Trust Footer (Moved to Bottom) */}
+                    <View style={styles.trustFooter}>
+                        <Ionicons name="lock-closed-outline" size={12} color={theme.icon} />
+                        <Text style={[styles.trustText, { color: theme.icon }]}>Secure & Private</Text>
+                    </View>
                 </ScrollView>
             </SafeAreaView>
         </View>
@@ -366,7 +374,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC', // Clean solid background
+        // backgroundColor handled dynamically
     },
     scrollContent: {
         padding: 24,
@@ -388,7 +396,6 @@ const styles = StyleSheet.create({
     dateText: {
         fontSize: 10, // Smaller
         fontWeight: '600',
-        color: '#CBD5E1', // Lighter
         letterSpacing: 0.5,
         marginBottom: 4,
         textTransform: 'uppercase',
@@ -400,13 +407,11 @@ const styles = StyleSheet.create({
     },
     greetingText: {
         fontSize: 20,
-        color: '#64748B',
         fontWeight: '400',
     },
     nameText: {
         fontSize: 20,
         fontWeight: '700',
-        color: '#0F172A',
     },
     profileButton: {
         // Removed relative position for dot
@@ -432,28 +437,23 @@ const styles = StyleSheet.create({
 
     // ACTION SURFACE (New Hero Card)
     actionSurface: {
-        backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 24,
         marginBottom: 32,
-        shadowColor: '#4F46E5', // Colored shadow for premium feel
         shadowOffset: { width: 0, height: 8 }, // Slightly softer shadow
         shadowOpacity: 0.1,
         shadowRadius: 20,
         elevation: 6,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
     },
     actionSurfaceTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1E293B',
         marginBottom: 4,
         letterSpacing: -0.5,
     },
     actionSurfaceSubtitle: {
         fontSize: 13,
-        color: '#64748B',
         marginBottom: 20,
     },
     primaryButtonWrapper: {
@@ -477,7 +477,6 @@ const styles = StyleSheet.create({
     },
     divider: {
         height: 1,
-        backgroundColor: '#F1F5F9',
         marginVertical: 4,
         marginBottom: 16,
     },
@@ -490,7 +489,6 @@ const styles = StyleSheet.create({
     secondaryButtonText: {
         fontSize: 15,
         fontWeight: '500', // Slightly lighter weight
-        color: '#475569',
     },
     secondaryButtonHelper: {
         fontSize: 13,
@@ -508,7 +506,6 @@ const styles = StyleSheet.create({
     },
     trustText: {
         fontSize: 11,
-        color: '#94A3B8',
         fontWeight: '500',
     },
 
@@ -522,11 +519,9 @@ const styles = StyleSheet.create({
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         padding: 12,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
         // Removed most shadow for cleaner pill look
     },
     statPillIcon: {
@@ -539,30 +534,25 @@ const styles = StyleSheet.create({
     },
     statPillLabel: {
         fontSize: 11,
-        color: '#64748B',
         fontWeight: '600',
     },
     statPillValue: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#0F172A',
         marginLeft: 'auto',
     },
 
     // EMPTY STATE CARD
     emptyStateCard: {
-        backgroundColor: '#FFFFFF',
         borderRadius: 24,
         padding: 32,
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
         borderStyle: 'dashed',
     },
     emptyStateIcon: {
         width: 64,
         height: 64,
-        backgroundColor: '#F8FAFC',
         borderRadius: 32,
         justifyContent: 'center',
         alignItems: 'center',
@@ -571,12 +561,10 @@ const styles = StyleSheet.create({
     emptyStateTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#334155',
         marginBottom: 6,
     },
     emptyStateText: {
         fontSize: 14,
-        color: '#94A3B8',
         textAlign: 'center',
         lineHeight: 20,
     },
@@ -589,13 +577,11 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#0F172A',
         letterSpacing: -0.5,
     },
 
     // EXISTING CARD STYLES (Keep consistent)
     card: {
-        backgroundColor: '#FFFFFF',
         borderRadius: 20,
         padding: 20,
         marginBottom: 16,
@@ -605,7 +591,6 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 2,
         borderWidth: 1,
-        borderColor: '#F1F5F9',
     },
     cardHeader: {
         flexDirection: 'row',
@@ -616,17 +601,14 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 16,
         fontWeight: '700',
-        color: '#0F172A',
         marginBottom: 4,
     },
     cardSubtitle: {
         fontSize: 13,
-        color: '#64748B',
         fontWeight: '500',
     },
     cardMeta: {
         fontSize: 12,
-        color: '#94A3B8',
         fontWeight: '500',
     },
     activeBadge: {
@@ -643,7 +625,6 @@ const styles = StyleSheet.create({
     },
     progressBarContainer: {
         height: 10, // Thicker
-        backgroundColor: '#F1F5F9',
         borderRadius: 5,
         overflow: 'hidden',
         marginTop: 12,
@@ -655,20 +636,16 @@ const styles = StyleSheet.create({
     },
     completedCard: {
         opacity: 0.7,
-        backgroundColor: '#F8FAFC',
     },
     completedText: {
         textDecorationLine: 'line-through',
-        color: '#94A3B8',
     },
     completedBadge: {
-        backgroundColor: '#F1F5F9',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 8,
     },
     completedBadgeText: {
-        color: '#64748B',
         fontSize: 11,
         fontWeight: '700',
     },

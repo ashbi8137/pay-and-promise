@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
@@ -17,9 +17,13 @@ export default function TransactionHistoryScreen() {
     const [loading, setLoading] = useState(true);
     const [history, setHistory] = useState<any[]>([]);
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
+
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchHistory();
+        }, [])
+    );
 
     const fetchHistory = async () => {
         try {

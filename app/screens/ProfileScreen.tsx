@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
@@ -18,6 +18,9 @@ export default function ProfileScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
+    const [firstName, setFirstName] = useState<string>('Ashbin');
+    console.log('ProfileScreen Render. Name:', firstName);
+
     const [latestContext, setLatestContext] = useState<{ desc: string; type: string } | null>(null);
     const [financials, setFinancials] = useState({
         winnings: 0,
@@ -25,18 +28,28 @@ export default function ProfileScreen() {
         net: 0
     });
 
-    useEffect(() => {
-        fetchProfileData();
-    }, []);
+
+
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchProfileData();
+        }, [])
+    );
 
     const fetchProfileData = async () => {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Set Profile Info
-            const name = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-            setProfile({ name, email: user.email || '' });
+            // 1. Set Profile Info (Exact Home Logic)
+            const metadataName = user.user_metadata?.full_name || user.user_metadata?.name;
+            if (metadataName) {
+                setFirstName(metadataName.split(' ')[0]);
+            } else if (user.email) {
+                setFirstName(user.email.split('@')[0]);
+            }
+
+            setProfile({ name: metadataName || 'User', email: user.email || '' });
 
             // 2. Fetch Ledger for Financials AND History
             const { data: ledger, error } = await supabase
@@ -48,6 +61,7 @@ export default function ProfileScreen() {
             if (error) throw error;
 
             if (ledger) {
+                console.log('DEBUG CHECK - Ledger Data:', JSON.stringify(ledger, null, 2)); // DEBUG LOG
                 let totalWinnings = 0;
                 let totalPenalties = 0;
 
@@ -119,16 +133,23 @@ export default function ProfileScreen() {
 
                 {/* Profile Header */}
                 <View style={styles.profileHeader}>
-                    <View style={styles.avatarContainer}>
-                        <Text style={styles.avatarText}>{profile?.name.charAt(0).toUpperCase()}</Text>
-                    </View>
+                    <TouchableOpacity style={styles.avatarContainer}>
+                        <Text style={styles.avatarText}>{(firstName || 'U').charAt(0).toUpperCase()}</Text>
+                    </TouchableOpacity>
 
                     <View style={styles.profileInfo}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={styles.profileName}>{profile?.name}</Text>
+                            {/* User requested specific render logic */}
+                            <Text style={styles.profileName} numberOfLines={1}>
+                                {firstName}
+                            </Text>
                             <Ionicons name="checkmark-circle" size={20} color="#4F46E5" />
                         </View>
-                        <Text style={styles.profileEmail}>{profile?.email}</Text>
+                        <Text style={styles.profileEmail} numberOfLines={1}>{profile?.email}</Text>
+
+                        <View style={styles.userBadge}>
+                            <Text style={styles.userBadgeText}>Member</Text>
+                        </View>
                     </View>
                 </View>
 

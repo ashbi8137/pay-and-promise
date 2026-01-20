@@ -11,22 +11,26 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    useColorScheme
 } from 'react-native';
+import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 
 export default function PromiseDetailScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const colorScheme = useColorScheme() ?? 'light';
+    const theme = Colors[colorScheme];
 
     // Parse the promise data from params
     const promiseData = params.promise ? JSON.parse(params.promise as string) : null;
 
     if (!promiseData) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
                 <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>Promise details not found.</Text>
+                    <Text style={[styles.errorText, { color: theme.icon }]}>Promise details not found.</Text>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <Text style={styles.backButtonText}>Go Back</Text>
                     </TouchableOpacity>
@@ -62,6 +66,7 @@ export default function PromiseDetailScreen() {
                 () => {
                     console.log('Realtime update: promise_submissions');
                     fetchDailyReview();
+                    fetchCheckins(); // Sync progress bar
                 }
             )
             .on(
@@ -70,6 +75,15 @@ export default function PromiseDetailScreen() {
                 () => {
                     console.log('Realtime update: submission_verifications');
                     fetchDailyReview();
+                    fetchCheckins(); // Sync progress bar
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'promise_participants', filter: `promise_id=eq.${promiseData.id}` },
+                () => {
+                    console.log('Realtime update: promise_participants');
+                    fetchParticipantCount();
                 }
             )
             .subscribe();
@@ -98,18 +112,6 @@ export default function PromiseDetailScreen() {
         if (error) console.error("Error fetching submissions:", error);
 
         if (subs) {
-            // Filter out auto-fail placeholders from the UI review list
-            // (Unless we want to show them as failed cards, which is better)
-            // But user asked to "fix automatic rejection placeholder", implying it looks bad.
-            // Let's filter placeholders out OR handle them as "Missed Day" cards.
-            // User request: "automatic rejection placeholder is also present. fix the isuue." -> Likely hide the image.
-
-            // Map names from the join logic? 
-            // supabase-js doesn't join auth.users easily unless we have a public profile table 
-            // OR we use the trick: select params if we have public wrapper.
-            // BUT: Standard way is to rely on 'promise_participants' having names or fetch them.
-            // Let's try to map from the 'participants' param we already have!
-
             setSubmissions(subs);
 
             // Fetch Names for these users
@@ -151,8 +153,7 @@ export default function PromiseDetailScreen() {
                 decision: decision
             });
             if (error) throw error;
-
-            fetchDailyReview(); // Refresh UI
+            // Fetch will be triggered by realtime, but we can optimistically update or wait
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Could not record vote.");
@@ -162,13 +163,31 @@ export default function PromiseDetailScreen() {
     };
 
     // Existing functions...
+    const [joinedParticipants, setJoinedParticipants] = React.useState<any[]>([]);
+
     const fetchParticipantCount = async () => {
-        const { count } = await supabase
+        // Fetch raw count
+        const { count, data } = await supabase
             .from('promise_participants')
-            .select('*', { count: 'exact', head: true })
+            .select('user_id', { count: 'exact' })
             .eq('promise_id', promiseData.id);
 
         if (count !== null) setRealParticipantCount(count);
+
+        // Fetch Names for these users
+        if (data && data.length > 0) {
+            const userIds = data.map(d => d.user_id);
+            const { data: names } = await supabase.rpc('get_user_names', { user_ids: userIds });
+
+            if (names) {
+                // Map to simple array of objects
+                const formatted = names.map((n: any) => ({
+                    name: n.full_name?.split(' ')[0] || n.email?.split('@')[0] || "User", // First name only preference
+                    id: n.user_id
+                }));
+                setJoinedParticipants(formatted);
+            }
+        }
     };
 
     const fetchCheckins = async () => {
@@ -187,6 +206,8 @@ export default function PromiseDetailScreen() {
                 const todayEntry = data.find(c => c.date === todayStr);
                 if (todayEntry) {
                     setTodayStatus(todayEntry.status as 'done' | 'failed');
+                } else {
+                    setTodayStatus(null);
                 }
             }
         } catch (e) {
@@ -242,7 +263,7 @@ export default function PromiseDetailScreen() {
                     throw new Error('Upload failed: ' + uploadError.message);
                 }
 
-                // Get Public URL (if bucket is public) or simple path
+                // Get Public URL
                 const { data: { publicUrl } } = supabase
                     .storage
                     .from('proofs')
@@ -263,8 +284,7 @@ export default function PromiseDetailScreen() {
                 if (checkinError) throw checkinError;
 
                 Alert.alert("Proof Submitted!", "Your Check-in is PENDING. Ask peers to verify it.");
-                fetchDailyReview(); // Refresh own list
-
+                // Fetch triggers by realtime
             } catch (e) {
                 Alert.alert("Error", "Failed to upload proof. Please try again.");
                 console.error(e);
@@ -314,7 +334,7 @@ export default function PromiseDetailScreen() {
                             if (!user) return; // user is guaranteed if we are here
 
 
-                            // 1. Record Check-in
+                            // 1. Record Check-in (Failed)
                             const { error: checkinError } = await supabase
                                 .from('daily_checkins')
                                 .insert({
@@ -353,16 +373,12 @@ export default function PromiseDetailScreen() {
                                         description: `You missed a day in ${promiseData.title}`
                                     });
 
-                                    // Redistribution is now handled by the Backend 'check_and_settle_day' logic
-                                    // potentially triggered by other votes or a cron.
-                                    // ideally we call the RPC here to try settling if everyone else is done.
-                                    await supabase.rpc('check_and_settle_day', { p_promise_id: promiseData.id, p_date: dateStr });
+                                    // Trigger verification check (might settle day if others are done)
+                                    await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
                                 }
 
                                 setTodayStatus(status);
-                                fetchCheckins();
-                                fetchDailyReview();
-                                // Optionally show success feedback
+                                // Realtime handles refresh
                             }
                         } catch (e) {
                             Alert.alert('Error', 'An unexpected error occurred.');
@@ -393,45 +409,95 @@ export default function PromiseDetailScreen() {
     }, [promiseData.id]);
 
     const renderAnalytics = () => {
-        // Last N Days Logic
-        const days = [];
-        const today = new Date();
         const totalDuration = duration || 7;
+        const days = [];
 
-        for (let i = totalDuration - 1; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(today.getDate() - i);
+        // Safety: ensure we have a start date, else fallback to today - duration (visual fix)
+        let startDate = new Date();
+        if (promiseData.created_at) {
+            startDate = new Date(promiseData.created_at);
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        for (let i = 0; i < totalDuration; i++) {
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + i);
             const dateStr = d.toISOString().split('T')[0];
+
+            // Find checkin
             const checkin = checkins.find(c => c.date === dateStr);
+
+            let status = 'pending';
+            if (checkin) {
+                status = checkin.status;
+            } else if (dateStr < todayStr) {
+                // Past day with no checkin? Strictly speaking this might be 'failed' or 'skipped'
+                // But for now let's leave as pending (gray) or maybe 'missed' if we want to show red outline
+                // User said "color of done/fail".
+                status = 'pending';
+            }
+
             days.push({
-                date: dateStr,
-                dayLabel: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' }),
-                status: checkin ? checkin.status : 'pending',
+                dayNum: i + 1,
+                status,
+                isToday: dateStr === todayStr,
+                dateLabel: d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' })
             });
         }
 
         return (
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Progress (Last {totalDuration} Days)</Text>
+                <Text style={styles.sectionTitle}>Journey Map</Text>
                 <View style={styles.analyticsCard}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                        <View style={styles.chartRow}>
-                            {days.map((day, index) => (
-                                <View key={index} style={styles.dayColumn}>
-                                    <View style={[
-                                        styles.chartBar,
-                                        day.status === 'done' && styles.barDone,
-                                        day.status === 'failed' && styles.barFailed,
-                                        day.status === 'pending' && styles.barPending
-                                    ]} />
-                                    <Text style={styles.dayLabel}>{day.dayLabel}</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.timelineContainer}>
+                        {days.map((day, index) => {
+                            const isLast = index === days.length - 1;
+                            return (
+                                <View key={index} style={styles.timelineItem}>
+                                    <View style={styles.timelineTopRow}>
+                                        {/* Connector Line (Right) */}
+                                        {!isLast && (
+                                            <View style={[
+                                                styles.connectorLine,
+                                                (day.status === 'done' || day.status === 'failed') && styles.connectorActive
+                                            ]} />
+                                        )}
+
+                                        {/* The Circle */}
+                                        <View style={[
+                                            styles.statusDot,
+                                            day.status === 'done' && styles.dotDone,
+                                            day.status === 'failed' && styles.dotFailed,
+                                            day.status === 'pending' && styles.dotPending,
+                                            // Add Glow for today or active
+                                            day.isToday && { borderColor: '#4F46E5', borderWidth: 2 }
+                                        ]}>
+                                            {day.status === 'done' && <Ionicons name="checkmark" size={14} color="#FFF" />}
+                                            {day.status === 'failed' && <Ionicons name="close" size={14} color="#FFF" />}
+                                            {day.status === 'pending' && <Text style={{ fontSize: 9, color: '#94A3B8' }}>{day.dayNum}</Text>}
+                                        </View>
+                                    </View>
+                                    <Text style={[
+                                        styles.dayNumText,
+                                        day.isToday && styles.dayNumActive
+                                    ]}>
+                                        {day.dateLabel}
+                                    </Text>
                                 </View>
-                            ))}
-                        </View>
+                            );
+                        })}
                     </ScrollView>
-                    <Text style={styles.analyticsFooter}>
-                        {checkins.filter(c => c.status === 'done').length} days completed out of {totalDuration}
-                    </Text>
+
+                    <View style={styles.progressSummary}>
+                        <Text style={styles.progressText}>
+                            {checkins.filter(c => c.status === 'done').length} <Text style={{ fontWeight: '400', color: '#64748B' }}>Done</Text>
+                        </Text>
+                        <View style={styles.verticalDivider} />
+                        <Text style={styles.progressText}>
+                            {checkins.filter(c => c.status === 'failed').length} <Text style={{ fontWeight: '400', color: '#64748B' }}>Failed</Text>
+                        </Text>
+                    </View>
                 </View>
             </View>
         );
@@ -440,129 +506,154 @@ export default function PromiseDetailScreen() {
     const renderDailyReview = () => {
         // Find my submission
         const mySub = submissions.find(s => s.user_id === userId);
+        const othersSubmissions = submissions.filter(s => s.user_id !== userId);
 
         return (
             <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Daily Review</Text>
+                {/* 1. MY TASK SECTION */}
+                <Text style={styles.sectionTitle}>Your Daily Task</Text>
 
-                {submissions.length === 0 && (
-                    <Text style={styles.emptyText}>No submissions yet today.</Text>
-                )}
-
-                {submissions.map((sub) => {
-                    const isMe = sub.user_id === userId;
-                    const isVoted = myVotes.includes(sub.id);
-                    // Match user_id to participant name from params if available
-                    // participants -> [{name, number?}, ...] - Wait, we don't have user_id in params participants easily?
-                    // Actually, promises table stores participants as JSONB. 
-                    // Let's try to use the `users` select above if it worked, otherwise fallback.
-                    // Since joining auth.users is tricky,
-
-                    let name = isMe ? "You" : (userNames[sub.user_id] || `User ...${sub.user_id.slice(0, 4)}`);
-
-                    const isAutoFail = sub.image_url === 'auto_fail_placeholder' || sub.image_url === 'manual_fail';
-
-                    return (
-                        <View key={sub.id} style={styles.reviewCard}>
-                            <View style={styles.reviewHeader}>
-                                <Text style={styles.participantName}>{name}</Text>
-                                <View style={[styles.statusBadge,
-                                sub.status === 'verified' ? styles.badgeGreen :
-                                    sub.status === 'rejected' ? styles.badgeRed : styles.badgeYellow
-                                ]}>
-                                    <Text style={styles.statusText}>
-                                        {sub.status === 'rejected' ? 'FAILED' : sub.status.toUpperCase()}
-                                    </Text>
-                                </View>
+                {mySub ? (
+                    <View style={styles.reviewCard}>
+                        <View style={styles.reviewHeader}>
+                            <Text style={styles.participantName}>You</Text>
+                            <View style={[styles.statusBadge,
+                            mySub.status === 'verified' ? styles.badgeGreen :
+                                mySub.status === 'rejected' ? styles.badgeRed : styles.badgeYellow
+                            ]}>
+                                <Text style={styles.statusText}>{mySub.status.toUpperCase()}</Text>
                             </View>
-
-                            {isAutoFail ? (
-                                <View style={styles.autoFailPlaceholder}>
-                                    <Ionicons name="alert-circle" size={40} color="#EF4444" />
-                                    <Text style={styles.autoFailText}>Missed Submission</Text>
-                                </View>
-                            ) : (
-                                <Image source={{ uri: sub.image_url }} style={styles.proofImage} />
-                            )}
-
-                            {!isMe && sub.status === 'pending' && !isVoted && !isAutoFail && (
-                                <View style={styles.voteButtons}>
-                                    <TouchableOpacity style={[styles.voteButton, styles.voteConfirm]}
-                                        onPress={() => handleVote(sub.id, 'confirm')}>
-                                        <Text style={styles.voteText}>Confirm</Text>
-                                    </TouchableOpacity>
-                                    <TouchableOpacity style={[styles.voteButton, styles.voteReject]}
-                                        onPress={() => handleVote(sub.id, 'reject')}>
-                                        <Text style={styles.voteText}>Reject</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
-
-                            {!isMe && isVoted && (
-                                <Text style={styles.votedText}>You voted on this.</Text>
-                            )}
                         </View>
-                    );
-                })}
+                        {mySub.image_url === 'manual_fail' ? (
+                            <View style={styles.autoFailPlaceholder}>
+                                <Ionicons name="close-circle" size={40} color="#EF4444" />
+                                <Text style={styles.autoFailText}>You marked this as Failed</Text>
+                            </View>
+                        ) : (
+                            <Image source={{ uri: mySub.image_url }} style={styles.proofImage} />
+                        )}
+                        <Text style={styles.analyticsFooter}>Waiting for other members to verify...</Text>
+                    </View>
+                ) : (
+                    /* UPLOAD ACTIONS - Only if NO submission yet */
+                    todayStatus !== 'failed' ? (
+                        <View style={{ marginBottom: 24 }}>
+                            <TouchableOpacity style={styles.cameraButton} onPress={handlePhotoCheckIn}>
+                                <Ionicons name="camera" size={24} color="#FFF" />
+                                <Text style={styles.cameraButtonText}>Submit Today's Proof</Text>
+                            </TouchableOpacity>
 
-                {!mySub && todayStatus !== 'failed' && (
-                    <TouchableOpacity style={styles.cameraButton} onPress={handlePhotoCheckIn}>
-                        <Ionicons name="camera" size={24} color="#FFF" />
-                        <Text style={styles.cameraButtonText}>Submit Today's Proof</Text>
-                    </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleCheckIn('failed')}>
+                                <Text style={styles.failLink}>I failed today (Instant Penalty)</Text>
+                            </TouchableOpacity>
+                        </View>
+                    ) : (
+                        <View style={styles.reviewCard}>
+                            <Text style={[styles.autoFailText, { textAlign: 'center', marginBottom: 8 }]}>Day Failed</Text>
+                            <Text style={styles.analyticsFooter}>You have accepted the penalty for today.</Text>
+                        </View>
+                    )
                 )}
 
-                {!mySub && todayStatus !== 'done' && (
-                    <TouchableOpacity onPress={() => handleCheckIn('failed')}>
-                        <Text style={styles.failLink}>I failed today (Instant Penalty)</Text>
-                    </TouchableOpacity>
+                {/* 2. PEER REVIEW SECTION */}
+                {othersSubmissions.length > 0 && (
+                    <>
+                        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Peer Reviews</Text>
+                        {othersSubmissions.map((sub) => {
+                            const isVoted = myVotes.includes(sub.id);
+                            const name = userNames[sub.user_id] || `User ...${sub.user_id.slice(0, 4)}`;
+                            const isAutoFail = sub.image_url === 'auto_fail_placeholder' || sub.image_url === 'manual_fail';
+
+                            return (
+                                <View key={sub.id} style={styles.reviewCard}>
+                                    <View style={styles.reviewHeader}>
+                                        <Text style={styles.participantName}>{name}</Text>
+                                        <View style={[styles.statusBadge,
+                                        sub.status === 'verified' ? styles.badgeGreen :
+                                            sub.status === 'rejected' ? styles.badgeRed : styles.badgeYellow
+                                        ]}>
+                                            <Text style={styles.statusText}>
+                                                {sub.status === 'rejected' ? 'FAILED' : sub.status.toUpperCase()}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    {isAutoFail ? (
+                                        <View style={styles.autoFailPlaceholder}>
+                                            <Ionicons name="alert-circle" size={40} color="#EF4444" />
+                                            <Text style={styles.autoFailText}>Missed Submission</Text>
+                                        </View>
+                                    ) : (
+                                        <Image source={{ uri: sub.image_url }} style={styles.proofImage} />
+                                    )}
+
+                                    {!isVoted && !isAutoFail && sub.status === 'pending' && (
+                                        <View style={styles.voteButtons}>
+                                            <TouchableOpacity style={[styles.voteButton, styles.voteConfirm]}
+                                                onPress={() => handleVote(sub.id, 'confirm')}>
+                                                <Text style={styles.voteText}>Confirm</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={[styles.voteButton, styles.voteReject]}
+                                                onPress={() => handleVote(sub.id, 'reject')}>
+                                                <Text style={styles.voteText}>Reject</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+
+                                    {isVoted && (
+                                        <Text style={styles.votedText}>You voted on this.</Text>
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </>
                 )}
             </View>
         );
     };
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
                 {/* Header */}
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.headerBackButton}>
-                        <Ionicons name="arrow-back" size={24} color="#334155" />
+                    <TouchableOpacity onPress={() => router.back()} style={[styles.headerBackButton, { backgroundColor: theme.card, shadowColor: theme.icon }]}>
+                        <Ionicons name="arrow-back" size={24} color={theme.icon} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.text }]} numberOfLines={1}>{title}</Text>
                     <View style={{ width: 24 }} />
                 </View>
 
                 {/* Invite Code Card (NEW) */}
                 {invite_code && (
-                    <View style={styles.inviteCard}>
+                    <View style={[styles.inviteCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
                         <View>
-                            <Text style={styles.inviteLabel}>Invite Code</Text>
-                            <Text style={styles.inviteCode}>{invite_code}</Text>
+                            <Text style={[styles.inviteLabel, { color: theme.icon }]}>Invite Code</Text>
+                            <Text style={[styles.inviteCode, { color: theme.text }]}>{invite_code}</Text>
                         </View>
-                        <Ionicons name="copy-outline" size={24} color="#64748B" />
+                        <Ionicons name="copy-outline" size={24} color={theme.icon} />
                     </View>
                 )}
 
                 {/* Main Details Card */}
-                <View style={styles.card}>
+                <View style={[styles.card, { backgroundColor: theme.card, shadowColor: theme.tint }]}>
                     <View style={styles.row}>
                         <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>Duration</Text>
-                            <Text style={styles.statValue}>{duration} Days</Text>
+                            <Text style={[styles.statLabel, { color: theme.icon }]}>Duration</Text>
+                            <Text style={[styles.statValue, { color: theme.text }]}>{duration} Days</Text>
                         </View>
                         <View style={styles.statItem}>
-                            <Text style={styles.statLabel}>Stake / Person</Text>
-                            <Text style={styles.statValue}>₹ {amountPerPerson}</Text>
+                            <Text style={[styles.statLabel, { color: theme.icon }]}>Stake / Person</Text>
+                            <Text style={[styles.statValue, { color: theme.text }]}>₹ {amountPerPerson}</Text>
                         </View>
                     </View>
 
-                    <View style={styles.divider} />
+                    <View style={[styles.divider, { backgroundColor: theme.border }]} />
 
-                    <View style={styles.totalContainer}>
-                        <Text style={styles.totalLabel}>Total Pool</Text>
-                        <Text style={styles.totalValue}>₹ {totalAmount}</Text>
+                    <View style={[styles.totalContainer, { backgroundColor: theme.background }]}>
+                        <Text style={[styles.totalLabel, { color: theme.icon }]}>Total Pool</Text>
+                        <Text style={[styles.totalValue, { color: theme.text }]}>₹ {totalAmount}</Text>
                     </View>
                 </View>
 
@@ -571,14 +662,26 @@ export default function PromiseDetailScreen() {
 
                 {/* Participants */}
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Participants ({realParticipantCount})</Text>
+                    <Text style={[styles.sectionTitle, { color: theme.text }]}>Participants ({realParticipantCount})</Text>
                     <View style={styles.participantsList}>
-                        {participants?.map((p: any, index: number) => (
-                            <View key={index} style={styles.participantChip}>
-                                <Ionicons name="person-circle" size={20} color="#64748B" />
-                                <Text style={styles.participantText}>{p.name || p}</Text>
-                            </View>
-                        ))}
+                        {joinedParticipants.length > 0 ? (
+                            joinedParticipants.map((p: any, index: number) => (
+                                <View key={index} style={[styles.participantChip, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                    <Ionicons name="person-circle" size={20} color={theme.icon} />
+                                    <Text style={[styles.participantText, { color: theme.text }]}>{p.name || 'Unknown'}</Text>
+                                </View>
+                            ))
+                        ) : (
+                            // Fallback (Should rarely show if logic is correct, as creator is always joined)
+                            <Text style={{ color: theme.icon, fontSize: 13, fontStyle: 'italic' }}>Waiting for others to join...</Text>
+                        )}
+
+                        {/* Invites Remaining Helper */}
+                        {joinedParticipants.length < numPeople && (
+                            <Text style={{ color: theme.icon, fontSize: 12, marginTop: 8, width: '100%' }}>
+                                {numPeople - joinedParticipants.length} spots remaining. Share the code!
+                            </Text>
+                        )}
                     </View>
                 </View>
 

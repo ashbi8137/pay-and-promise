@@ -22,17 +22,6 @@ export default function SettingsScreen() {
 
             <ScrollView contentContainerStyle={styles.content}>
 
-                {/* Account Section */}
-                <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/ProfileScreen')}>
-                    <View style={styles.rowLeft}>
-                        <View style={[styles.iconContainer, { backgroundColor: '#EEF2FF' }]}>
-                            <Ionicons name="person" size={20} color="#4F46E5" />
-                        </View>
-                        <Text style={styles.rowLabel}>Account</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                </TouchableOpacity>
-
                 {/* Help & Support */}
                 <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/SupportScreen')}>
                     <View style={styles.rowLeft}>

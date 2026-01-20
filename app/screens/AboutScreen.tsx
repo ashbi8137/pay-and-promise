@@ -48,7 +48,7 @@ export default function AboutScreen() {
                     <View style={styles.teamDivider} />
 
                     <View style={styles.teamMember}>
-                        <Text style={styles.devName}>Rahul</Text>
+                        <Text style={styles.devName}>Rahul T U</Text>
                         <Text style={styles.devRole}>Chief Marketing Head (CMH)</Text>
                     </View>
                 </View>

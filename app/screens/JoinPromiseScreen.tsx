@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -7,6 +8,7 @@ import {
     Alert,
     Keyboard,
     KeyboardAvoidingView,
+    Modal,
     Platform,
     SafeAreaView,
     StyleSheet,
@@ -22,6 +24,8 @@ export default function JoinPromiseScreen() {
     const router = useRouter();
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [permission, requestPermission] = useCameraPermissions();
 
     const handleJoin = async () => {
         if (!code || code.length < 6) {
@@ -105,6 +109,58 @@ export default function JoinPromiseScreen() {
         }
     };
 
+    const handleScan = () => {
+        if (!permission) {
+            // Permission logic not yet loaded
+            return;
+        }
+        if (!permission.granted) {
+            requestPermission().then((res) => {
+                if (res.granted) {
+                    setIsScanning(true);
+                } else {
+                    Alert.alert('Camera Permission', 'We need camera permission to scan QR codes.');
+                }
+            });
+        } else {
+            setIsScanning(true);
+        }
+    };
+
+    const handleBarcodeScanned = ({ data }: { data: string }) => {
+        setIsScanning(false);
+        // Assuming the QR code contains JUST the invite code or a deep link like "paypromise://invite/CODE"
+        // For robustness, let's extract the last 6 chars if it looks like a URL, or take it as is.
+        let extracted = data.trim().toUpperCase();
+
+        // Simple heuristic: if len > 6, try to split by '/' or just take last 6? 
+        // Or user just scans the code text itself. 
+        // Let's assume the QR is the code itself for now as per "read qr" requirement.
+        // We can strip spaces.
+        extracted = extracted.replace(/[^A-Z0-9]/g, '');
+
+        if (extracted.length >= 6) {
+            // Take last 6 just in case
+            extracted = extracted.slice(-6);
+            setCode(extracted);
+            // Verify automatically? User said "see the screens after reading".
+            // Let's trigger join immediately?
+            // Or better, let the effect of setting code invite user to click?
+            // The user asked "make sure evrything will works perfectly fine... see the screens".
+            // Triggering join feels "perfect".
+            // But we can't call handleJoin directly here easily due to state closure on empty 'code'.
+            // We'd need to pass the code to handleJoin.
+            // Let's just setCode and show a toast/alert or auto-trigger? 
+            // Auto-triggering is risky nicely. I'll setCode and let them click "Review & Join" or I can add a useEffect.
+            // Actually, I'll allow them to review.
+            Alert.alert("QR Code Detected", `Found code: ${extracted}`, [
+                { text: "Use Code", onPress: () => { } } // It's already set
+            ]);
+        } else {
+            Alert.alert("Invalid QR", "Could not find a valid 6-character code.");
+        }
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <KeyboardAvoidingView
@@ -121,12 +177,27 @@ export default function JoinPromiseScreen() {
                         </View>
 
                         <Text style={styles.title}>Join a Promise</Text>
-                        <Text style={styles.subtitle}>Join a challenge safely and confidently.</Text>
+                        <Text style={styles.subtitle}>Scan a QR code or enter invite code.</Text>
 
                         <View style={styles.form}>
                             <View style={styles.trustHeader}>
                                 <Ionicons name="shield-checkmark-outline" size={16} color="#4338ca" />
                                 <Text style={styles.trustHeaderText}>You’ll see all details before confirming.</Text>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleScan}
+                                style={styles.scanButton}
+                                activeOpacity={0.8}
+                            >
+                                <Ionicons name="qr-code-outline" size={24} color="#4F46E5" />
+                                <Text style={styles.scanButtonText}>Scan QR Code</Text>
+                            </TouchableOpacity>
+
+                            <View style={styles.orDivider}>
+                                <View style={styles.line} />
+                                <Text style={styles.orText}>OR</Text>
+                                <View style={styles.line} />
                             </View>
 
                             <Text style={styles.label}>Invite Code</Text>
@@ -146,7 +217,6 @@ export default function JoinPromiseScreen() {
                                 maxLength={6}
                                 autoCorrect={false}
                             />
-                            <Text style={styles.helperText}>Get the 6-character invite code from your friend who created the promise.</Text>
 
                             <TouchableOpacity
                                 onPress={handleJoin}
@@ -188,6 +258,35 @@ export default function JoinPromiseScreen() {
                     </View>
                 </TouchableWithoutFeedback>
             </KeyboardAvoidingView>
+
+            {/* Camera Modal */}
+            <Modal visible={isScanning} animationType="slide" presentationStyle="pageSheet">
+                <View style={styles.cameraContainer}>
+                    <CameraView
+                        style={StyleSheet.absoluteFill}
+                        facing="back"
+                        onBarcodeScanned={handleBarcodeScanned}
+                        barcodeScannerSettings={{
+                            barcodeTypes: ["qr"],
+                        }}
+                    >
+                        <View style={styles.cameraOverlay}>
+                            <View style={styles.cameraHeader}>
+                                <TouchableOpacity onPress={() => setIsScanning(false)} style={styles.closeButton}>
+                                    <Ionicons name="close" size={28} color="#FFF" />
+                                </TouchableOpacity>
+                                <Text style={styles.cameraTitle}>Scan an Invite QR</Text>
+                                <View style={{ width: 28 }} />
+                            </View>
+
+                            <View style={styles.scanFrameContainer}>
+                                <View style={styles.scanFrame} />
+                                <Text style={styles.scanFrameText}>Align QR code within the frame</Text>
+                            </View>
+                        </View>
+                    </CameraView>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -249,6 +348,39 @@ const styles = StyleSheet.create({
     trustHeaderText: {
         fontSize: 12,
         color: '#4338ca',
+        fontWeight: '600',
+    },
+    scanButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#EEF2FF',
+        padding: 16,
+        borderRadius: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+    },
+    scanButtonText: {
+        marginLeft: 8,
+        color: '#4F46E5',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+    orDivider: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    line: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#E2E8F0',
+    },
+    orText: {
+        marginHorizontal: 12,
+        color: '#94A3B8',
+        fontSize: 12,
         fontWeight: '600',
     },
     label: {
@@ -322,5 +454,50 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#64748B',
         fontWeight: '500',
+    },
+    // Camera Styles
+    cameraContainer: {
+        flex: 1,
+        backgroundColor: '#000',
+    },
+    cameraOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'space-between',
+    },
+    cameraHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 20,
+        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    },
+    closeButton: {
+        padding: 8,
+    },
+    cameraTitle: {
+        color: '#FFF',
+        fontSize: 18,
+        fontWeight: '600',
+    },
+    scanFrameContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 100,
+    },
+    scanFrame: {
+        width: 250,
+        height: 250,
+        borderWidth: 2,
+        borderColor: '#FFF',
+        borderRadius: 20,
+        backgroundColor: 'transparent',
+    },
+    scanFrameText: {
+        color: '#FFF',
+        marginTop: 20,
+        fontSize: 14,
+        opacity: 0.8,
     }
 });

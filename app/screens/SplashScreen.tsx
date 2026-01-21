@@ -5,7 +5,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
 // Prevent native splash screen from autohiding
-SplashScreenModule.preventAutoHideAsync();
+// REMOVED: Moved to _layout.tsx to avoid race conditions
 
 export default function SplashScreen() {
   const router = useRouter();

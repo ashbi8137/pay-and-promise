@@ -227,29 +227,57 @@ export default function PromiseDetailScreen() {
 
     const fetchCheckins = async () => {
         try {
+            // SWITCH TO PROMISE_SUBMISSIONS AS SOURCE OF TRUTH
+            // daily_checkins table was desyncing. 
+            // We map: verified -> done, rejected -> failed, pending -> pending
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
             const { data, error } = await supabase
-                .from('daily_checkins')
+                .from('promise_submissions')
                 .select('date, status')
                 .eq('promise_id', promiseData.id)
+                .eq('user_id', user.id) // <--- CRITICAL FIX: Only fetch MY submissions
                 .order('date', { ascending: false });
 
             if (data) {
-                setCheckins(data);
+                // Map to 'done' | 'failed' | 'pending' convention used by UI
+                const mappedCheckins = data.map(item => ({
+                    date: item.date,
+                    status: item.status === 'verified' ? 'done' :
+                        (item.status === 'rejected' ? 'failed' : 'pending')
+                }));
 
-                // Auto-Complete Promise if Duration Met
-                if (data.length >= duration) {
+                setCheckins(mappedCheckins);
+
+                // Auto-Complete Promise if Duration Met (Logic remains similar but based on mapped data)
+                const completedCount = mappedCheckins.filter(c => c.status === 'done' || c.status === 'failed').length;
+                if (completedCount >= duration) {
                     await supabase
                         .from('promises')
                         .update({ status: 'completed' })
                         .eq('id', promiseData.id)
-                        .eq('status', 'active'); // Only update if currently active
+                        .eq('status', 'active');
                 }
 
-                // Check if checked in today
+                // Check if submitted today
                 const todayStr = new Date().toISOString().split('T')[0];
-                const todayEntry = data.find(c => c.date === todayStr);
+                const todayEntry = mappedCheckins.find(c => c.date === todayStr);
+
+                // If today is rejected -> failed
+                // If today is verified -> done
+                // If today is pending -> pending (but UI might want to know if I submitted)
+                // The original UI used 'done' | 'failed' to block inputs. 
+                // We need to be careful: if 'pending', we should probably show the "Pending Verification" state, not the input buttons.
+                // existing logic: setTodayStatus(todayEntry.status as 'done' | 'failed')
+
                 if (todayEntry) {
-                    setTodayStatus(todayEntry.status as 'done' | 'failed');
+                    if (todayEntry.status === 'done' || todayEntry.status === 'failed') {
+                        setTodayStatus(todayEntry.status);
+                    } else {
+                        // Pending... usually handled by renderDailyReview checking submissions
+                        setTodayStatus(null);
+                    }
                 } else {
                     setTodayStatus(null);
                 }

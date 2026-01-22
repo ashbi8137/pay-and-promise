@@ -1,7 +1,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -41,9 +41,11 @@ export default function JourneyScreen() {
     const [loading, setLoading] = useState(true);
     const [history, setHistory] = useState<JourneyItem[]>([]);
 
-    useEffect(() => {
-        fetchJourneyAttributes();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchJourneyAttributes();
+        }, [])
+    );
 
     const fetchJourneyAttributes = async () => {
         try {
@@ -209,75 +211,169 @@ export default function JourneyScreen() {
 
                                 {/* Card */}
                                 <View style={styles.cardContainer}>
-                                    <View style={styles.card}>
-                                        <View style={styles.cardHeader}>
-                                            <Text style={styles.cardTitle}>{item.title}</Text>
-                                            <View style={[
-                                                styles.statusBadge,
-                                                item.status === 'completed' ? styles.bgGreen :
-                                                    item.status === 'failed' ? styles.bgRed : styles.bgBlue
-                                            ]}>
-                                                <Text style={[
-                                                    styles.statusText,
-                                                    item.status === 'completed' ? styles.textGreen :
-                                                        item.status === 'failed' ? styles.textRed : styles.textBlue
-                                                ]}>
-                                                    {item.status === 'completed' ? 'Success' :
-                                                        item.status === 'failed' ? 'Failed' : 'Active'}
-                                                </Text>
-                                            </View>
-                                        </View>
+                                    {(() => {
+                                        // LOGIC: Check if Fully Completed
+                                        // Note: days_data contains 'done', 'failed', 'empty' etc.
+                                        // We assume 'done' + 'failed' + maybe specific 'skipped' = duration? 
+                                        // Simpler check: if Status is 'completed' OR 'failed' (meaning time is up) 
+                                        // AND we want to check strict duration matching if needed.
+                                        // User said: "When completedDays == totalDays".
 
-                                        {/* The Story Graph */}
-                                        <Text style={styles.sectionLabel}>Daily Progress</Text>
-                                        <View style={styles.storyGraph}>
-                                            {item.days_data.map((dayStatus, i) => (
-                                                <View
-                                                    key={i}
-                                                    style={[
-                                                        styles.storyBlock,
-                                                        dayStatus === 'done' ? styles.blockGreen :
-                                                            dayStatus === 'failed' ? styles.blockRed : styles.blockGray
-                                                    ]}
-                                                />
-                                            ))}
-                                        </View>
+                                        // Let's count actual recorded days (done + failed)
+                                        const totalRecordedDays = item.days_data.filter(d => d === 'done' || d === 'failed').length;
 
-                                        {/* Stats */}
-                                        <View style={styles.statsRow}>
-                                            <View style={styles.stat}>
-                                                <Text style={styles.statLabel}>Days</Text>
-                                                <View style={{ flexDirection: 'row', gap: 4 }}>
-                                                    <Text style={[styles.statValue, { color: '#10B981' }]}>
-                                                        {item.days_data.filter(d => d === 'done').length}
-                                                    </Text>
-                                                    <Text style={{ color: '#94A3B8' }}>|</Text>
-                                                    <Text style={[styles.statValue, { color: '#EF4444' }]}>
-                                                        {item.days_data.filter(d => d === 'failed').length}
-                                                    </Text>
+                                        // Robust Check: 
+                                        // 1. Check if days match duration (Calculated completion)
+                                        // 2. OR Check if global status is 'completed' or 'failed' (Backend/Logic completion)
+                                        const isFullyCompleted = totalRecordedDays >= item.duration_days || item.status === 'completed' || item.status === 'failed';
+
+                                        // Financial State
+                                        const isLoss = item.net < 0;
+                                        const isGain = item.net > 0;
+                                        // Mock Payment Status
+                                        const paymentStatus = 'Pending'; // Default to Pending for now
+                                        const isSettled = false; // Mock
+
+                                        // Determine Visual Style
+                                        // explicitly type as any to avoid strict "missing properties" errors with array styles
+                                        let cardStyle: any = styles.card;
+                                        let badgeStyle = styles.bgBlue;
+                                        let textStyle = styles.textBlue;
+                                        let badgeText = 'Active';
+
+                                        if (isFullyCompleted) {
+                                            if (isLoss && !isSettled) {
+                                                // Loss + Pending
+                                                cardStyle = [styles.card, styles.cardLoss]; // Yellow/Orange Border
+                                                badgeStyle = styles.bgOrange;
+                                                textStyle = styles.textOrange;
+                                                badgeText = 'Completed';
+                                            } else if (isGain) {
+                                                // Gain
+                                                cardStyle = [styles.card, styles.cardGain]; // Blue/Neutral Border
+                                                badgeStyle = styles.bgGreen;
+                                                textStyle = styles.textGreen;
+                                                badgeText = 'Completed';
+                                            } else if (isSettled) {
+                                                // Paid / Settled
+                                                cardStyle = [styles.card, styles.cardSettled]; // Green BG
+                                                badgeStyle = styles.bgGreen;
+                                                textStyle = styles.textGreen;
+                                                badgeText = 'Settled';
+                                            } else {
+                                                // Default Completed (e.g. Net 0)
+                                                badgeStyle = styles.bgGreen;
+                                                textStyle = styles.textGreen;
+                                                badgeText = 'Completed';
+                                            }
+                                        } else {
+                                            // Active / Incomplete
+                                            if (item.status === 'failed') {
+                                                badgeStyle = styles.bgRed;
+                                                textStyle = styles.textRed;
+                                                badgeText = 'Failed';
+                                            }
+                                        }
+
+                                        return (
+                                            <View style={cardStyle}>
+                                                <View style={styles.cardHeader}>
+                                                    <Text style={styles.cardTitle}>{item.title}</Text>
+                                                    <View style={[styles.statusBadge, badgeStyle]}>
+                                                        <Text style={[styles.statusText, textStyle]}>{badgeText}</Text>
+                                                    </View>
                                                 </View>
-                                            </View>
 
-                                            <View style={styles.stat}>
-                                                <Text style={styles.statLabel}>Outcome</Text>
-                                                <View style={{ flexDirection: 'row', gap: 4 }}>
-                                                    {item.winnings > 0 &&
-                                                        <Text style={[styles.statValue, { color: '#10B981' }]}>
-                                                            +₹{item.winnings}
-                                                        </Text>
-                                                    }
-                                                    {item.penalties > 0 &&
-                                                        <Text style={[styles.statValue, { color: '#EF4444' }]}>
-                                                            -₹{item.penalties}
-                                                        </Text>
-                                                    }
-                                                    {item.winnings === 0 && item.penalties === 0 &&
-                                                        <Text style={[styles.statValue, { color: '#94A3B8' }]}>-</Text>
-                                                    }
+                                                {/* The Story Graph */}
+                                                <Text style={styles.sectionLabel}>Daily Progress</Text>
+                                                <View style={styles.storyGraph}>
+                                                    {item.days_data.map((dayStatus, i) => (
+                                                        <View
+                                                            key={i}
+                                                            style={[
+                                                                styles.storyBlock,
+                                                                dayStatus === 'done' ? styles.blockGreen :
+                                                                    dayStatus === 'failed' ? styles.blockRed : styles.blockGray
+                                                            ]}
+                                                        />
+                                                    ))}
                                                 </View>
+
+                                                {/* Stats */}
+                                                <View style={styles.statsRow}>
+                                                    <View style={styles.stat}>
+                                                        <Text style={styles.statLabel}>Days</Text>
+                                                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                                                            <Text style={[styles.statValue, { color: '#10B981' }]}>
+                                                                {item.days_data.filter(d => d === 'done').length}
+                                                            </Text>
+                                                            <Text style={{ color: '#94A3B8' }}>|</Text>
+                                                            <Text style={[styles.statValue, { color: '#EF4444' }]}>
+                                                                {item.days_data.filter(d => d === 'failed').length}
+                                                            </Text>
+                                                        </View>
+                                                    </View>
+
+                                                    <View style={styles.stat}>
+                                                        <Text style={styles.statLabel}>Outcome</Text>
+                                                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                                                            {item.winnings > 0 &&
+                                                                <Text style={[styles.statValue, { color: '#10B981' }]}>
+                                                                    +₹{item.winnings}
+                                                                </Text>
+                                                            }
+                                                            {item.penalties > 0 &&
+                                                                <Text style={[styles.statValue, { color: '#EF4444' }]}>
+                                                                    -₹{item.penalties}
+                                                                </Text>
+                                                            }
+                                                            {item.winnings === 0 && item.penalties === 0 &&
+                                                                <Text style={[styles.statValue, { color: '#94A3B8' }]}>-</Text>
+                                                            }
+                                                        </View>
+                                                    </View>
+                                                </View>
+
+                                                {/* PAYMENT SECTION (Only for Fully Completed) */}
+                                                {isFullyCompleted && (
+                                                    <View style={styles.paymentSection}>
+                                                        {isLoss && !isSettled && (
+                                                            <View>
+                                                                <View style={styles.paymentRow}>
+                                                                    <Text style={styles.paymentLabel}>Payment Status:</Text>
+                                                                    <Text style={styles.paymentValuePending}>Pending</Text>
+                                                                </View>
+                                                                <View style={styles.paymentRow}>
+                                                                    <Text style={styles.paymentLabel}>Amount to Pay:</Text>
+                                                                    <Text style={styles.paymentValueAmount}>₹{Math.abs(item.net)}</Text>
+                                                                </View>
+                                                                <TouchableOpacity style={styles.payNowButton}>
+                                                                    <Text style={styles.payNowText}>Pay Now</Text>
+                                                                </TouchableOpacity>
+                                                            </View>
+                                                        )}
+
+                                                        {isGain && (
+                                                            <View>
+                                                                <View style={styles.paymentRow}>
+                                                                    <Text style={styles.paymentLabel}>You will receive:</Text>
+                                                                    <Text style={styles.paymentValueGain}>₹{item.winnings}</Text>
+                                                                </View>
+                                                                <Text style={styles.paymentStatusGain}>Status: Awaiting peer payment</Text>
+                                                            </View>
+                                                        )}
+
+                                                        {isSettled && (
+                                                            <View style={styles.settledContainer}>
+                                                                <Text style={styles.settledText}>Payment Settled ✔</Text>
+                                                            </View>
+                                                        )}
+                                                    </View>
+                                                )}
+
                                             </View>
-                                        </View>
-                                    </View>
+                                        );
+                                    })()}
                                 </View>
                             </Animated.View>
                         ))}
@@ -452,6 +548,77 @@ const styles = StyleSheet.create({
     },
     emptyText: {
         color: '#94A3B8',
+        fontSize: 14,
+    },
+    // NEW CARD STYLES
+    cardLoss: {
+        borderColor: '#FDBA74', // Soft Orange
+        borderWidth: 1.5,
+    },
+    cardGain: {
+        borderColor: '#94A3B8', // Neutral/Blueish
+    },
+    cardSettled: {
+        backgroundColor: '#F0FDF4', // Soft Green BG
+        borderColor: '#BBF7D0',
+    },
+    bgOrange: { backgroundColor: '#FFEDD5' },
+    textOrange: { color: '#C2410C', fontSize: 10, fontWeight: '700' },
+
+    paymentSection: {
+        marginTop: 16,
+        paddingTop: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F1F5F9',
+    },
+    paymentRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+    paymentLabel: {
+        color: '#64748B',
+        fontSize: 14,
+    },
+    paymentValuePending: {
+        color: '#F59E0B', // Amber
+        fontWeight: '700',
+    },
+    paymentValueAmount: {
+        color: '#0F172A',
+        fontWeight: '800',
+        fontSize: 16,
+    },
+    payNowButton: {
+        backgroundColor: '#0F172A',
+        borderRadius: 12,
+        paddingVertical: 12,
+        alignItems: 'center',
+        marginTop: 8,
+    },
+    payNowText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 14,
+    },
+    paymentValueGain: {
+        color: '#166534',
+        fontWeight: '800',
+        fontSize: 16,
+    },
+    paymentStatusGain: {
+        color: '#64748B',
+        fontSize: 12,
+        fontStyle: 'italic',
+        marginTop: 4,
+    },
+    settledContainer: {
+        alignItems: 'center',
+        paddingVertical: 8,
+    },
+    settledText: {
+        color: '#166534',
+        fontWeight: '700',
         fontSize: 14,
     }
 });

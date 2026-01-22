@@ -245,8 +245,8 @@ export default function ProfileScreen() {
                                 <Ionicons name="map-outline" size={20} color="#4F46E5" />
                             </View>
                             <View>
-                                <Text style={styles.settingText}>Your Journey</Text>
-                                <Text style={{ fontSize: 12, color: '#94A3B8' }}>History of all your promises</Text>
+                                <Text style={styles.settingText}>Journey & Payments</Text>
+                                <Text style={{ fontSize: 12, color: '#94A3B8' }}>Track progress & settle commitments.</Text>
                             </View>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />

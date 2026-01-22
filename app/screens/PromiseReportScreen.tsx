@@ -41,6 +41,7 @@ export default function PromiseReportScreen() {
         netResult: 0
     });
     const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+    const [isWash, setIsWash] = useState(false);
 
     // Parse promise from params
     const promiseId = params.promiseId as string;
@@ -83,9 +84,11 @@ export default function PromiseReportScreen() {
                     const val = Number(item.amount);
                     if (item.type === 'winnings') {
                         totalEarned += val;
-                    }
-                    if (item.type === 'penalty') {
+                    } else if (item.type === 'penalty') {
                         totalPaid += Math.abs(val);
+                    } else if (item.type === 'refund') {
+                        // Refund reduces the total paid amount
+                        totalPaid -= val;
                     }
                 });
 
@@ -96,7 +99,18 @@ export default function PromiseReportScreen() {
                 });
             }
 
-            // 3. Fetch Participant Names for settlement info
+            // 3. New: Check for "The Wash" (Did ANYONE win?)
+            // We fetch all winnings for this promise. If sum is 0, it's a wash.
+            const { data: allWinnings } = await supabase
+                .from('ledger')
+                .select('amount')
+                .eq('promise_id', promiseId)
+                .eq('type', 'winnings');
+
+            const totalGroupWinnings = allWinnings?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
+            setIsWash(totalGroupWinnings === 0);
+
+            // 4. Fetch Participant Names for settlement info
             const { data: participants } = await supabase
                 .from('promise_participants')
                 .select('user_id')
@@ -272,16 +286,30 @@ export default function PromiseReportScreen() {
                         </View>
                     ) : (
                         <View style={styles.settlementContent}>
-                            <View style={[styles.settlementBadge, { backgroundColor: '#FEE2E2' }]}>
-                                <Ionicons name="wallet-outline" size={20} color="#991B1B" />
-                            </View>
-                            <Text style={styles.settlementText}>
-                                You owe{' '}
-                                <Text style={[styles.settlementAmount, { color: '#991B1B' }]}>
-                                    ₹{Math.abs(financials.netResult).toFixed(0)}
-                                </Text>
-                                {'\n'}to the pool
-                            </Text>
+                            {isWash ? (
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                    <View style={[styles.settlementBadge, { backgroundColor: '#F1F5F9' }]}>
+                                        <Ionicons name="git-compare-outline" size={20} color="#64748B" />
+                                    </View>
+                                    <Text style={styles.settlementText}>
+                                        <Text style={{ fontWeight: '700', color: '#64748B' }}>The Wash Rule:</Text>
+                                        {'\n'}Everyone failed, so no one pays.
+                                    </Text>
+                                </View>
+                            ) : (
+                                <>
+                                    <View style={[styles.settlementBadge, { backgroundColor: '#FEE2E2' }]}>
+                                        <Ionicons name="wallet-outline" size={20} color="#991B1B" />
+                                    </View>
+                                    <Text style={styles.settlementText}>
+                                        You owe{' '}
+                                        <Text style={[styles.settlementAmount, { color: '#991B1B' }]}>
+                                            ₹{Math.abs(financials.netResult).toFixed(0)}
+                                        </Text>
+                                        {'\n'}to the pool
+                                    </Text>
+                                </>
+                            )}
                         </View>
                     )}
                 </View>

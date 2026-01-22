@@ -69,8 +69,11 @@ export default function AuthScreen() {
     setLoading(false);
 
     if (error) {
-      // User-friendly error message
-      setErrorMessage('Email or password is incorrect. Please try again.');
+      if (error.message.includes('Email not confirmed')) {
+        setErrorMessage('Email not verified. Please check your inbox.');
+      } else {
+        setErrorMessage('Email or password is incorrect. Please try again.');
+      }
     } else {
       router.replace('/screens/HomeScreen');
     }
@@ -108,8 +111,8 @@ export default function AuthScreen() {
 
     setLoading(false);
     Alert.alert(
-      'Success',
-      'Account created successfully! Please sign in.',
+      'Check your Inbox',
+      'We have sent a verification link to your email. Please verify your account before logging in.',
       [
         {
           text: 'OK',

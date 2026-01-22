@@ -33,15 +33,43 @@ export default function TransactionHistoryScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Fetch Ledger History
+            // Fetch Ledger History with promise details
             const { data: ledger, error } = await supabase
                 .from('ledger')
-                .select('amount, type, description, created_at')
+                .select('amount, type, description, created_at, promise_id')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
-            if (ledger) setHistory(ledger);
+
+            // Fetch promise titles for the ledger entries
+            if (ledger && ledger.length > 0) {
+                const promiseIds = [...new Set(ledger.map(l => l.promise_id).filter(Boolean))];
+
+                let promiseTitles: Record<string, string> = {};
+                if (promiseIds.length > 0) {
+                    const { data: promises } = await supabase
+                        .from('promises')
+                        .select('id, title')
+                        .in('id', promiseIds);
+
+                    if (promises) {
+                        promises.forEach(p => {
+                            promiseTitles[p.id] = p.title;
+                        });
+                    }
+                }
+
+                // Enrich ledger with promise titles
+                const enrichedHistory = ledger.map(item => ({
+                    ...item,
+                    promise_title: item.promise_id ? promiseTitles[item.promise_id] : null
+                }));
+
+                setHistory(enrichedHistory);
+            } else {
+                setHistory([]);
+            }
 
         } catch (error) {
             console.error('Error loading history:', error);
@@ -87,6 +115,9 @@ export default function TransactionHistoryScreen() {
                     ) : (
                         history.map((item, index) => (
                             <View key={index} style={styles.historyCard}>
+                                {item.promise_title && (
+                                    <Text style={styles.promiseTag}>{item.promise_title}</Text>
+                                )}
                                 <View style={styles.historyHeader}>
                                     <Text style={styles.historyDate}>
                                         {new Date(item.created_at).toLocaleDateString()}
@@ -186,5 +217,17 @@ const styles = StyleSheet.create({
     emptyText: {
         color: '#94A3B8',
         fontSize: 16,
-    }
+    },
+    promiseTag: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#4338ca',
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
+        alignSelf: 'flex-start',
+        marginBottom: 8,
+        overflow: 'hidden',
+    },
 });

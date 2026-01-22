@@ -7,7 +7,7 @@ export default function AboutScreen() {
     const router = useRouter();
 
     const handleEmail = () => {
-        Linking.openURL('mailto:support.pnp@gmail.com');
+        Linking.openURL('mailto:payandpromise@gmail.com');
     };
 
     return (
@@ -41,8 +41,8 @@ export default function AboutScreen() {
                     <Text style={styles.devLabel}>Team Behind Pay & Promise</Text>
 
                     <View style={styles.teamMember}>
-                        <Text style={styles.devName}>Ashbin P A</Text>
-                        <Text style={styles.devRole}>Founder & Developer</Text>
+                        <Text style={styles.devName}>Ashbin Puthusseri</Text>
+                        <Text style={styles.devRole}>Founder & Lead Developer</Text>
                     </View>
 
                     <View style={styles.teamDivider} />
@@ -51,15 +51,16 @@ export default function AboutScreen() {
                         <Text style={styles.devName}>Rahul T U</Text>
                         <Text style={styles.devRole}>Marketing & Growth Lead</Text>
                     </View>
+
+                    <View style={styles.teamDivider} />
+
+                    <View style={styles.teamMember}>
+                        <Text style={styles.devName}>Ajay Sreenivasan</Text>
+                        <Text style={styles.devRole}>Design & Brand Lead</Text>
+                    </View>
                 </View>
 
-                {/* Tagline */}
-                <View style={styles.quoteContainer}>
-                    <Ionicons name="chatbubbles-outline" size={24} color="#CBD5E1" style={styles.quoteIcon} />
-                    <Text style={styles.tagline}>
-                        “If you’re serious about changing your habits, this app will make sure your promises finally mean something.”
-                    </Text>
-                </View>
+
 
                 {/* Contact Section */}
                 <View style={styles.contactSection}>
@@ -69,7 +70,7 @@ export default function AboutScreen() {
                         </View>
                         <View>
                             <Text style={styles.contactLabel}>Support & Business</Text>
-                            <Text style={styles.contactValue}>support.pnp@gmail.com</Text>
+                            <Text style={styles.contactValue}>payandpromise@gmail.com</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={20} color="#CBD5E1" style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>

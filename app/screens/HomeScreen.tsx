@@ -40,6 +40,8 @@ export default function HomeScreen() {
     const [firstName, setFirstName] = useState<string>('Ashbin');
     const [activePromises, setActivePromises] = useState<PromiseItem[]>([]);
     const [completedPromises, setCompletedPromises] = useState<PromiseItem[]>([]);
+    const [recentlyCompleted, setRecentlyCompleted] = useState<PromiseItem[]>([]);
+    const [promiseListTab, setPromiseListTab] = useState<'in_progress' | 'completed'>('in_progress');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -107,11 +109,22 @@ export default function HomeScreen() {
 
                     const pending: PromiseItem[] = [];
                     const done: PromiseItem[] = [];
+                    const justCompleted: PromiseItem[] = [];
 
                     for (const p of promises) {
                         // 1. If Promise is finalized (Completed/Failed), it goes to Completed Tab
                         if (p.status !== 'active') {
                             done.push(p);
+                            // Check if promise was completed recently (check created_at + duration)
+                            const startDate = new Date(p.created_at);
+                            const endDate = new Date(startDate);
+                            endDate.setDate(startDate.getDate() + p.duration_days);
+                            const now = new Date();
+                            // If promise ended within the last 24 hours, show congratulations
+                            const hoursSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60);
+                            if (p.status === 'completed' && hoursSinceEnd >= 0 && hoursSinceEnd < 24) {
+                                justCompleted.push(p);
+                            }
                             continue;
                         }
 
@@ -129,6 +142,7 @@ export default function HomeScreen() {
 
                     setActivePromises(pending);
                     setCompletedPromises(done);
+                    setRecentlyCompleted(justCompleted);
                 }
             }
         } catch (error) {
@@ -200,7 +214,7 @@ export default function HomeScreen() {
                                     {isHistory ? (isFailed ? 'Failed' : 'Completed') : `${currentDay} of ${totalDays} days completed`}
                                 </Text>
                                 <Text style={[styles.cardMeta, { color: theme.icon }]}>
-                                    ₹{item.amount_per_person}/person • {item.participants?.length || 0} participants
+                                    ₹{item.amount_per_person}/person • {item.number_of_people} participants
                                 </Text>
                             </View>
                         </View>
@@ -260,6 +274,37 @@ export default function HomeScreen() {
                             </LinearGradient>
                         </TouchableOpacity>
                     </Animated.View>
+
+                    {/* Congratulations Banner for Recently Completed Promises */}
+                    {recentlyCompleted.length > 0 && (
+                        <Animated.View entering={FadeInDown.delay(150).springify()}>
+                            {recentlyCompleted.map(promise => (
+                                <TouchableOpacity
+                                    key={`congrats-${promise.id}`}
+                                    style={[styles.congratsBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+                                    onPress={() => router.push({
+                                        pathname: '/screens/PromiseReportScreen',
+                                        params: { promiseId: promise.id }
+                                    })}
+                                    activeOpacity={0.8}
+                                >
+                                    <View style={styles.congratsContent}>
+                                        <Text style={styles.congratsEmoji}>🎉</Text>
+                                        <View style={styles.congratsTextContainer}>
+                                            <Text style={styles.congratsTitle}>Congratulations!</Text>
+                                            <Text style={styles.congratsSubtitle} numberOfLines={1}>
+                                                You have successfully completed "{promise.title}"
+                                            </Text>
+                                        </View>
+                                    </View>
+                                    <View style={styles.congratsArrow}>
+                                        <Text style={styles.congratsLink}>View report</Text>
+                                        <Ionicons name="arrow-forward" size={16} color="#059669" />
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </Animated.View>
+                    )}
 
                     {/* ACTION SURFACE (Grouped Actions) */}
                     <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.actionSurface, { backgroundColor: theme.card, shadowColor: theme.tint, borderColor: theme.border }]}>
@@ -330,36 +375,75 @@ export default function HomeScreen() {
                         </Animated.View>
                     )}
 
-                    {/* Active Section Header */}
-                    <View style={styles.sectionHeader}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Your Promises</Text>
+                    {/* Promise List Section with Tabs */}
+                    <View style={styles.promiseListSection}>
+                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Promise List</Text>
+
+                        {/* Tab Switcher */}
+                        <View style={[styles.tabContainer, { backgroundColor: theme.background }]}>
+                            <TouchableOpacity
+                                style={[styles.tab, promiseListTab === 'in_progress' && [styles.tabActive, { backgroundColor: theme.card }]]}
+                                onPress={() => setPromiseListTab('in_progress')}
+                            >
+                                <Text style={[styles.tabText, { color: theme.icon }, promiseListTab === 'in_progress' && styles.tabTextActive]}>
+                                    In Progress
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.tab, promiseListTab === 'completed' && [styles.tabActive, { backgroundColor: theme.card }]]}
+                                onPress={() => setPromiseListTab('completed')}
+                            >
+                                <Text style={[styles.tabText, { color: theme.icon }, promiseListTab === 'completed' && styles.tabTextActive]}>
+                                    Completed
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Promise Cards based on selected tab */}
+                        {promiseListTab === 'in_progress' ? (
+                            // In Progress Promises
+                            activePromises.length > 0 ? (
+                                activePromises.map(item => renderCard(item, false))
+                            ) : (
+                                <View style={[styles.emptyStateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                    <View style={[styles.emptyStateIcon, { backgroundColor: theme.background }]}>
+                                        <Ionicons name="hourglass-outline" size={32} color={theme.icon} />
+                                    </View>
+                                    <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No active promises</Text>
+                                    <Text style={[styles.emptyStateText, { color: theme.icon }]}>
+                                        Your active promises will appear here.{"\n"}
+                                        Create one to get started.
+                                    </Text>
+                                </View>
+                            )
+                        ) : (
+                            // Completed Promises
+                            completedPromises.filter(p => p.status === 'completed' || p.status === 'failed').length > 0 ? (
+                                completedPromises.filter(p => p.status === 'completed' || p.status === 'failed').map(item => (
+                                    <TouchableOpacity
+                                        key={`completed-${item.id}`}
+                                        activeOpacity={0.9}
+                                        onPress={() => router.push({
+                                            pathname: '/screens/PromiseReportScreen',
+                                            params: { promiseId: item.id }
+                                        })}
+                                    >
+                                        {renderCard(item, true)}
+                                    </TouchableOpacity>
+                                ))
+                            ) : (
+                                <View style={[styles.emptyStateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                                    <View style={[styles.emptyStateIcon, { backgroundColor: theme.background }]}>
+                                        <Ionicons name="trophy-outline" size={32} color={theme.icon} />
+                                    </View>
+                                    <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No completed promises yet</Text>
+                                    <Text style={[styles.emptyStateText, { color: theme.icon }]}>
+                                        Complete a promise to see it here.
+                                    </Text>
+                                </View>
+                            )
+                        )}
                     </View>
-
-                    {/* Active Promises List or Empty Card */}
-                    {activePromises.length > 0 ? (
-                        activePromises.map(item => renderCard(item, false))
-                    ) : (
-                        <View style={[styles.emptyStateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                            <View style={[styles.emptyStateIcon, { backgroundColor: theme.background }]}>
-                                <Ionicons name="compass-outline" size={32} color={theme.icon} />
-                            </View>
-                            <Text style={[styles.emptyStateTitle, { color: theme.text }]}>Ready when you are</Text>
-                            <Text style={[styles.emptyStateText, { color: theme.icon }]}>
-                                Your active promises will appear here.{"\n"}
-                                Create one to get started.
-                            </Text>
-                        </View>
-                    )}
-
-                    {/* Completed Section (History) */}
-                    {completedPromises.length > 0 && (
-                        <View style={{ marginTop: 24 }}>
-                            <View style={styles.sectionHeader}>
-                                <Text style={[styles.sectionTitle, { color: theme.text }]}>Today's Wins</Text>
-                            </View>
-                            {completedPromises.map(item => renderCard(item, true))}
-                        </View>
-                    )}
                     {/* Integrated Trust Footer (Moved to Bottom) */}
                     <View style={styles.trustFooter}>
                         <Ionicons name="lock-closed-outline" size={12} color={theme.icon} />
@@ -659,5 +743,80 @@ const styles = StyleSheet.create({
         color: '#EF4444',
         fontSize: 11,
         fontWeight: '700',
+    },
+    // Congratulations Banner Styles
+    congratsBanner: {
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 16,
+        borderWidth: 1,
+    },
+    congratsContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    congratsEmoji: {
+        fontSize: 24,
+        marginRight: 12,
+    },
+    congratsTextContainer: {
+        flex: 1,
+    },
+    congratsTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#065F46',
+        marginBottom: 2,
+    },
+    congratsSubtitle: {
+        fontSize: 13,
+        color: '#047857',
+        fontWeight: '500',
+    },
+    congratsArrow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 4,
+    },
+    congratsLink: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#059669',
+    },
+    // Promise List Section Styles
+    promiseListSection: {
+        marginBottom: 16,
+    },
+    tabContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        borderRadius: 12,
+        padding: 4,
+        marginBottom: 16,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        alignItems: 'center',
+    },
+    tabActive: {
+        backgroundColor: '#FFFFFF',
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    tabText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748B',
+    },
+    tabTextActive: {
+        color: '#4F46E5',
     },
 });

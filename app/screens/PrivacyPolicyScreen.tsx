@@ -80,7 +80,7 @@ export default function PrivacyPolicyScreen() {
                     <Text style={styles.paragraph}>
                         If you have any questions about this Privacy Policy, please contact us at:
                         {"\n\n"}
-                        <Text style={styles.bold}>support.pnp@gmail.com</Text>
+                        <Text style={styles.bold}>payandpromise@gmail.com</Text>
                     </Text>
                 </View>
 

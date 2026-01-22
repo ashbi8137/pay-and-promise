@@ -76,7 +76,7 @@ export default function TermsScreen() {
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>7. Contact</Text>
                     <Text style={styles.paragraph}>
-                        For legal inquiries, contact: <Text style={styles.bold}>support.pnp@gmail.com</Text>
+                        For legal inquiries, contact: <Text style={styles.bold}>payandpromise@gmail.com</Text>
                     </Text>
                 </View>
 

@@ -30,6 +30,9 @@ export default function ProfileScreen() {
         net: 0
     });
 
+
+
+
     useFocusEffect(
         React.useCallback(() => {
             fetchProfileData();
@@ -51,10 +54,12 @@ export default function ProfileScreen() {
 
             setProfile({ name: metadataName || 'User', email: user.email || '' });
 
-            // 2. Fetch Ledger for Financials AND History
+
+
+            // 4. Fetch Ledger for Financials AND History
             const { data: ledger, error } = await supabase
                 .from('ledger')
-                .select('amount, type, description, created_at')
+                .select('amount, type, description, created_at, promise_id')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
@@ -65,10 +70,14 @@ export default function ProfileScreen() {
                 let totalWinnings = 0;
                 let totalPenalties = 0;
 
+
+
                 ledger.forEach(item => {
                     const val = Number(item.amount);
                     if (item.type === 'winnings') totalWinnings += val;
                     if (item.type === 'penalty') totalPenalties += val;
+
+
                 });
 
                 const absPenalties = Math.abs(totalPenalties);
@@ -78,6 +87,8 @@ export default function ProfileScreen() {
                     penalties: absPenalties,
                     net: totalWinnings - absPenalties
                 });
+
+
 
                 if (ledger.length > 0) {
                     setLatestContext({ desc: ledger[0].description, type: ledger[0].type });
@@ -217,13 +228,29 @@ export default function ProfileScreen() {
                             </View>
                         </View>
                     </View>
+
+
                 </View>
-
-
 
                 {/* Activity Section */}
                 <View style={styles.settingsSection}>
                     <Text style={styles.sectionTitle}>Activity</Text>
+
+                    <TouchableOpacity
+                        style={styles.settingItem}
+                        onPress={() => router.push('/screens/JourneyScreen')}
+                    >
+                        <View style={styles.settingLeft}>
+                            <View style={[styles.menuIconContainer, { backgroundColor: '#F8FAFC' }]}>
+                                <Ionicons name="map-outline" size={20} color="#4F46E5" />
+                            </View>
+                            <View>
+                                <Text style={styles.settingText}>Your Journey</Text>
+                                <Text style={{ fontSize: 12, color: '#94A3B8' }}>History of all your promises</Text>
+                            </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                         style={styles.settingItem}
@@ -572,4 +599,5 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#0F172A',
     },
+
 });

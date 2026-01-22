@@ -47,6 +47,10 @@ export default function CreatePromiseScreen() {
             Alert.alert('Invalid Input', 'Please enter the number of people.');
             return;
         }
+        if (parseInt(numPeople) < 2) {
+            Alert.alert('Minimum Required', 'A promise pool requires at least 2 participants.');
+            return;
+        }
         if (parseInt(numPeople) > 10) {
             Alert.alert('Limit Exceeded', 'Total participants cannot exceed 10.');
             return;
@@ -185,13 +189,18 @@ export default function CreatePromiseScreen() {
                         <View style={styles.formGroup}>
                             <Text style={styles.label}>Total Participants (Including You)</Text>
                             <TextInput
-                                style={[styles.input, parseInt(numPeople) > 10 && { borderColor: '#EF4444', borderWidth: 1 }]}
+                                style={[styles.input, (parseInt(numPeople) > 10 || (numPeople && parseInt(numPeople) < 2)) && { borderColor: '#EF4444', borderWidth: 1 }]}
                                 placeholder="3"
                                 value={numPeople}
                                 onChangeText={setNumPeople}
                                 keyboardType="numeric"
                                 placeholderTextColor="#94A3B8"
                             />
+                            {numPeople && parseInt(numPeople) < 2 && (
+                                <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>
+                                    Minimum 2 participants required.
+                                </Text>
+                            )}
                             {parseInt(numPeople) > 10 && (
                                 <Text style={{ color: '#EF4444', fontSize: 12, marginTop: 4 }}>
                                     Maximum 10 participants allowed.

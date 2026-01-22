@@ -7,7 +7,7 @@ export default function SupportScreen() {
     const router = useRouter();
 
     const handleContact = (subject: string) => {
-        Linking.openURL(`mailto:support.pnp@gmail.com?subject=${subject}`);
+        Linking.openURL(`mailto:payandpromise@gmail.com?subject=${subject}`);
     };
 
     return (

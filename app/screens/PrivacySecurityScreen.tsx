@@ -27,7 +27,7 @@ export default function PrivacySecurityScreen() {
     };
 
     const handleDataDeletion = () => {
-        Linking.openURL('mailto:support.pnp@gmail.com?subject=Data Deletion Request');
+        Linking.openURL('mailto:payandpromise@gmail.com?subject=Data Deletion Request');
     };
 
     return (

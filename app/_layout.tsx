@@ -38,6 +38,8 @@ export default function RootLayout() {
       <Stack.Screen name="screens/PrivacyPolicyScreen" />
       <Stack.Screen name="screens/TermsScreen" />
       <Stack.Screen name="screens/AboutScreen" />
+      <Stack.Screen name="screens/PromiseReportScreen" />
+      <Stack.Screen name="screens/JourneyScreen" />
     </Stack>
   );
 }

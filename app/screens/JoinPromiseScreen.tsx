@@ -185,7 +185,9 @@ export default function JoinPromiseScreen() {
                                 <Text style={styles.trustHeaderText}>You’ll see all details before confirming.</Text>
                             </View>
 
-                            <TouchableOpacity
+
+                            {/* QR READER IMPLEMENTATION */}
+                            {/* <TouchableOpacity
                                 onPress={handleScan}
                                 style={styles.scanButton}
                                 activeOpacity={0.8}
@@ -198,7 +200,7 @@ export default function JoinPromiseScreen() {
                                 <View style={styles.line} />
                                 <Text style={styles.orText}>OR</Text>
                                 <View style={styles.line} />
-                            </View>
+                            </View> */}
 
                             <Text style={styles.label}>Invite Code</Text>
                             <TextInput
@@ -248,11 +250,11 @@ export default function JoinPromiseScreen() {
 
                         {/* Motivational Footer */}
                         <View style={styles.footerContainer}>
-                            <View style={styles.iconGroup}>
+                            {/* <View style={styles.iconGroup}>
                                 <Ionicons name="people-circle" size={40} color="#CBD5E1" style={{ marginRight: -12 }} />
                                 <Ionicons name="people-circle" size={40} color="#94A3B8" style={{ zIndex: 1 }} />
                                 <Ionicons name="people-circle" size={40} color="#CBD5E1" style={{ marginLeft: -12 }} />
-                            </View>
+                            </View> */}
                             <Text style={styles.footerText}>Join your friends and stay accountable together.</Text>
                         </View>
                     </View>

@@ -48,6 +48,7 @@ export default function PromiseDetailScreen() {
     const [checkins, setCheckins] = React.useState<{ date: string, status: string }[]>([]);
     const [todayStatus, setTodayStatus] = React.useState<'done' | 'failed' | null>(null);
     const [realParticipantCount, setRealParticipantCount] = React.useState(numPeople);
+    const [currentPromiseStatus, setCurrentPromiseStatus] = React.useState(promiseData.status);
 
     // NEW State for Peer Verification
     const [submissions, setSubmissions] = React.useState<any[]>([]);
@@ -59,6 +60,7 @@ export default function PromiseDetailScreen() {
         fetchCheckins();
         fetchParticipantCount();
         fetchDailyReview();
+        fetchLatestPromiseStatus();
 
         // Subscribe to Realtime Changes
         const subChannel = supabase.channel('room_signatures')
@@ -74,8 +76,9 @@ export default function PromiseDetailScreen() {
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'submission_verifications' },
-                () => {
-                    console.log('Realtime update: submission_verifications');
+                (payload) => {
+                    console.log('Realtime update: submission_verifications', payload);
+                    // Re-fetch to get updated submission status
                     fetchDailyReview();
                     fetchCheckins(); // Sync progress bar
                 }
@@ -86,6 +89,14 @@ export default function PromiseDetailScreen() {
                 () => {
                     console.log('Realtime update: promise_participants');
                     fetchParticipantCount();
+                }
+            )
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'promises', filter: `id=eq.${promiseData.id}` },
+                (payload) => {
+                    console.log('Realtime update: promise status', payload.new.status);
+                    setCurrentPromiseStatus(payload.new.status);
                 }
             )
             .subscribe();
@@ -161,6 +172,10 @@ export default function PromiseDetailScreen() {
                 decision: decision
             });
             if (error) throw error;
+
+            // Optimistic Update: Add to myVotes immediately
+            setMyVotes(prev => [...prev, submissionId]);
+
             // Fetch will be triggered by realtime, but we can optimistically update or wait
         } catch (e) {
             console.error(e);
@@ -198,6 +213,18 @@ export default function PromiseDetailScreen() {
         }
     };
 
+    const fetchLatestPromiseStatus = async () => {
+        const { data, error } = await supabase
+            .from('promises')
+            .select('status')
+            .eq('id', promiseData.id)
+            .single();
+
+        if (data) {
+            setCurrentPromiseStatus(data.status);
+        }
+    };
+
     const fetchCheckins = async () => {
         try {
             const { data, error } = await supabase
@@ -208,6 +235,15 @@ export default function PromiseDetailScreen() {
 
             if (data) {
                 setCheckins(data);
+
+                // Auto-Complete Promise if Duration Met
+                if (data.length >= duration) {
+                    await supabase
+                        .from('promises')
+                        .update({ status: 'completed' })
+                        .eq('id', promiseData.id)
+                        .eq('status', 'active'); // Only update if currently active
+                }
 
                 // Check if checked in today
                 const todayStr = new Date().toISOString().split('T')[0];
@@ -224,6 +260,12 @@ export default function PromiseDetailScreen() {
     };
 
     const handlePhotoCheckIn = async () => {
+        // 0. Validation: All peers must join
+        if (realParticipantCount < numPeople) {
+            Alert.alert("Waiting for Peers", "All peers must join the promise before uploading proof.");
+            return;
+        }
+
         // 1. Request Permission
         const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
 
@@ -235,8 +277,7 @@ export default function PromiseDetailScreen() {
         // 2. Launch Camera
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ["images"],
-            allowsEditing: true,
-            aspect: [4, 3],
+            allowsEditing: false, // Skip cropping for faster upload
             quality: 0.5, // Save bandwidth
         });
 
@@ -292,7 +333,8 @@ export default function PromiseDetailScreen() {
                 if (checkinError) throw checkinError;
 
                 Alert.alert("Proof Submitted!", "Your Check-in is PENDING. Ask peers to verify it.");
-                // Fetch triggers by realtime
+                // Immediately refresh to show the submission
+                fetchDailyReview();
             } catch (e) {
                 Alert.alert("Error", "Failed to upload proof. Please try again.");
                 console.error(e);
@@ -538,9 +580,13 @@ export default function PromiseDetailScreen() {
                                 <Text style={styles.autoFailText}>You marked this as Failed</Text>
                             </View>
                         ) : (
-                            <Image source={{ uri: mySub.image_url }} style={styles.proofImage} />
+                            <>
+                                <Image source={{ uri: mySub.image_url }} style={styles.proofImage} />
+                                {mySub.status === 'pending' && (
+                                    <Text style={styles.analyticsFooter}>Waiting for other members to verify...</Text>
+                                )}
+                            </>
                         )}
-                        <Text style={styles.analyticsFooter}>Waiting for other members to verify...</Text>
                     </View>
                 ) : (
                     /* UPLOAD ACTIONS - Only if NO submission yet */
@@ -616,6 +662,44 @@ export default function PromiseDetailScreen() {
                         })}
                     </>
                 )}
+            </View>
+        );
+    };
+
+    const renderCompletionCard = () => {
+        if (currentPromiseStatus !== 'completed' && currentPromiseStatus !== 'failed') return null;
+
+        const isSuccess = currentPromiseStatus === 'completed';
+
+        return (
+            <View style={[styles.section, { marginBottom: 32 }]}>
+                <View style={[styles.completionCard, isSuccess ? styles.completionSuccess : styles.completionFailed]}>
+                    <Ionicons
+                        name={isSuccess ? "trophy" : "alert-circle"}
+                        size={48}
+                        color={isSuccess ? "#166534" : "#991B1B"}
+                        style={{ marginBottom: 12 }}
+                    />
+                    <Text style={[styles.completionTitle, { color: isSuccess ? "#166534" : "#991B1B" }]}>
+                        {isSuccess ? "Promise Completed!" : "Promise Failed"}
+                    </Text>
+                    <Text style={styles.completionText}>
+                        {isSuccess
+                            ? "You have successfully completed the promise for the entire duration! Check your gains/losses and settle up with peers."
+                            : "This promise has ended. Check the final report to see the outcome."}
+                    </Text>
+
+                    <TouchableOpacity
+                        style={[styles.reportButton, isSuccess ? { backgroundColor: '#166534' } : { backgroundColor: '#991B1B' }]}
+                        onPress={() => router.push({
+                            pathname: '/screens/PromiseReportScreen',
+                            params: { promiseId: promiseData.id }
+                        })}
+                    >
+                        <Text style={styles.reportButtonText}>View Final Report & Settlement</Text>
+                        <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                </View>
             </View>
         );
     };
@@ -701,8 +785,8 @@ export default function PromiseDetailScreen() {
                 </View>
 
 
-                {/* Daily Check-in */}
-                {renderDailyReview()}
+                {/* Daily Check-in OR Completion Card */}
+                {currentPromiseStatus === 'active' ? renderDailyReview() : renderCompletionCard()}
 
             </ScrollView>
         </SafeAreaView>
@@ -1166,5 +1250,52 @@ const styles = StyleSheet.create({
         padding: 4,
         backgroundColor: '#FFF',
         borderRadius: 8,
-    }
+    },
+    // Completion Card
+    completionCard: {
+        alignItems: 'center',
+        padding: 32,
+        borderRadius: 24,
+        borderWidth: 1,
+    },
+    completionSuccess: {
+        backgroundColor: '#F0FDF4',
+        borderColor: '#DCFCE7',
+    },
+    completionFailed: {
+        backgroundColor: '#FEF2F2',
+        borderColor: '#FEE2E2',
+    },
+    completionTitle: {
+        fontSize: 24,
+        fontWeight: '800',
+        marginBottom: 8,
+        textAlign: 'center',
+    },
+    completionText: {
+        fontSize: 16,
+        color: '#475569',
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 24,
+        maxWidth: '90%',
+    },
+    reportButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 24,
+        borderRadius: 12,
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        gap: 8,
+    },
+    reportButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
+    },
 });

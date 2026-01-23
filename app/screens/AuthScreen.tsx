@@ -105,25 +105,33 @@ export default function AuthScreen() {
       return;
     }
 
-    if (data.user) {
-      console.log('User created:', data.user.id);
+    setLoading(false);
+
+    // If session exists, email verification is disabled - auto-login
+    if (data.session) {
+      console.log('User created and logged in:', data.user?.id);
+      router.replace('/screens/HomeScreen');
+      return;
     }
 
-    setLoading(false);
-    Alert.alert(
-      'Check your Inbox',
-      'We have sent a verification link to your email. Please verify your account before logging in.',
-      [
-        {
-          text: 'OK',
-          onPress: () => {
-            setIsSignUp(false);
-            setErrorMessage(null);
-            setPassword('');
+    // No session means email verification is required
+    if (data.user) {
+      console.log('User created, awaiting verification:', data.user.id);
+      Alert.alert(
+        'Check your Inbox',
+        'We have sent a verification link to your email. Please verify your account before logging in.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              setIsSignUp(false);
+              setErrorMessage(null);
+              setPassword('');
+            }
           }
-        }
-      ]
-    );
+        ]
+      );
+    }
   };
 
   const handleForgotPassword = () => {

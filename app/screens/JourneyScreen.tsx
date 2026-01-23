@@ -34,6 +34,8 @@ interface JourneyItem {
     winnings: number;
     penalties: number;
     net: number;
+    amount_per_person: number;
+    failed_days_count: number;
 }
 
 export default function JourneyScreen() {
@@ -151,6 +153,20 @@ export default function JourneyScreen() {
                     if (l.type === 'penalty') penalties += Math.abs(amt);
                 });
 
+                // Count failed days
+                const failedDaysCount = daysData.filter(d => d === 'failed').length;
+                const stakePerDay = (p.amount_per_person || 0) / (p.duration_days || 1);
+
+                // If no ledger penalty recorded but user has failed days, calculate expected penalty
+                if (penalties === 0 && failedDaysCount > 0) {
+                    penalties = failedDaysCount * stakePerDay;
+                }
+
+                // Round all financial values to 2 decimal places
+                winnings = Math.round(winnings * 100) / 100;
+                penalties = Math.round(penalties * 100) / 100;
+                const net = Math.round((winnings - penalties) * 100) / 100;
+
                 return {
                     id: p.id,
                     title: p.title,
@@ -160,7 +176,9 @@ export default function JourneyScreen() {
                     days_data: daysData,
                     winnings,
                     penalties,
-                    net: winnings - penalties
+                    net,
+                    amount_per_person: p.amount_per_person || 0,
+                    failed_days_count: failedDaysCount
                 };
             });
 
@@ -302,33 +320,33 @@ export default function JourneyScreen() {
                                                 {/* Stats */}
                                                 <View style={styles.statsRow}>
                                                     <View style={styles.stat}>
-                                                        <Text style={styles.statLabel}>Days</Text>
+                                                        <Text allowFontScaling={false} style={styles.statLabel}>Days</Text>
                                                         <View style={{ flexDirection: 'row', gap: 4 }}>
-                                                            <Text style={[styles.statValue, { color: '#10B981' }]}>
+                                                            <Text allowFontScaling={false} style={[styles.statValue, { color: '#10B981' }]}>
                                                                 {item.days_data.filter(d => d === 'done').length}
                                                             </Text>
-                                                            <Text style={{ color: '#94A3B8' }}>|</Text>
-                                                            <Text style={[styles.statValue, { color: '#EF4444' }]}>
+                                                            <Text allowFontScaling={false} style={{ color: '#94A3B8' }}>|</Text>
+                                                            <Text allowFontScaling={false} style={[styles.statValue, { color: '#EF4444' }]}>
                                                                 {item.days_data.filter(d => d === 'failed').length}
                                                             </Text>
                                                         </View>
                                                     </View>
 
                                                     <View style={styles.stat}>
-                                                        <Text style={styles.statLabel}>Outcome</Text>
-                                                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                                                        <Text allowFontScaling={false} style={styles.statLabel}>Outcome</Text>
+                                                        <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
                                                             {item.winnings > 0 &&
-                                                                <Text style={[styles.statValue, { color: '#10B981' }]}>
-                                                                    +₹{item.winnings}
+                                                                <Text allowFontScaling={false} style={[styles.statValue, { color: '#10B981' }]}>
+                                                                    +₹{item.winnings.toFixed(2)}
                                                                 </Text>
                                                             }
                                                             {item.penalties > 0 &&
-                                                                <Text style={[styles.statValue, { color: '#EF4444' }]}>
-                                                                    -₹{item.penalties}
+                                                                <Text allowFontScaling={false} style={[styles.statValue, { color: '#EF4444' }]}>
+                                                                    -₹{item.penalties.toFixed(2)}
                                                                 </Text>
                                                             }
                                                             {item.winnings === 0 && item.penalties === 0 &&
-                                                                <Text style={[styles.statValue, { color: '#94A3B8' }]}>-</Text>
+                                                                <Text allowFontScaling={false} style={[styles.statValue, { color: '#94A3B8' }]}>-</Text>
                                                             }
                                                         </View>
                                                     </View>
@@ -345,7 +363,7 @@ export default function JourneyScreen() {
                                                                 </View>
                                                                 <View style={styles.paymentRow}>
                                                                     <Text style={styles.paymentLabel}>Amount to Pay:</Text>
-                                                                    <Text style={styles.paymentValueAmount}>₹{Math.abs(item.net)}</Text>
+                                                                    <Text style={styles.paymentValueAmount}>₹{Math.abs(item.net).toFixed(2)}</Text>
                                                                 </View>
                                                                 <TouchableOpacity style={styles.payNowButton}>
                                                                     <Text style={styles.payNowText}>Pay Now</Text>
@@ -357,7 +375,7 @@ export default function JourneyScreen() {
                                                             <View>
                                                                 <View style={styles.paymentRow}>
                                                                     <Text style={styles.paymentLabel}>You will receive:</Text>
-                                                                    <Text style={styles.paymentValueGain}>₹{item.winnings}</Text>
+                                                                    <Text style={styles.paymentValueGain}>₹{item.winnings.toFixed(2)}</Text>
                                                                 </View>
                                                                 <Text style={styles.paymentStatusGain}>Status: Awaiting peer payment</Text>
                                                             </View>
@@ -398,9 +416,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 24,
+        paddingHorizontal: width * 0.05,
         paddingTop: Platform.OS === 'android' ? 40 : 20,
-        paddingBottom: 20,
+        paddingBottom: 16,
     },
     backButton: {
         padding: 8,
@@ -410,12 +428,12 @@ const styles = StyleSheet.create({
         borderColor: '#E2E8F0',
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: '700',
         color: '#0F172A',
     },
     scrollContent: {
-        padding: 24,
+        padding: width * 0.04,
     },
     timeline: {
         paddingLeft: 8,
@@ -425,13 +443,15 @@ const styles = StyleSheet.create({
         marginBottom: 32,
     },
     dateColumn: {
-        width: 80,
+        width: width * 0.18,
+        minWidth: 60,
+        maxWidth: 85,
         alignItems: 'flex-end',
-        paddingRight: 16,
+        paddingRight: 12,
         position: 'relative',
     },
     dateText: {
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: '600',
         color: '#64748B',
         marginBottom: 4,
@@ -529,7 +549,8 @@ const styles = StyleSheet.create({
         paddingTop: 12,
     },
     stat: {
-        marginRight: 24,
+        marginRight: 16,
+        flex: 1,
     },
     statLabel: {
         fontSize: 10,
@@ -538,7 +559,7 @@ const styles = StyleSheet.create({
         marginBottom: 2,
     },
     statValue: {
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: '700',
         color: '#334155',
     },

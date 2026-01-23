@@ -2,6 +2,7 @@
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { cleanupOldProofImages } from '../lib/supabase';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -16,6 +17,13 @@ export default function RootLayout() {
       console.log('Safety Timer: Forcing Splash Screen hide.');
       await SplashScreen.hideAsync();
     }, 6000); // 6 seconds
+
+    // Cleanup old proof images from storage (runs once on app load)
+    cleanupOldProofImages().then(result => {
+      if (result.deleted > 0) {
+        console.log(`Cleanup: Deleted ${result.deleted} old proof images`);
+      }
+    }).catch(err => console.log('Cleanup failed:', err));
 
     return () => clearTimeout(timer);
   }, []);

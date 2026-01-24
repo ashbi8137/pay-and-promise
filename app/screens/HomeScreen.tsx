@@ -93,7 +93,7 @@ export default function HomeScreen() {
                     }
                 }
 
-                // 2. Fetch Today's Checkins
+                // 2. Fetch Today's Checkins (My Status)
                 const today = new Date().toISOString().split('T')[0];
                 const { data: checkins, error: checkinError } = await supabase
                     .from('daily_checkins')
@@ -102,6 +102,23 @@ export default function HomeScreen() {
                     .eq('date', today);
 
                 if (checkinError) console.error('Checkin fetch error:', checkinError);
+
+                // 3. Fetch Today's Settlements (Group Status)
+                // If a promise is in this table for today, it means everyone is verified/accounted for.
+                let settledPromiseIds = new Set();
+                if (promises.length > 0) {
+                    const promiseIds = promises.map(p => p.id);
+                    const { data: settlements, error: settlementError } = await supabase
+                        .from('daily_settlements')
+                        .select('promise_id')
+                        .in('promise_id', promiseIds)
+                        .eq('date', today);
+
+                    if (settlementError) console.error('Settlement fetch error:', settlementError);
+                    if (settlements) {
+                        settledPromiseIds = new Set(settlements.map(s => s.promise_id));
+                    }
+                }
 
                 if (promises) {
                     const todayCheckinMap = new Map();
@@ -112,7 +129,8 @@ export default function HomeScreen() {
                     const justCompleted: PromiseItem[] = [];
 
                     for (const p of promises) {
-                        // 1. If Promise is finalized (Completed/Failed), it goes to Completed Tab
+                        // 1. If Promise is finalized (Completed/Failed entirely), it goes to Completed Tab
+                        // NOTE: p.status comes from the 'promises' table (active/completed/failed)
                         if (p.status !== 'active') {
                             done.push(p);
                             // Check if promise was completed recently (check created_at + duration)
@@ -128,15 +146,29 @@ export default function HomeScreen() {
                             continue;
                         }
 
-                        // 2. If Active, check if done TODAY
-                        if (todayCheckinMap.has(p.id)) {
-                            // It has been checked in today
-                            const status = todayCheckinMap.get(p.id);
-                            // Attach temporary status for display
-                            done.push({ ...p, status: status === 'done' ? 'completed' : 'failed' });
+                        // 2. If Active, check if the DAY is settled (Group Complete)
+                        if (settledPromiseIds.has(p.id)) {
+                            // The day is fully settled! Move to Completed Tab for today.
+                            // We use my personal status for the badge (completed/failed)
+                            const myStatus = todayCheckinMap.get(p.id);
+                            // If I didn't verify but day is settled, I must have been auto-failed or rejected
+                            done.push({ ...p, status: (myStatus === 'done' || myStatus === 'verified') ? 'completed' : 'failed' });
                         } else {
-                            // Not checked in yet
-                            pending.push(p);
+                            // Day is NOT settled yet. Stays in "In Progress".
+                            // But I might have finished my part.
+                            if (todayCheckinMap.has(p.id)) {
+                                const myStatus = todayCheckinMap.get(p.id);
+                                // I am done, but waiting for others.
+                                // We can use a special status string to show a different badge UI if needed, 
+                                // or just keep it 'active' but maybe show "Waiting..." text.
+                                // For now, let's keep it in pending.
+                                // We'll add a temporary property 'waitingForOthers' if we want to show a badge.
+                                // Effectively, it's still "Active" in the list.
+                                pending.push({ ...p, status: 'active_waiting' }); // active_waiting is a UI hint
+                            } else {
+                                // I haven't done it yet.
+                                pending.push(p);
+                            }
                         }
                     }
 
@@ -199,13 +231,17 @@ export default function HomeScreen() {
                                     <Text style={[styles.cardTitle, { color: theme.text }, isHistory && styles.completedText]}>{item.title}</Text>
                                     <View style={
                                         item.status === 'active' ? styles.activeBadge :
-                                            item.status === 'failed' ? styles.failedBadge : styles.completedBadge
+                                            item.status === 'active_waiting' ? styles.waitingBadge :
+                                                item.status === 'failed' ? styles.failedBadge : styles.completedBadge
                                     }>
                                         <Text style={
                                             item.status === 'active' ? styles.activeBadgeText :
-                                                item.status === 'failed' ? styles.failedBadgeText : styles.completedBadgeText
+                                                item.status === 'active_waiting' ? styles.waitingBadgeText :
+                                                    item.status === 'failed' ? styles.failedBadgeText : styles.completedBadgeText
                                         }>
-                                            {item.status === 'active' ? 'Active' : (item.status === 'failed' ? 'Failed' : 'Done')}
+                                            {item.status === 'active' ? 'Active' :
+                                                item.status === 'active_waiting' ? 'Waiting' :
+                                                    (item.status === 'failed' ? 'Failed' : 'Done')}
                                         </Text>
                                     </View>
                                 </View>
@@ -741,6 +777,18 @@ const styles = StyleSheet.create({
     },
     failedBadgeText: {
         color: '#EF4444',
+        fontSize: 11,
+        fontWeight: '700',
+    },
+    waitingBadge: {
+        backgroundColor: '#FEF9C3', // Yellow-100
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+        marginLeft: 8,
+    },
+    waitingBadgeText: {
+        color: '#B45309', // Yellow-700
         fontSize: 11,
         fontWeight: '700',
     },

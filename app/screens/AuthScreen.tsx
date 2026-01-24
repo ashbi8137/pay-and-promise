@@ -11,7 +11,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View
@@ -24,8 +23,7 @@ WebBrowser.maybeCompleteAuthSession();
 export default function AuthScreen() {
   const router = useRouter();
 
-  // Form State - Only name needed for Google auth
-  const [fullName, setFullName] = useState('');
+  // Form State - No input needed for Google auth
 
   // UX State
   const [loading, setLoading] = useState(false);
@@ -46,11 +44,6 @@ export default function AuthScreen() {
   const signInWithGoogle = async () => {
     setErrorMessage(null);
     Keyboard.dismiss();
-
-    if (!fullName.trim()) {
-      setErrorMessage('Please enter your name to continue.');
-      return;
-    }
 
     setLoading(true);
 
@@ -122,13 +115,14 @@ export default function AuthScreen() {
 
               console.log('Session set successfully!');
 
-              // Update profile with full name
+              // Update profile with full name from Google metadata
               const { data: { user } } = await supabase.auth.getUser();
               if (user) {
                 console.log('Updating profile for user:', user.id);
+                const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
                 await supabase.from('profiles').upsert({
                   id: user.id,
-                  full_name: fullName.trim(),
+                  full_name: googleName,
                   updated_at: new Date().toISOString(),
                 });
               }
@@ -185,7 +179,7 @@ export default function AuthScreen() {
           <View style={styles.card}>
             <Text style={styles.title}>Welcome to Pay & Promise</Text>
             <Text style={styles.subtitle}>
-              Enter your name and sign in with Google to get started
+              Sign in with Google to get started
             </Text>
 
             {/* Error Message Display */}
@@ -195,20 +189,6 @@ export default function AuthScreen() {
                 <Text style={styles.errorText}>{errorMessage}</Text>
               </View>
             )}
-
-            {/* Name Input */}
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Your Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your name"
-                placeholderTextColor="#94A3B8"
-                value={fullName}
-                onChangeText={setFullName}
-                autoCapitalize="words"
-                editable={!loading}
-              />
-            </View>
 
             <View style={styles.buttonContainer}>
               {/* Google Sign-In Button */}

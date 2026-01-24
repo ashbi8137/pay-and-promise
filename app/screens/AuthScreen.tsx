@@ -6,13 +6,10 @@ import {
   ActivityIndicator,
   Image,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
+  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
@@ -22,8 +19,6 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function AuthScreen() {
   const router = useRouter();
-
-  // Form State - No input needed for Google auth
 
   // UX State
   const [loading, setLoading] = useState(false);
@@ -127,9 +122,8 @@ export default function AuthScreen() {
                 });
               }
 
-              setLoading(false);
-              console.log('Navigating to HomeScreen...');
-              router.replace('/screens/HomeScreen');
+              console.log('Profile updated/verified.');
+              // Navigation is handled by RootLayout's onAuthStateChange listener
               return;
             }
           }
@@ -156,71 +150,71 @@ export default function AuthScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-    >
-      <TouchableWithoutFeedback onPress={Platform.OS === 'web' ? undefined : Keyboard.dismiss}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Logo Section */}
-          <View style={styles.logoContainer}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.contentContainer}>
+
+        {/* Branding Section */}
+        <View style={styles.brandingSection}>
+          <View style={styles.logoShadow}>
             <Image
               source={require('../../assets/images/icon.png')}
-              style={styles.logoImage}
+              style={styles.logo}
               resizeMode="contain"
             />
           </View>
+          <Text style={styles.appName}>Pay & Promise</Text>
+          <Text style={styles.tagline}>Where discipline begins.</Text>
+        </View>
 
-          <View style={styles.card}>
-            <Text style={styles.title}>Welcome to Pay & Promise</Text>
-            <Text style={styles.subtitle}>
-              Sign in with Google to get started
-            </Text>
+        {/* Auth Section */}
+        <View style={styles.authSection}>
+          {errorMessage && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle" size={20} color="#EF4444" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          )}
 
-            {/* Error Message Display */}
-            {errorMessage && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                <Text style={styles.errorText}>{errorMessage}</Text>
-              </View>
-            )}
+          <View style={styles.actionContainer}>
+            <Text style={styles.subtitle}>Sign in using your Google account to continue.</Text>
 
-            <View style={styles.buttonContainer}>
-              {/* Google Sign-In Button */}
-              <TouchableOpacity
-                style={[styles.googleButton, loading && styles.googleButtonDisabled]}
-                onPress={signInWithGoogle}
-                disabled={loading}
-              >
-                {loading ? (
-                  <View style={styles.buttonContent}>
-                    <ActivityIndicator color="#4285F4" size="small" />
-                    <Text style={styles.googleButtonText}>Signing in...</Text>
+            <TouchableOpacity
+              style={[
+                styles.googleButton,
+                loading && styles.googleButtonDisabled
+              ]}
+              onPress={signInWithGoogle}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <View style={styles.buttonContent}>
+                  <ActivityIndicator color="#4285F4" size="small" />
+                  <Text style={styles.googleButtonText}>Signing in...</Text>
+                </View>
+              ) : (
+                <View style={styles.buttonContent}>
+                  <View style={styles.googleIconContainer}>
+                    <Text style={styles.googleIconFormatted}>G</Text>
                   </View>
-                ) : (
-                  <View style={styles.buttonContent}>
-                    <View style={styles.googleIconContainer}>
-                      <Text style={styles.googleIconText}>G</Text>
-                    </View>
-                    <Text style={styles.googleButtonText}>Continue with Google</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
+                  <Text style={styles.googleButtonText}>Continue with Google</Text>
+                </View>
+              )}
+            </TouchableOpacity>
 
-              {/* Info Text */}
-              <Text style={styles.infoText}>
-                By continuing, you agree to our Terms of Service and Privacy Policy
+            {/* Terms Links */}
+            <View style={styles.termsContainer}>
+              <Text style={styles.termsText}>
+                By continuing, you agree to our{' '}
+                <Text style={styles.linkText}>Terms of Service</Text> and{' '}
+                <Text style={styles.linkText}>Privacy Policy</Text>.
               </Text>
             </View>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
-    </KeyboardAvoidingView>
+        </View>
+
+      </View>
+    </SafeAreaView>
   );
 }
 
@@ -229,38 +223,58 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  scrollContent: {
-    flexGrow: 1,
+  contentContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingHorizontal: 32,
+    paddingVertical: 60,
+  },
+  brandingSection: {
+    flex: 1,
     justifyContent: 'center',
-    padding: 24,
-  },
-  logoContainer: {
     alignItems: 'center',
-    marginBottom: 0,
+    marginTop: 40,
   },
-  logoImage: {
+  logoShadow: {
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.15,
+    shadowRadius: 20,
+    elevation: 8,
+    marginBottom: 24,
+  },
+  logo: {
     width: 100,
     height: 100,
     borderRadius: 24,
-    marginBottom: 24,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#1E293B',
+  appName: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 16,
+    color: '#64748B',
+    fontWeight: '500',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  authSection: {
+    paddingBottom: 40,
+  },
+  actionContainer: {
+    width: '100%',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#64748B',
-    marginBottom: 32,
+    fontSize: 14,
+    color: '#475569',
     textAlign: 'center',
-    lineHeight: 22,
+    marginBottom: 24,
+    fontWeight: '500',
   },
   errorContainer: {
     flexDirection: 'row',
@@ -268,7 +282,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FEF2F2',
     padding: 12,
     borderRadius: 12,
-    marginBottom: 20,
+    marginBottom: 24,
     gap: 8,
     borderWidth: 1,
     borderColor: '#FECACA'
@@ -279,42 +293,24 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     flex: 1,
   },
-  inputContainer: {
-    marginBottom: 24,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: '#F8FAFC',
-    color: '#0F172A',
-    padding: 16,
-    borderRadius: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  buttonContainer: {
-    gap: 16,
-  },
   googleButton: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderRadius: 30,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 16,
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1,
     borderColor: '#E2E8F0',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowColor: '#64748B',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 4,
+    marginBottom: 24,
   },
   googleButtonDisabled: {
     opacity: 0.7,
+    backgroundColor: '#F8FAFC',
   },
   buttonContent: {
     flexDirection: 'row',
@@ -325,24 +321,33 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#4285F4',
+    backgroundColor: '#4285F4', // Google Blue
     alignItems: 'center',
     justifyContent: 'center',
   },
-  googleIconText: {
+  googleIconFormatted: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 16,
   },
   googleButtonText: {
     color: '#1E293B',
     fontSize: 16,
     fontWeight: '600',
   },
-  infoText: {
+  termsContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  termsText: {
     fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
-    marginTop: 8,
+    lineHeight: 18,
+  },
+  linkText: {
+    color: '#0F172A',
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
 });

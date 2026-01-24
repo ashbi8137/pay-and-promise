@@ -1,13 +1,11 @@
-import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Image,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View,
     useColorScheme
 } from 'react-native';
@@ -55,7 +53,7 @@ export default function LandingScreen() {
             scale.value = withSpring(1.03); // Slight zoom
         }, 2000);
 
-        // Step 2: "So make them expensive." (4.5s -> 7.5s)
+        // Step 2: "So make them expensive." (4.5s -> 8s)
         const t2 = setTimeout(() => {
             setStep(2);
             glowOpacity.value = withTiming(1, { duration: 1000 });
@@ -63,11 +61,10 @@ export default function LandingScreen() {
             scale.value = withSpring(1.1); // Scale up
         }, 4500);
 
-        // Step 3: Final Reveal (9s+)
+        // Final: Navigate to Auth Screen (8s)
         const t3 = setTimeout(() => {
-            setStep(3);
-            scale.value = withSpring(1); // Settle
-        }, 9000);
+            router.replace('/screens/AuthScreen');
+        }, 8000);
 
         return () => {
             clearTimeout(t1);
@@ -141,15 +138,6 @@ export default function LandingScreen() {
                         </Animated.Text>
                     </View>
                 );
-            case 3:
-                return (
-                    <Animated.Text
-                        entering={FadeInDown.delay(200).springify()}
-                        style={[styles.textBrand, { color: theme.text }]}
-                    >
-                        Pay & Promise
-                    </Animated.Text>
-                );
             default: return null;
         }
     };
@@ -191,34 +179,9 @@ export default function LandingScreen() {
 
                         {renderTextContent()}
 
-                        {step === 3 && (
-                            <Animated.Text entering={FadeInDown.delay(400)} style={[styles.subText, { color: theme.icon }]}>
-                                Where discipline begins.
-                            </Animated.Text>
-                        )}
                     </Animated.View>
 
                 </View>
-
-                {/* BOTTOM SECTION: Actions (Only visible at Step 3) */}
-                {step === 3 && (
-                    <Animated.View entering={FadeIn.delay(400).duration(800)} style={styles.bottomSection}>
-                        <TouchableOpacity
-                            style={[styles.primaryButton, { backgroundColor: theme.tint, shadowColor: theme.tint }]}
-                            onPress={() => router.push({ pathname: '/screens/AuthScreen', params: { mode: 'signup' } })}
-                        >
-                            <Text style={styles.primaryButtonText}>Create Account</Text>
-                            <Ionicons name="person-add-outline" size={20} color="#FFFFFF" />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={styles.secondaryButton}
-                            onPress={() => router.push({ pathname: '/screens/AuthScreen', params: { mode: 'signin' } })}
-                        >
-                            <Text style={[styles.secondaryButtonText, { color: theme.icon }]}>I already have an account</Text>
-                        </TouchableOpacity>
-                    </Animated.View>
-                )}
             </SafeAreaView>
         </View>
     );
@@ -313,50 +276,5 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontStyle: 'italic',
         marginTop: 8,
-    },
-    textBrand: {
-        fontSize: 32,
-        fontWeight: '800',
-        textAlign: 'center',
-        letterSpacing: 0.5,
-    },
-
-    subText: {
-        marginTop: 12,
-        fontSize: 16,
-        fontWeight: '500',
-        letterSpacing: 0.5,
-    },
-    bottomSection: {
-        width: '100%',
-        gap: 16,
-        paddingBottom: 24,
-    },
-    primaryButton: {
-        // backgroundColor: '#4F46E5', // Handled via theme
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 18,
-        borderRadius: 16,
-        gap: 8,
-        // shadowColor: '#4F46E5', // Handled via theme
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 6,
-    },
-    primaryButtonText: {
-        color: '#FFFFFF',
-        fontSize: 17,
-        fontWeight: '700',
-    },
-    secondaryButton: {
-        alignItems: 'center',
-        paddingVertical: 12,
-    },
-    secondaryButtonText: {
-        fontSize: 15,
-        fontWeight: '600',
     },
 });

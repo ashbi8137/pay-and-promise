@@ -1,7 +1,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -66,7 +66,7 @@ export default function JourneyScreen() {
                 return;
             }
 
-            const promiseIds = participations.map(p => p.promise_id);
+            const promiseIds = participations.map((p: { promise_id: string }) => p.promise_id);
 
             // 2. Fetch Promise Metadata
             const { data: promises } = await supabase
@@ -96,9 +96,9 @@ export default function JourneyScreen() {
 
 
             // Process Data
-            const processed: JourneyItem[] = promises.map(p => {
+            const processed: JourneyItem[] = promises.map((p: any) => {
                 // Days Data (The "Story Graph")
-                const pCheckins = checkins?.filter(c => c.promise_id === p.id) || [];
+                const pCheckins = checkins?.filter((c: Checkin) => c.promise_id === p.id) || [];
 
                 // Construct day-by-day array based on duration
                 const daysData: string[] = [];
@@ -106,7 +106,7 @@ export default function JourneyScreen() {
                 let failedCount = 0;
 
                 // Sort checkins by date
-                pCheckins.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                pCheckins.sort((a: Checkin, b: Checkin) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
                 // We can't perfectly reconstruct the exact sequence if dates are missing, 
                 // but we can map existing checkins and fill the rest.
@@ -123,7 +123,7 @@ export default function JourneyScreen() {
                 // Or try to map them to the actual timeline?
                 // Let's go with mapping the checkins we found.
 
-                pCheckins.forEach(c => {
+                pCheckins.forEach((c: Checkin) => {
                     if (c.status === 'done') daysData.push('done');
                     else if (c.status === 'failed') daysData.push('failed');
                 });
@@ -146,8 +146,8 @@ export default function JourneyScreen() {
                 // Financials
                 let winnings = 0;
                 let penalties = 0;
-                const pLedger = ledger?.filter(l => l.promise_id === p.id) || [];
-                pLedger.forEach(l => {
+                const pLedger = ledger?.filter((l: { promise_id: string; amount: number; type: string }) => l.promise_id === p.id) || [];
+                pLedger.forEach((l: { promise_id: string; amount: number; type: string }) => {
                     const amt = Number(l.amount);
                     if (l.type === 'winnings') winnings += amt;
                     if (l.type === 'penalty') penalties += Math.abs(amt);

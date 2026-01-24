@@ -1,9 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Keyboard,
   KeyboardAvoidingView,
@@ -18,124 +18,147 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
+// Initialize WebBrowser for OAuth
+WebBrowser.maybeCompleteAuthSession();
+
 export default function AuthScreen() {
   const router = useRouter();
-  const { mode } = useLocalSearchParams();
 
-  // Form State
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Form State - Only name needed for Google auth
   const [fullName, setFullName] = useState('');
 
   // UX State
-  // Initialize based on navigation param (default to login if not 'signup')
-  const [isSignUp, setIsSignUp] = useState(mode === 'signup');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Update state when navigation params change
-  React.useEffect(() => {
-    if (mode) {
-      setIsSignUp(mode === 'signup');
-      // Clear errors on mode switch via navigation
-      setErrorMessage(null);
-    }
-  }, [mode]);
-
-  // Clear errors when switching modes manually
-  const handleModeSwitch = () => {
-    setIsSignUp(!isSignUp);
-    setErrorMessage(null);
-    setEmail('');
-    setPassword('');
-    setFullName('');
-  };
-
-  const signIn = async () => {
-    setErrorMessage(null);
-    Keyboard.dismiss();
-
-    if (!email || !password) {
-      setErrorMessage('Please enter both email and password.');
-      return;
-    }
-
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-
-    if (error) {
-      if (error.message.includes('Email not confirmed')) {
-        setErrorMessage('Email not verified. Please check your inbox.');
-      } else {
-        setErrorMessage('Email or password is incorrect. Please try again.');
+  // Check for existing session on mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('AuthScreen: Checking session on mount', session?.user?.id);
+      if (session) {
+        router.replace('/screens/HomeScreen');
       }
-    } else {
-      router.replace('/screens/HomeScreen');
-    }
-  };
+    };
+    checkSession();
+  }, [router]);
 
-  const signUp = async () => {
+  const signInWithGoogle = async () => {
     setErrorMessage(null);
     Keyboard.dismiss();
 
-    if (!email || !password || !fullName) {
-      setErrorMessage('Please enter email, password, and full name.');
+    if (!fullName.trim()) {
+      setErrorMessage('Please enter your name to continue.');
       return;
     }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: fullName,
+
+    try {
+      // Use the app's custom URL scheme
+      const redirectUrl = 'payandpromise://';
+
+      console.log('Starting Google OAuth...');
+      console.log('Redirect URL:', redirectUrl);
+
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: redirectUrl,
+          skipBrowserRedirect: true,
         },
-      },
-    });
+      });
 
-    if (error) {
-      setLoading(false);
-      setErrorMessage(error.message || 'Sign up failed. Please try again.');
-      return;
-    }
+      if (error) {
+        setLoading(false);
+        console.error('OAuth initiation error:', error);
+        setErrorMessage(error.message || 'Failed to initiate Google Sign-In.');
+        return;
+      }
 
-    setLoading(false);
+      if (data?.url) {
+        console.log('Opening auth URL in browser...');
 
-    // If session exists, email verification is disabled - auto-login
-    if (data.session) {
-      console.log('User created and logged in:', data.user?.id);
-      router.replace('/screens/HomeScreen');
-      return;
-    }
-
-    // No session means email verification is required
-    if (data.user) {
-      console.log('User created, awaiting verification:', data.user.id);
-      Alert.alert(
-        'Check your Inbox',
-        'We have sent a verification link to your email. Please verify your account before logging in.',
-        [
+        // Open the browser for OAuth
+        const result = await WebBrowser.openAuthSessionAsync(
+          data.url,
+          redirectUrl,
           {
-            text: 'OK',
-            onPress: () => {
-              setIsSignUp(false);
-              setErrorMessage(null);
-              setPassword('');
+            showInRecents: true,
+            preferEphemeralSession: false,
+          }
+        );
+
+        console.log('WebBrowser result type:', result.type);
+
+        if (result.type === 'success' && result.url) {
+          console.log('Callback URL received:', result.url);
+
+          // Parse the callback URL
+          const hashPart = result.url.split('#')[1];
+          if (hashPart) {
+            const params = new URLSearchParams(hashPart);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            console.log('Tokens received:', {
+              hasAccessToken: !!accessToken,
+              hasRefreshToken: !!refreshToken
+            });
+
+            if (accessToken && refreshToken) {
+              console.log('Setting session...');
+              const { error: sessionError } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+
+              if (sessionError) {
+                setLoading(false);
+                console.error('Session error:', sessionError);
+                setErrorMessage('Failed to complete sign-in. Please try again.');
+                return;
+              }
+
+              console.log('Session set successfully!');
+
+              // Update profile with full name
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                console.log('Updating profile for user:', user.id);
+                await supabase.from('profiles').upsert({
+                  id: user.id,
+                  full_name: fullName.trim(),
+                  updated_at: new Date().toISOString(),
+                });
+              }
+
+              setLoading(false);
+              console.log('Navigating to HomeScreen...');
+              router.replace('/screens/HomeScreen');
+              return;
             }
           }
-        ]
-      );
-    }
-  };
 
-  const handleForgotPassword = () => {
-    Alert.alert('Forgot Password', 'Password reset functionality will be available in the next update.');
+          // If we got here, something went wrong with the tokens
+          setLoading(false);
+          console.error('No tokens in callback URL');
+          setErrorMessage('Authentication incomplete. Please try again.');
+
+        } else if (result.type === 'cancel' || result.type === 'dismiss') {
+          setLoading(false);
+          console.log('User cancelled authentication');
+        } else {
+          setLoading(false);
+          console.log('Authentication failed:', result.type);
+          setErrorMessage('Authentication was not completed. Please try again.');
+        }
+      }
+    } catch (err) {
+      setLoading(false);
+      console.error('Google Sign-In Error:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+    }
   };
 
   return (
@@ -160,9 +183,9 @@ export default function AuthScreen() {
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.title}>{isSignUp ? 'Create Account' : 'Welcome Back'}</Text>
+            <Text style={styles.title}>Welcome to Pay & Promise</Text>
             <Text style={styles.subtitle}>
-              {isSignUp ? 'Sign up to start your journey' : 'Please sign in to continue'}
+              Enter your name and sign in with Google to get started
             </Text>
 
             {/* Error Message Display */}
@@ -173,91 +196,46 @@ export default function AuthScreen() {
               </View>
             )}
 
-            {isSignUp && (
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Full Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="John Doe"
-                  placeholderTextColor="#94A3B8"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  autoCapitalize="words"
-                />
-              </View>
-            )}
-
+            {/* Name Input */}
             <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email Address</Text>
+              <Text style={styles.label}>Your Name</Text>
               <TextInput
                 style={styles.input}
-                placeholder="you@example.com"
+                placeholder="Enter your name"
                 placeholderTextColor="#94A3B8"
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
+                value={fullName}
+                onChangeText={setFullName}
+                autoCapitalize="words"
+                editable={!loading}
               />
             </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password</Text>
-              <View style={styles.passwordWrapper}>
-                <TextInput
-                  style={styles.passwordInput}
-                  placeholder="••••••••"
-                  placeholderTextColor="#94A3B8"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  onPress={() => setShowPassword(!showPassword)}
-                  style={styles.eyeIcon}
-                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color="#64748B"
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            {/* Forgot Password Link (Only for Sign In) */}
-            {!isSignUp && (
-              <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotButton}>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
-            )}
-
             <View style={styles.buttonContainer}>
+              {/* Google Sign-In Button */}
               <TouchableOpacity
-                style={[styles.primaryButton, loading && styles.primaryButtonDisabled]}
-                onPress={isSignUp ? signUp : signIn}
+                style={[styles.googleButton, loading && styles.googleButtonDisabled]}
+                onPress={signInWithGoogle}
                 disabled={loading}
               >
                 {loading ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <ActivityIndicator color="#FFFFFF" size="small" />
-                    <Text style={styles.primaryButtonText}>
-                      {isSignUp ? 'Signing Up...' : 'Signing In...'}
-                    </Text>
+                  <View style={styles.buttonContent}>
+                    <ActivityIndicator color="#4285F4" size="small" />
+                    <Text style={styles.googleButtonText}>Signing in...</Text>
                   </View>
                 ) : (
-                  <Text style={styles.primaryButtonText}>
-                    {isSignUp ? 'Sign Up' : 'Sign In'}
-                  </Text>
+                  <View style={styles.buttonContent}>
+                    <View style={styles.googleIconContainer}>
+                      <Text style={styles.googleIconText}>G</Text>
+                    </View>
+                    <Text style={styles.googleButtonText}>Continue with Google</Text>
+                  </View>
                 )}
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.toggleButton} onPress={handleModeSwitch} disabled={loading}>
-                <Text style={styles.toggleButtonText}>
-                  {isSignUp ? 'Already have an account? Log In' : 'Don\'t have an account? Sign Up'}
-                </Text>
-              </TouchableOpacity>
+              {/* Info Text */}
+              <Text style={styles.infoText}>
+                By continuing, you agree to our Terms of Service and Privacy Policy
+              </Text>
             </View>
           </View>
         </ScrollView>
@@ -269,7 +247,7 @@ export default function AuthScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF', // White Background (New Theme)
+    backgroundColor: '#FFFFFF',
   },
   scrollContent: {
     flexGrow: 1,
@@ -278,39 +256,31 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 0, // Reduced from 32 to minimize gap
+    marginBottom: 0,
   },
   logoImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 20,
-    marginBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
-    letterSpacing: 0.5,
+    width: 100,
+    height: 100,
+    borderRadius: 24,
+    marginBottom: 24,
   },
   card: {
     backgroundColor: '#FFFFFF',
-    // Removed Card Shadow/Border for cleaner "On White" look, or kept minimal
     borderRadius: 20,
-    // padding: 0, // Using full width of scrollview padding
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: '700',
     color: '#1E293B',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#64748B',
     marginBottom: 32,
     textAlign: 'center',
+    lineHeight: 22,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -330,7 +300,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
   },
   label: {
     fontSize: 14,
@@ -347,64 +317,52 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E8F0',
   },
-  passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingRight: 16,
-  },
-  passwordInput: {
-    flex: 1,
-    color: '#0F172A',
-    padding: 16,
-    fontSize: 16,
-  },
-  eyeIcon: {
-    padding: 4,
-  },
-  forgotButton: {
-    alignSelf: 'flex-end',
-    marginBottom: 24,
-    marginTop: -8,
-  },
-  forgotText: {
-    color: '#4F46E5', // Primary Blue
-    fontSize: 14,
-    fontWeight: '600',
-  },
   buttonContainer: {
-    marginTop: 8,
     gap: 16,
   },
-  primaryButton: {
-    backgroundColor: '#4F46E5', // Primary Blue (New Theme)
-    padding: 18,
-    borderRadius: 30, // Pill Shape (New Theme)
+  googleButton: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 30,
     alignItems: 'center',
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 4,
+    borderWidth: 2,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  primaryButtonDisabled: {
+  googleButtonDisabled: {
     opacity: 0.7,
   },
-  primaryButtonText: {
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  googleIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#4285F4',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleIconText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
   },
-  toggleButton: {
-    alignItems: 'center',
-    padding: 8,
+  googleButtonText: {
+    color: '#1E293B',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  toggleButtonText: {
-    color: '#64748B',
-    fontSize: 14,
-    fontWeight: '500',
+  infoText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

@@ -1,8 +1,9 @@
 
-import { Stack } from 'expo-router';
+import * as Linking from 'expo-linking';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
-import { cleanupOldProofImages } from '../lib/supabase';
+import { useEffect, useState } from 'react';
+import { cleanupOldProofImages, supabase } from '../lib/supabase';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -10,6 +11,86 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 export default function RootLayout() {
+  const router = useRouter();
+  const segments = useSegments();
+  const [isProcessingAuth, setIsProcessingAuth] = useState(false);
+
+  // Handle OAuth callback deep links
+  useEffect(() => {
+    const handleDeepLink = async (event: { url: string }) => {
+      const url = event.url;
+      console.log('Deep link received in _layout:', url);
+
+      // Check if this is an OAuth callback
+      if (url.includes('access_token') || url.includes('#access_token')) {
+        setIsProcessingAuth(true);
+        try {
+          const hashPart = url.split('#')[1];
+          if (hashPart) {
+            const params = new URLSearchParams(hashPart);
+            const accessToken = params.get('access_token');
+            const refreshToken = params.get('refresh_token');
+
+            if (accessToken && refreshToken) {
+              console.log('Setting session from OAuth callback...');
+              const { error } = await supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+              });
+
+              if (!error) {
+                console.log('Session set successfully, navigating to HomeScreen');
+                router.replace('/screens/HomeScreen');
+              } else {
+                console.error('Error setting session:', error);
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Error processing OAuth callback:', err);
+        }
+        setIsProcessingAuth(false);
+      }
+    };
+
+    // Subscribe to incoming links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Check initial URL (in case app was opened via link)
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [router]);
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session?.user?.id);
+
+      // Only navigate if we're not already processing auth
+      if (event === 'SIGNED_IN' && session && !isProcessingAuth) {
+        // Check if we're on auth-related screens
+        const currentScreen = segments[1]; // screens/AuthScreen -> AuthScreen
+        if (currentScreen === 'AuthScreen' || currentScreen === 'LandingScreen' || currentScreen === 'SplashScreen') {
+          console.log('User signed in, navigating to HomeScreen');
+          router.replace('/screens/HomeScreen');
+        }
+      } else if (event === 'SIGNED_OUT') {
+        router.replace('/screens/LandingScreen');
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [router, segments, isProcessingAuth]);
+
   useEffect(() => {
     // Safety Force-Hide: If the app hasn't hidden the splash screen in 6 seconds, do it anyway.
     // This reveals crashes that happen behind the splash screen.

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
     Alert,
     BackHandler,
@@ -39,7 +39,7 @@ export default function HomeScreen() {
     const colorScheme = useColorScheme() ?? 'light';
     const theme = Colors[colorScheme];
 
-    const [firstName, setFirstName] = useState<string>('Ashbin');
+    const [firstName, setFirstName] = useState<string>('');
     const [activePromises, setActivePromises] = useState<PromiseItem[]>([]);
     const [completedPromises, setCompletedPromises] = useState<PromiseItem[]>([]);
     const [recentlyCompleted, setRecentlyCompleted] = useState<PromiseItem[]>([]);
@@ -50,29 +50,33 @@ export default function HomeScreen() {
     useFocusEffect(
         useCallback(() => {
             fetchData();
+
+            const onBackPress = () => {
+                Alert.alert(
+                    'Hold on!',
+                    'Are you sure you want to exit the app?',
+                    [
+                        {
+                            text: 'Cancel',
+                            onPress: () => null,
+                            style: 'cancel',
+                        },
+                        {
+                            text: 'Exit',
+                            onPress: () => BackHandler.exitApp()
+                        },
+                    ]
+                );
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
         }, [])
     );
 
-    useEffect(() => {
-        const backAction = () => {
-            Alert.alert('Hold on!', 'Are you sure you want to exit the app?', [
-                {
-                    text: 'Cancel',
-                    onPress: () => null,
-                    style: 'cancel',
-                },
-                { text: 'YES', onPress: () => BackHandler.exitApp() },
-            ]);
-            return true;
-        };
 
-        const backHandler = BackHandler.addEventListener(
-            'hardwareBackPress',
-            backAction,
-        );
-
-        return () => backHandler.remove();
-    }, []);
 
     const fetchData = async () => {
         setLoading(true);

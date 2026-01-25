@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
@@ -36,6 +36,9 @@ export default function LandingScreen() {
     const glowOpacity = useSharedValue(0);
     const borderColor = useSharedValue(theme.border); // Initial border
 
+    const params = useLocalSearchParams();
+    const isAuthenticated = params.isAuthenticated === 'true';
+
     useEffect(() => {
         // Step 0: "Promises are easy..." (0-2s)
 
@@ -61,9 +64,13 @@ export default function LandingScreen() {
             scale.value = withSpring(1.1); // Scale up
         }, 4500);
 
-        // Final: Navigate to Auth Screen (8s)
+        // Final: Navigate based on Auth Status (8s)
         const t3 = setTimeout(() => {
-            router.replace('/screens/AuthScreen');
+            if (isAuthenticated) {
+                router.replace('/screens/HomeScreen');
+            } else {
+                router.replace('/screens/AuthScreen');
+            }
         }, 8000);
 
         return () => {
@@ -71,7 +78,7 @@ export default function LandingScreen() {
             clearTimeout(t2);
             clearTimeout(t3);
         };
-    }, []);
+    }, [isAuthenticated]);
 
     const animatedCardStyle = useAnimatedStyle(() => ({
         transform: [

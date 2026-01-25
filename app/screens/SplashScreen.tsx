@@ -19,42 +19,50 @@ export default function SplashScreen() {
         // 2. Minimum delay for custom splash (e.g. 2 seconds)
         const minDelayPromise = new Promise(resolve => setTimeout(resolve, 2000));
 
-        // 3. Auth check with timeout
-        // We create a wrapper for the session promise to distinguish it
-        const sessionCheck = supabase.auth.getSession().then(res => ({ ...res, isTimeout: false }));
+        // 3. Auth check with timeout (using getUser for server validation)
+        const userCheck = supabase.auth.getUser().then(res => ({ ...res, isTimeout: false }));
 
         const timeoutCheck = new Promise<{ isTimeout: true; data: null; error: null }>((resolve) =>
           setTimeout(() => resolve({ isTimeout: true, data: null, error: null }), 5000)
         );
 
         // Race them
-        const result = await Promise.race([sessionCheck, timeoutCheck]);
+        const result = await Promise.race([userCheck, timeoutCheck]);
 
         // Wait for the minimum animation delay
         await minDelayPromise;
 
         if (result.isTimeout) {
           console.warn('Auth check timed out, defaulting to Landing');
-          router.replace('/screens/LandingScreen');
+          router.replace({
+            pathname: '/screens/LandingScreen',
+            params: { isAuthenticated: 'false' }
+          });
           return;
         }
 
         const { data, error } = result;
 
-        if (error) {
-          throw error;
+        const isAuthenticated = !!(data?.user && !error);
+
+        if (!isAuthenticated) {
+          // Explicitly sign out to clear any stale local state
+          await supabase.auth.signOut();
         }
 
-        if (data?.session) {
-          router.replace('/screens/HomeScreen');
-        } else {
-          router.replace('/screens/LandingScreen');
-        }
+        // Always navigate to LandingScreen, passing auth status
+        router.replace({
+          pathname: '/screens/LandingScreen',
+          params: { isAuthenticated: String(isAuthenticated) }
+        });
       } catch (error) {
         console.error('Auth check failed:', error);
-        // Ensure native splash is hidden if we crash early
         await SplashScreenModule.hideAsync();
-        router.replace('/screens/AuthScreen');
+        // Default to not authenticated
+        router.replace({
+          pathname: '/screens/LandingScreen',
+          params: { isAuthenticated: 'false' }
+        });
       }
     };
 

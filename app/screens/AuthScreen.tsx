@@ -43,7 +43,7 @@ export default function AuthScreen() {
     setLoading(true);
 
     try {
-      // Use the app's custom URL scheme
+      // Use the app's custom URL scheme (Required for Dev Build / Native)
       const redirectUrl = 'payandpromise://';
 
       console.log('Starting Google OAuth...');
@@ -123,7 +123,9 @@ export default function AuthScreen() {
               }
 
               console.log('Profile updated/verified.');
-              // Navigation is handled by RootLayout's onAuthStateChange listener
+
+              // Explicitly navigate to ensure we don't get stuck
+              router.replace('/screens/HomeScreen');
               return;
             }
           }

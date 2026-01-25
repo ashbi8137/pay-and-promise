@@ -77,7 +77,7 @@ export default function RootLayout() {
       if (event === 'SIGNED_IN' && session && !isProcessingAuth) {
         // Check if we're on auth-related screens
         const currentScreen = segments[1]; // screens/AuthScreen -> AuthScreen
-        if (currentScreen === 'AuthScreen' || currentScreen === 'LandingScreen' || currentScreen === 'SplashScreen') {
+        if (currentScreen === 'AuthScreen' || currentScreen === 'LandingScreen') {
           console.log('User signed in, navigating to HomeScreen');
           router.replace('/screens/HomeScreen');
         }

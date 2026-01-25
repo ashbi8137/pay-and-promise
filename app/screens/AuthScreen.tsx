@@ -206,8 +206,19 @@ export default function AuthScreen() {
             <View style={styles.termsContainer}>
               <Text style={styles.termsText}>
                 By continuing, you agree to our{' '}
-                <Text style={styles.linkText}>Terms of Service</Text> and{' '}
-                <Text style={styles.linkText}>Privacy Policy</Text>.
+                <Text
+                  style={styles.linkText}
+                  onPress={() => router.push('/screens/TermsScreen')}
+                >
+                  Terms of Service
+                </Text>{' '}
+                and{' '}
+                <Text
+                  style={styles.linkText}
+                  onPress={() => router.push('/screens/PrivacyPolicyScreen')}
+                >
+                  Privacy Policy
+                </Text>.
               </Text>
             </View>
           </View>

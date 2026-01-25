@@ -672,11 +672,29 @@ export default function PromiseDetailScreen() {
                                     {!isVoted && !isAutoFail && sub.status === 'pending' && (
                                         <View style={styles.voteButtons}>
                                             <TouchableOpacity style={[styles.voteButton, styles.voteConfirm]}
-                                                onPress={() => handleVote(sub.id, 'confirm')}>
+                                                onPress={() => {
+                                                    Alert.alert(
+                                                        "Confirm Verification",
+                                                        `Are you sure you want to confirm ${name}?`,
+                                                        [
+                                                            { text: "Cancel", style: "cancel" },
+                                                            { text: "Yes", onPress: () => handleVote(sub.id, 'confirm') }
+                                                        ]
+                                                    );
+                                                }}>
                                                 <Text style={styles.voteText}>Confirm</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity style={[styles.voteButton, styles.voteReject]}
-                                                onPress={() => handleVote(sub.id, 'reject')}>
+                                                onPress={() => {
+                                                    Alert.alert(
+                                                        "Reject Verification",
+                                                        `Are you sure you want to reject ${name}?`,
+                                                        [
+                                                            { text: "Cancel", style: "cancel" },
+                                                            { text: "Yes", onPress: () => handleVote(sub.id, 'reject'), style: "destructive" }
+                                                        ]
+                                                    );
+                                                }}>
                                                 <Text style={styles.voteText}>Reject</Text>
                                             </TouchableOpacity>
                                         </View>

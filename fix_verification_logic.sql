@@ -39,6 +39,10 @@ begin
     v_total_participants := get_promise_participant_count(p_promise_id);
     v_required_votes := v_total_participants - 1;
 
+    -- LOCKING to prevent race conditions (double deduction)
+    -- We lock the promise row for update to serialize access to this promise's settlement logic
+    perform 1 from public.promises where id = p_promise_id for update;
+
     -- B. Check 1: Have ALL participants submitted?
     select count(*) into v_missing_count
     from public.promise_participants pp
@@ -60,9 +64,14 @@ begin
 
     -- C. Check 2: Has EVERY submission received required votes?
     for v_submissions in 
-        select id, user_id from public.promise_submissions 
+        select id, user_id, status, image_url from public.promise_submissions 
         where promise_id = p_promise_id and date = p_date
     loop
+        -- Skip check if already decided (manual fail or pre-rejected)
+        if v_submissions.status = 'rejected' or v_submissions.image_url in ('manual_fail', 'auto_fail_placeholder') then
+            continue;
+        end if;
+
         select count(*) into v_vote_count
         from public.submission_verifications
         where submission_id = v_submissions.id;
@@ -181,6 +190,19 @@ begin
     -- F. Mark Settled
     insert into public.daily_settlements (promise_id, date, total_pool, winners_count, amount_per_winner)
     values (p_promise_id, p_date, v_total_pool, coalesce(array_length(v_winners_id, 1), 0), v_share);
+
+    -- G. Check for Promise Completion
+    declare
+        v_duration int;
+        v_settled_days int;
+    begin
+        select duration_days into v_duration from public.promises where id = p_promise_id;
+        select count(*) into v_settled_days from public.daily_settlements where promise_id = p_promise_id;
+        
+        if v_settled_days >= v_duration then
+            update public.promises set status = 'completed' where id = p_promise_id;
+        end if;
+    end;
 
 end;
 $$ language plpgsql security definer;

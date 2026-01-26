@@ -176,7 +176,15 @@ export default function PromiseDetailScreen() {
             // Optimistic Update: Add to myVotes immediately
             setMyVotes(prev => [...prev, submissionId]);
 
-            // Fetch will be triggered by realtime, but we can optimistically update or wait
+            // TRIGGER VERIFICATION CHECK
+            // If this vote completes the verification for a user, checking explicitly ensures
+            // settlement happens immediately if all participants are now resolved.
+            const dateStr = new Date().toISOString().split('T')[0];
+            await supabase.rpc('check_and_finalize_verification', {
+                p_promise_id: promiseData.id,
+                p_date: dateStr
+            });
+
         } catch (e) {
             console.error(e);
             Alert.alert("Error", "Could not record vote.");
@@ -290,7 +298,7 @@ export default function PromiseDetailScreen() {
     const handlePhotoCheckIn = async () => {
         // 0. Validation: All peers must join
         if (realParticipantCount < numPeople) {
-            Alert.alert("Waiting for Peers", "All peers must join the promise before uploading proof.");
+            Alert.alert("Wait for others to join.", "All peers must join the promise before you can take action.");
             return;
         }
 
@@ -375,6 +383,12 @@ export default function PromiseDetailScreen() {
     const handleCheckIn = async (status: 'done' | 'failed') => {
         if (updating) return;
 
+        // Validation: All peers must join
+        if (realParticipantCount < numPeople) {
+            Alert.alert("Wait for others to join.", "All peers must join the promise before you can take action.");
+            return;
+        }
+
         // If 'Done', Require Photo (Branch Logic)
         if (status === 'done') {
             Alert.alert(
@@ -443,13 +457,8 @@ export default function PromiseDetailScreen() {
                                     // B. Record Penalty for ME
                                     const myName = user.user_metadata?.full_name?.split(' ')[0] || user.email?.split('@')[0] || "Someone";
 
-                                    await supabase.from('ledger').insert({
-                                        promise_id: promiseData.id,
-                                        user_id: user.id,
-                                        amount: -dailyStake,
-                                        type: 'penalty',
-                                        description: `You missed a day in ${promiseData.title}`
-                                    });
+                                    // B. Penalty is handled by backend (check_and_finalize_verification)
+                                    // This ensures exact stake_per_day amount is used.
 
                                     // Trigger verification check (might settle day if others are done)
                                     await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });

@@ -82,7 +82,12 @@ export default function RootLayout() {
           router.replace('/screens/HomeScreen');
         }
       } else if (event === 'SIGNED_OUT') {
-        router.replace('/screens/LandingScreen');
+        const currentScreen = segments[1];
+        // Only navigate to Landing if we are not already in the auth flow (AuthScreen or LandingScreen)
+        // This prevents "ghost" redirects to Landing during the sign-in process
+        if (currentScreen !== 'AuthScreen' && currentScreen !== 'LandingScreen') {
+          router.replace('/screens/LandingScreen');
+        }
       }
     });
 

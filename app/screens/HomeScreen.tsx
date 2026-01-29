@@ -79,7 +79,9 @@ export default function HomeScreen() {
 
 
     const fetchData = async () => {
-        setLoading(true);
+        // Don't set loading=true here to avoid flashing the empty state/spinner on every focus
+        // Only use strict loading for initial mount if needed, or rely on existing data
+        // setLoading(true); 
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
@@ -244,7 +246,7 @@ export default function HomeScreen() {
 
         return (
             <Animated.View
-                entering={FadeInDown.delay(isHistory ? 400 : 300).springify()}
+                // entering={FadeInDown.delay(isHistory ? 400 : 300).springify()} // Removing animation to prevent blink on refresh
                 key={item.id}
             >
                 <TouchableOpacity

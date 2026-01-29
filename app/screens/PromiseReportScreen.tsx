@@ -6,6 +6,7 @@ import {
     Alert,
     Linking,
     Platform,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
@@ -36,7 +37,7 @@ interface Settlement {
     from_user_id: string;
     to_user_id: string;
     amount: number;
-    status: 'pending' | 'paid' | 'confirmed' | 'marked_paid';
+    status: 'pending' | 'paid' | 'confirmed' | 'marked_paid' | 'rejected';
     from_name?: string;
     to_name?: string;
 }
@@ -57,7 +58,7 @@ export default function PromiseReportScreen() {
     const [participantUpiIds, setParticipantUpiIds] = useState<Record<string, string>>({});
     const [isWash, setIsWash] = useState(false);
     const [settlements, setSettlements] = useState<Settlement[]>([]);
-    const [initiatedSettlements, setInitiatedSettlements] = useState<Record<string, boolean>>({}); // Track which payments user clicked 'Pay' for
+    const [initiatedSettlements, setInitiatedSettlements] = useState<Record<string, boolean>>({});
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [refreshing, setRefreshing] = useState(false);
 
@@ -392,9 +393,32 @@ export default function PromiseReportScreen() {
         else fetchReportData();
     };
 
+    const handleReject = async (settlementId: string) => {
+        Alert.alert("Reject Payment", "Are you sure? This will ask the other user to pay again.", [
+            { text: "Cancel", style: "cancel" },
+            {
+                text: "Reject",
+                style: "destructive",
+                onPress: async () => {
+                    const { error } = await supabase
+                        .from('settlements')
+                        .update({ status: 'rejected' })
+                        .eq('id', settlementId);
+
+                    if (error) Alert.alert("Error", "Could not reject");
+                    else fetchReportData();
+                }
+            }
+        ]);
+    };
+
     return (
         <SafeAreaView style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
 
                 {/* Header */}
                 <View style={styles.header}>
@@ -533,6 +557,9 @@ export default function PromiseReportScreen() {
                                     const currentId = currentUserId;
                                     const isPayer = payment.from_user_id === currentId;
                                     const isReceiver = payment.to_user_id === currentId;
+
+                                    console.log(`[Item] ID:${payment.id} Status:${payment.status} | Me:${currentId} | From:${payment.from_user_id} To:${payment.to_user_id} | isRec:${isReceiver}`);
+
                                     const receiverUpiId = isPayer ? participantUpiIds[payment.to_user_id] : null;
                                     const isPaymentInitiated = (initiatedSettlements || {})[payment.id];
 
@@ -563,17 +590,39 @@ export default function PromiseReportScreen() {
                                                 </View>
                                             ) : payment.status === 'paid' || payment.status === 'marked_paid' ? (
                                                 isReceiver ? (
-                                                    <TouchableOpacity
-                                                        style={[styles.actionButton, { backgroundColor: '#166534' }]}
-                                                        onPress={() => handleConfirm(payment.id)}
-                                                    >
-                                                        <Text style={styles.btnText}>Confirm Received @ ₹{payment.amount}</Text>
-                                                    </TouchableOpacity>
+                                                    <View style={{ gap: 8 }}>
+                                                        <TouchableOpacity
+                                                            style={[styles.actionButton, { backgroundColor: '#166534' }]}
+                                                            onPress={() => handleConfirm(payment.id)}
+                                                        >
+                                                            <Text style={styles.btnText}>Confirm Received @ ₹{payment.amount}</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            onPress={() => handleReject(payment.id)}
+                                                            style={{ alignSelf: 'center', padding: 8 }}
+                                                        >
+                                                            <Text style={{ color: '#991B1B', fontSize: 12, fontWeight: '600' }}>Reject & Request Retry</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
                                                 ) : (
                                                     <View style={[styles.statusPill, { backgroundColor: '#FEF3C7' }]}>
                                                         <Text style={[styles.pillText, { color: '#B45309' }]}>Waiting Confirmation</Text>
                                                     </View>
                                                 )
+                                            ) : payment.status === 'rejected' ? (
+                                                <View style={{ gap: 8 }}>
+                                                    <View style={[styles.statusPill, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#EF4444' }]}>
+                                                        <Text style={[styles.pillText, { color: '#B91C1C' }]}>Payment Rejected. Retry!</Text>
+                                                    </View>
+                                                    {isPayer && (
+                                                        <TouchableOpacity
+                                                            style={styles.actionButton}
+                                                            onPress={() => handlePay(receiverUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                        >
+                                                            <Text style={styles.btnText}>Pay Again via UPI</Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                </View>
                                             ) : isPayer ? (
                                                 <View style={{ gap: 6, alignItems: 'flex-end' }}>
                                                     <TouchableOpacity

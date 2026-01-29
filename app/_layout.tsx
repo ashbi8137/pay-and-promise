@@ -39,8 +39,8 @@ export default function RootLayout() {
               });
 
               if (!error) {
-                console.log('Session set successfully, navigating to HomeScreen');
-                router.replace('/screens/HomeScreen');
+                console.log('Session set successfully via Deep Link');
+                // router.replace('/screens/HomeScreen'); // HANDLED BY ON_AUTH_STATE_CHANGE
               } else {
                 console.error('Error setting session:', error);
               }

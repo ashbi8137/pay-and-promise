@@ -6,12 +6,13 @@ import {
     ActivityIndicator,
     Dimensions,
     Platform,
+    RefreshControl,
     SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from '../../lib/supabase';
@@ -41,7 +42,13 @@ interface JourneyItem {
 export default function JourneyScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [history, setHistory] = useState<JourneyItem[]>([]);
+
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchJourneyAttributes().then(() => setRefreshing(false));
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -207,7 +214,10 @@ export default function JourneyScreen() {
                 <View style={{ width: 40 }} />
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <ScrollView
+                contentContainerStyle={styles.scrollContent}
+                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            >
                 {loading ? (
                     <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
                 ) : (

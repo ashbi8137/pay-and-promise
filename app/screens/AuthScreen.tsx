@@ -30,7 +30,7 @@ export default function AuthScreen() {
       const { data: { session } } = await supabase.auth.getSession();
       console.log('AuthScreen: Checking session on mount', session?.user?.id);
       if (session) {
-        router.replace('/screens/HomeScreen');
+        // router.replace('/screens/HomeScreen'); // HANDLED BY GLOBAL LISTENER
       }
     };
     checkSession();
@@ -125,7 +125,7 @@ export default function AuthScreen() {
               console.log('Profile updated/verified.');
 
               // Explicitly navigate to ensure we don't get stuck
-              router.replace('/screens/HomeScreen');
+              // router.replace('/screens/HomeScreen'); // HANDLED BY GLOBAL LISTENER
               return;
             }
           }

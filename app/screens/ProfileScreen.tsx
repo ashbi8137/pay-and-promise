@@ -24,6 +24,7 @@ export default function ProfileScreen() {
     const [firstName, setFirstName] = useState<string>('Ashbin');
     const [upiId, setUpiId] = useState('');
     const [savingUpi, setSavingUpi] = useState(false);
+    const [isEditingUpi, setIsEditingUpi] = useState(false); // To toggle read-only mode
 
     console.log('ProfileScreen Render. Name:', firstName);
 
@@ -57,6 +58,8 @@ export default function ProfileScreen() {
 
             if (profileData?.upi_id) {
                 setUpiId(profileData.upi_id);
+                // If we found a UPI ID, start in read-only mode. If not, edit mode might be fine or just empty.
+                // Actually, let's just use the existence of data to decide default, but state 'isEditing' defaults false.
             }
 
             // 1. Set Profile Info (Exact Home Logic)
@@ -144,6 +147,7 @@ export default function ProfileScreen() {
                 Alert.alert("Error", "Failed to save UPI ID");
             } else {
                 Alert.alert("Success", "UPI ID saved successfully");
+                setIsEditingUpi(false); // Switch back to read-only
             }
         } catch (err) {
             Alert.alert("Error", "Something went wrong");
@@ -226,24 +230,45 @@ export default function ProfileScreen() {
                             <Text style={[styles.settingText, { marginLeft: 8 }]}>UPI ID (VPA)</Text>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 10 }}>
-                            <TextInput
-                                value={upiId}
-                                onChangeText={setUpiId}
-                                placeholder="e.g. name@oksbi"
-                                style={styles.input}
-                                autoCapitalize="none"
-                            />
-                            <TouchableOpacity
-                                style={[styles.saveBtn, savingUpi && { opacity: 0.7 }]}
-                                onPress={saveUpiId}
-                                disabled={savingUpi}
-                            >
-                                {savingUpi ? (
-                                    <ActivityIndicator size="small" color="#FFF" />
-                                ) : (
-                                    <Text style={styles.saveBtnText}>Save</Text>
-                                )}
-                            </TouchableOpacity>
+                            {/* Read Only vs Edit Mode */}
+                            {upiId && !isEditingUpi ? (
+                                <View style={[styles.input, { backgroundColor: '#F1F5F9', justifyContent: 'center' }]}>
+                                    <Text style={{ color: '#0F172A', fontWeight: '500' }}>{upiId}</Text>
+                                </View>
+                            ) : (
+                                <TextInput
+                                    value={upiId}
+                                    onChangeText={setUpiId}
+                                    placeholder="e.g. name@oksbi"
+                                    style={styles.input}
+                                    autoCapitalize="none"
+                                />
+                            )}
+
+                            {/* Button Logic */}
+                            {upiId && !isEditingUpi ? (
+                                <TouchableOpacity
+                                    style={[styles.saveBtn, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]}
+                                    onPress={() => setIsEditingUpi(true)}
+                                >
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                        <Ionicons name="create-outline" size={16} color="#475569" />
+                                        <Text style={[styles.saveBtnText, { color: '#475569' }]}>Edit</Text>
+                                    </View>
+                                </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity
+                                    style={[styles.saveBtn, savingUpi && { opacity: 0.7 }]}
+                                    onPress={saveUpiId}
+                                    disabled={savingUpi}
+                                >
+                                    {savingUpi ? (
+                                        <ActivityIndicator size="small" color="#FFF" />
+                                    ) : (
+                                        <Text style={styles.saveBtnText}>Save</Text>
+                                    )}
+                                </TouchableOpacity>
+                            )}
                         </View>
                         <Text style={styles.helperText}>Used for receiving payments from peers.</Text>
                     </View>

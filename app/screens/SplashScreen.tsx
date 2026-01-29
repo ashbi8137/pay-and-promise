@@ -45,16 +45,18 @@ export default function SplashScreen() {
 
         const isAuthenticated = !!(data?.user && !error);
 
-        if (!isAuthenticated) {
-          // Explicitly sign out to clear any stale local state
+        if (isAuthenticated) {
+          // DIRECT NAVIGATION TO HOME if authenticated
+          console.log('User authenticated, skipping Landing...');
+          router.replace('/screens/HomeScreen');
+        } else {
+          // Explicitly sign out to clear any stale local state and show Landing
           await supabase.auth.signOut();
+          router.replace({
+            pathname: '/screens/LandingScreen',
+            params: { isAuthenticated: 'false' }
+          });
         }
-
-        // Always navigate to LandingScreen, passing auth status
-        router.replace({
-          pathname: '/screens/LandingScreen',
-          params: { isAuthenticated: String(isAuthenticated) }
-        });
       } catch (error) {
         console.error('Auth check failed:', error);
         await SplashScreenModule.hideAsync();

@@ -10,6 +10,7 @@ import {
     ScrollView,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -21,6 +22,9 @@ export default function ProfileScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
     const [firstName, setFirstName] = useState<string>('Ashbin');
+    const [upiId, setUpiId] = useState('');
+    const [savingUpi, setSavingUpi] = useState(false);
+
     console.log('ProfileScreen Render. Name:', firstName);
 
     const [latestContext, setLatestContext] = useState<{ desc: string; type: string } | null>(null);
@@ -43,6 +47,17 @@ export default function ProfileScreen() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+
+            // 0. Fetch UPI ID from Profiles
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('upi_id')
+                .eq('id', user.id)
+                .single();
+
+            if (profileData?.upi_id) {
+                setUpiId(profileData.upi_id);
+            }
 
             // 1. Set Profile Info (Exact Home Logic)
             const metadataName = user.user_metadata?.full_name || user.user_metadata?.name;
@@ -109,6 +124,34 @@ export default function ProfileScreen() {
         fetchProfileData();
     }, []);
 
+    const saveUpiId = async () => {
+        if (!upiId.trim()) {
+            Alert.alert("Required", "Please enter a valid UPI ID");
+            return;
+        }
+
+        setSavingUpi(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { error } = await supabase
+                .from('profiles')
+                .update({ upi_id: upiId })
+                .eq('id', user.id);
+
+            if (error) {
+                Alert.alert("Error", "Failed to save UPI ID");
+            } else {
+                Alert.alert("Success", "UPI ID saved successfully");
+            }
+        } catch (err) {
+            Alert.alert("Error", "Something went wrong");
+        } finally {
+            setSavingUpi(false);
+        }
+    };
+
     const handleLogout = async () => {
         Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
             { text: 'Cancel', style: 'cancel' },
@@ -146,7 +189,7 @@ export default function ProfileScreen() {
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <Ionicons name="arrow-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Profile</Text>
+                    <Text style={styles.headerTitle}>My Profile</Text>
                     <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.backButton}>
                         <Ionicons name="settings-outline" size={24} color="#0F172A" />
                     </TouchableOpacity>
@@ -171,6 +214,38 @@ export default function ProfileScreen() {
                         <View style={styles.userBadge}>
                             <Text style={styles.userBadgeText}>Member</Text>
                         </View>
+                    </View>
+                </View>
+
+                {/* Payment Settings */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Payment Settings</Text>
+                    <View style={styles.paymentCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                            <Ionicons name="qr-code-outline" size={20} color="#4F46E5" />
+                            <Text style={[styles.settingText, { marginLeft: 8 }]}>UPI ID (VPA)</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <TextInput
+                                value={upiId}
+                                onChangeText={setUpiId}
+                                placeholder="e.g. name@oksbi"
+                                style={styles.input}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity
+                                style={[styles.saveBtn, savingUpi && { opacity: 0.7 }]}
+                                onPress={saveUpiId}
+                                disabled={savingUpi}
+                            >
+                                {savingUpi ? (
+                                    <ActivityIndicator size="small" color="#FFF" />
+                                ) : (
+                                    <Text style={styles.saveBtnText}>Save</Text>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                        <Text style={styles.helperText}>Used for receiving payments from peers.</Text>
                     </View>
                 </View>
 
@@ -277,7 +352,7 @@ export default function ProfileScreen() {
                 <Text style={styles.versionText}>Version 1.0.0</Text>
 
             </ScrollView>
-        </SafeAreaView>
+        </SafeAreaView >
     );
 }
 
@@ -439,7 +514,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
-        // elevation: 1,
     },
     statCardGreen: {
         borderColor: '#DCFCE7',
@@ -509,7 +583,6 @@ const styles = StyleSheet.create({
         color: '#334155',
         fontWeight: '600',
     },
-    // New Action Button
     actionButton: {
         marginBottom: 32,
         borderRadius: 16,
@@ -565,12 +638,9 @@ const styles = StyleSheet.create({
         fontSize: 12,
         marginBottom: 24,
     },
-    // NEW HISTORY & MENU STYLES
     section: {
         marginBottom: 24,
     },
-
-    // Preferences Menu Styles (to match added UI)
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -599,5 +669,41 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#0F172A',
     },
-
+    paymentCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    input: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        fontSize: 14,
+        color: '#0F172A',
+        backgroundColor: '#F8FAFC',
+    },
+    saveBtn: {
+        backgroundColor: '#4F46E5',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 8,
+        justifyContent: 'center',
+    },
+    saveBtnText: {
+        color: '#FFF',
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    helperText: {
+        fontSize: 12,
+        color: '#94A3B8',
+        marginTop: 8,
+    },
 });
+
+

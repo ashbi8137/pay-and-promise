@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
+    Alert,
+    Linking,
     Platform,
     SafeAreaView,
     ScrollView,
@@ -29,9 +31,20 @@ interface FinancialSummary {
     netResult: number;
 }
 
+interface Settlement {
+    id: string;
+    from_user_id: string;
+    to_user_id: string;
+    amount: number;
+    status: 'pending' | 'paid' | 'confirmed' | 'marked_paid';
+    from_name?: string;
+    to_name?: string;
+}
+
 export default function PromiseReportScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
+    const promiseId = params.promiseId as string;
 
     const [loading, setLoading] = useState(true);
     const [promiseData, setPromiseData] = useState<PromiseData | null>(null);
@@ -41,10 +54,20 @@ export default function PromiseReportScreen() {
         netResult: 0
     });
     const [participantNames, setParticipantNames] = useState<Record<string, string>>({});
+    const [participantUpiIds, setParticipantUpiIds] = useState<Record<string, string>>({});
     const [isWash, setIsWash] = useState(false);
+    const [settlements, setSettlements] = useState<Settlement[]>([]);
+    const [initiatedSettlements, setInitiatedSettlements] = useState<Record<string, boolean>>({}); // Track which payments user clicked 'Pay' for
+    const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+    const [refreshing, setRefreshing] = useState(false);
 
-    // Parse promise from params
-    const promiseId = params.promiseId as string;
+    const onRefresh = useCallback(() => {
+        setRefreshing(true);
+        fetchReportData().then(() => setRefreshing(false));
+    }, [promiseId]);
+
+    // Parse promise from params logic moved up
+
 
     useEffect(() => {
         if (promiseId) {
@@ -56,6 +79,10 @@ export default function PromiseReportScreen() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
+            setCurrentUserId(user.id);
+            setCurrentUserId(user.id);
+
+            // 1. Fetch Promise Details
 
             // 1. Fetch Promise Details
             const { data: promise, error: promiseError } = await supabase
@@ -76,10 +103,10 @@ export default function PromiseReportScreen() {
 
             if (ledgerError) throw ledgerError;
 
-            if (ledger) {
-                let totalPaid = 0;
-                let totalEarned = 0;
+            let totalPaid = 0;
+            let totalEarned = 0;
 
+            if (ledger) {
                 ledger.forEach(item => {
                     const val = Number(item.amount);
                     if (item.type === 'winnings') {
@@ -99,22 +126,66 @@ export default function PromiseReportScreen() {
                 });
             }
 
-            // 3. New: Check for "The Wash" (Did ANYONE win?)
-            // We fetch all winnings for this promise. If sum is 0, it's a wash.
-            const { data: allWinnings } = await supabase
+            // 2.5 Fetch FULL Ledger (All Participants) to determine winners/losers text
+            // This is needed for settlement calculation
+            const { data: fullLedger } = await supabase
                 .from('ledger')
-                .select('amount')
-                .eq('promise_id', promiseId)
-                .eq('type', 'winnings');
+                .select('user_id, amount, type')
+                .eq('promise_id', promiseId);
 
-            const totalGroupWinnings = allWinnings?.reduce((sum, item) => sum + Number(item.amount), 0) || 0;
-            setIsWash(totalGroupWinnings === 0);
+            // 3. New: Check for "The Wash" (Did ANYONE win?)
+            const { count: verifiedCount } = await supabase
+                .from('promise_submissions')
+                .select('*', { count: 'exact', head: true })
+                .eq('promise_id', promiseId)
+                .eq('status', 'verified');
+
+            const isWashCondition = (verifiedCount || 0) === 0;
+            setIsWash(isWashCondition);
+
+            // AUTO-REFUND LOGIC (Wash Rule)
+            // If it is a Wash, and I have paid penalties (and not sufficiently refunded), trigger a refund.
+            if (isWashCondition && ledger) {
+                let paid = 0;
+                let refunded = 0;
+                ledger.forEach(item => {
+                    if (item.type === 'penalty') paid += Math.abs(Number(item.amount));
+                    if (item.type === 'refund') refunded += Number(item.amount);
+                });
+
+                if (paid > refunded) {
+                    // Need to refund the difference
+                    const amountToRefund = paid - refunded;
+                    console.log('Wash Rule: Auto-refunding penalties...', amountToRefund);
+
+                    const { error: refundError } = await supabase.from('ledger').insert({
+                        promise_id: promiseId,
+                        user_id: user.id,
+                        amount: amountToRefund,
+                        type: 'refund',
+                        description: 'Wash Rule Refund: Everyone Failed'
+                    });
+
+                    if (!refundError) {
+                        // Update local financials immediately to reflect refund
+                        setFinancials({
+                            totalPaid: 0, // Effectively 0 after refund
+                            totalEarned: totalEarned, // Use local variable
+                            netResult: 0
+                        });
+                    } else {
+                        console.error('Failed to insert refund:', refundError);
+                    }
+                }
+            }
 
             // 4. Fetch Participant Names for settlement info
             const { data: participants } = await supabase
                 .from('promise_participants')
-                .select('user_id')
+                .select('user_id, status')
                 .eq('promise_id', promiseId);
+
+            let localNameMap: Record<string, string> = {};
 
             if (participants && participants.length > 0) {
                 const userIds = participants.map(p => p.user_id);
@@ -122,16 +193,121 @@ export default function PromiseReportScreen() {
                     .rpc('get_user_names', { user_ids: userIds });
 
                 if (names) {
-                    const nameMap: Record<string, string> = {};
                     names.forEach((n: any) => {
-                        nameMap[n.user_id] = n.full_name?.split(' ')[0] || 'User';
+                        localNameMap[n.user_id] = n.full_name?.split(' ')[0] || 'User';
                     });
-                    setParticipantNames(nameMap);
+                    setParticipantNames(localNameMap);
+                }
+
+                // 4.1 Fetch UPI IDs from profiles
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, upi_id')
+                    .in('id', userIds);
+
+                if (profiles) {
+                    const upiMap: Record<string, string> = {};
+                    profiles.forEach((p: any) => {
+                        if (p.upi_id) upiMap[p.id] = p.upi_id;
+                    });
+                    setParticipantUpiIds(upiMap);
                 }
             }
 
+            // 5. SETTLEMENT LOGIC
+            // Check if settlements already exist for this promise
+            const { data: existingSettlements } = await supabase
+                .from('settlements')
+                .select('*')
+                .eq('promise_id', promiseId);
+
+            if (existingSettlements && existingSettlements.length > 0) {
+                // Already generated, just display
+                const enriched = existingSettlements.map(s => ({
+                    ...s,
+                    from_name: participantNames[s.from_user_id] || 'User',
+                    to_name: participantNames[s.to_user_id] || 'User'
+                }));
+                // Sort: Pending first, then marked_paid, then others
+                enriched.sort((a, b) => {
+                    const score = (s: string) => {
+                        if (s === 'pending') return 1;
+                        if (s === 'marked_paid') return 2;
+                        return 3;
+                    };
+                    return score(a.status) - score(b.status);
+                });
+                setSettlements(enriched);
+            } else {
+
+                // 5.1 Calculate Net Results from Ledger
+                const balances: Record<string, number> = {};
+                if (fullLedger) {
+                    fullLedger.forEach(item => {
+                        const uid = item.user_id;
+                        const amt = Number(item.amount);
+                        if (!balances[uid]) balances[uid] = 0;
+                        if (item.type === 'winnings') balances[uid] += amt;
+                        if (item.type === 'penalty') balances[uid] -= Math.abs(amt);
+                    });
+                }
+
+                const winners: { id: string; amount: number }[] = [];
+                const losers: { id: string; amount: number }[] = [];
+
+                Object.entries(balances).forEach(([uid, amount]) => {
+                    const val = Number(amount.toFixed(2));
+                    if (val > 0) winners.push({ id: uid, amount: val });
+                    if (val < 0) losers.push({ id: uid, amount: Math.abs(val) });
+                });
+
+                winners.sort((a, b) => b.amount - a.amount);
+                losers.sort((a, b) => b.amount - a.amount);
+
+                const newSettlements = [];
+                let wIdx = 0;
+                let lIdx = 0;
+
+                while (wIdx < winners.length && lIdx < losers.length) {
+                    const winner = winners[wIdx];
+                    const loser = losers[lIdx];
+
+                    const amount = Math.min(winner.amount, loser.amount);
+                    if (amount > 0.01) {
+                        newSettlements.push({
+                            promise_id: promiseId,
+                            from_user_id: loser.id,
+                            to_user_id: winner.id,
+                            amount: Number(amount.toFixed(2)),
+                            status: 'pending'
+                        });
+                    }
+
+                    winner.amount -= amount;
+                    loser.amount -= amount;
+
+                    if (winner.amount < 0.01) wIdx++;
+                    if (loser.amount < 0.01) lIdx++;
+                }
+
+                if (newSettlements.length > 0) {
+                    const { data: inserted, error: insertError } = await supabase
+                        .from('settlements')
+                        .insert(newSettlements)
+                        .select();
+
+                    if (!insertError && inserted) {
+                        const enriched = inserted.map((s: any) => ({
+                            ...s,
+                            from_name: localNameMap[s.from_user_id] || 'User',
+                            to_name: localNameMap[s.to_user_id] || 'User'
+                        }));
+                        setSettlements(enriched);
+                    }
+                }
+            }
         } catch (error) {
-            console.error('Error fetching report data:', error);
+
         } finally {
             setLoading(false);
         }
@@ -173,6 +349,48 @@ export default function PromiseReportScreen() {
     }
 
     const isGain = financials.netResult >= 0;
+
+    const handlePay = async (upiId: string, name: string, amount: number, settlementId: string) => {
+        if (!upiId) {
+            Alert.alert("No UPI ID", `${name} has not linked their UPI ID yet. Please contact them directly.`);
+            return;
+        }
+
+        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=Promise%20Settlement`;
+
+        try {
+            const supported = await Linking.canOpenURL(upiUrl);
+            if (supported) {
+                await Linking.openURL(upiUrl);
+                // Mark locally that we initiated payment, to show "Mark as Paid" button
+                setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
+            } else {
+                Alert.alert("Error", "No UPI apps installed found to handle this request.");
+            }
+        } catch (err) {
+            Alert.alert("Error", "Could not open UPI app.");
+        }
+    };
+
+    const handleMarkPaid = async (settlementId: string) => {
+        const { error } = await supabase
+            .from('settlements')
+            .update({ status: 'marked_paid' })
+            .eq('id', settlementId);
+
+        if (error) Alert.alert("Error", "Could not update status");
+        else fetchReportData();
+    };
+
+    const handleConfirm = async (settlementId: string) => {
+        const { error } = await supabase
+            .from('settlements')
+            .update({ status: 'confirmed' })
+            .eq('id', settlementId);
+
+        if (error) Alert.alert("Error", "Could not confirm");
+        else fetchReportData();
+    };
 
     return (
         <SafeAreaView style={styles.container}>
@@ -284,31 +502,104 @@ export default function PromiseReportScreen() {
                                 {'\n'}from the pool
                             </Text>
                         </View>
+                    ) : isWash ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#F1F5F9', borderRadius: 12 }}>
+                            <View style={[styles.settlementBadge, { backgroundColor: '#E2E8F0' }]}>
+                                <Ionicons name="alert-circle-outline" size={24} color="#64748B" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.settlementText}>
+                                    Everyone failed to keep the promise perfectly.
+                                    {'\n'}No money is exchanged.
+                                </Text>
+                            </View>
+                        </View>
                     ) : (
-                        <View style={styles.settlementContent}>
-                            {isWash ? (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                                    <View style={[styles.settlementBadge, { backgroundColor: '#F1F5F9' }]}>
-                                        <Ionicons name="git-compare-outline" size={20} color="#64748B" />
-                                    </View>
-                                    <Text style={styles.settlementText}>
-                                        <Text style={{ fontWeight: '700', color: '#64748B' }}>The Wash Rule:</Text>
-                                        {'\n'}Everyone failed, so no one pays.
-                                    </Text>
-                                </View>
+                        <View>
+                            {/* DISCLAIMER - Always Visible when settlements involved */}
+                            <View style={styles.disclaimerBox}>
+                                <Text style={styles.disclaimerText}>
+                                    "Payments are handled outside the app using UPI. Please verify strictly with peers."
+                                </Text>
+                            </View>
+
+                            <Text style={styles.subHeader}>Pending Payments</Text>
+
+                            {settlements.filter(s => s.from_user_id === currentUserId || s.to_user_id === currentUserId).length === 0 ? (
+                                <Text style={{ color: '#64748B', textAlign: 'center', marginBottom: 20 }}>No pending payments found.</Text>
                             ) : (
-                                <>
-                                    <View style={[styles.settlementBadge, { backgroundColor: '#FEE2E2' }]}>
-                                        <Ionicons name="wallet-outline" size={20} color="#991B1B" />
-                                    </View>
-                                    <Text style={styles.settlementText}>
-                                        You owe{' '}
-                                        <Text style={[styles.settlementAmount, { color: '#991B1B' }]}>
-                                            ₹{Math.abs(financials.netResult).toFixed(0)}
-                                        </Text>
-                                        {'\n'}to the pool
-                                    </Text>
-                                </>
+                                settlements.map((payment, index) => {
+                                    // Robust ID check
+                                    const currentId = currentUserId;
+                                    const isPayer = payment.from_user_id === currentId;
+                                    const isReceiver = payment.to_user_id === currentId;
+                                    const receiverUpiId = isPayer ? participantUpiIds[payment.to_user_id] : null;
+                                    const isPaymentInitiated = (initiatedSettlements || {})[payment.id];
+
+
+                                    if (!isPayer && !isReceiver) return null;
+
+                                    return (
+                                        <View key={index} style={styles.paymentRow}>
+                                            <View style={styles.userRow}>
+                                                <View style={styles.avatarPlaceholder}>
+                                                    <Text style={styles.avatarText}>
+                                                        {(isPayer ? payment.to_name : payment.from_name)?.charAt(0) || '?'}
+                                                    </Text>
+                                                </View>
+                                                <View>
+                                                    <Text style={styles.userName}>
+                                                        {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
+                                                    </Text>
+                                                    <Text style={styles.amountText}>₹{payment.amount}</Text>
+                                                    {isPayer && <Text style={{ fontSize: 10, color: '#94A3B8' }}>{receiverUpiId || 'No UPI ID Linked'}</Text>}
+                                                </View>
+                                            </View>
+
+                                            {/* STATUS & ACTIONS */}
+                                            {payment.status === 'confirmed' ? (
+                                                <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
+                                                    <Text style={[styles.pillText, { color: '#166534' }]}>{isReceiver ? 'Received' : 'Paid & Confirmed'}</Text>
+                                                </View>
+                                            ) : payment.status === 'paid' || payment.status === 'marked_paid' ? (
+                                                isReceiver ? (
+                                                    <TouchableOpacity
+                                                        style={[styles.actionButton, { backgroundColor: '#166534' }]}
+                                                        onPress={() => handleConfirm(payment.id)}
+                                                    >
+                                                        <Text style={styles.btnText}>Confirm Received @ ₹{payment.amount}</Text>
+                                                    </TouchableOpacity>
+                                                ) : (
+                                                    <View style={[styles.statusPill, { backgroundColor: '#FEF3C7' }]}>
+                                                        <Text style={[styles.pillText, { color: '#B45309' }]}>Waiting Confirmation</Text>
+                                                    </View>
+                                                )
+                                            ) : isPayer ? (
+                                                <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                                                    <TouchableOpacity
+                                                        style={styles.actionButton}
+                                                        onPress={() => handlePay(receiverUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                    >
+                                                        <Text style={styles.btnText}>Pay via UPI</Text>
+                                                    </TouchableOpacity>
+
+                                                    {/* Show Mark Paid button if payment initiated OR just always available as fallback */}
+                                                    <TouchableOpacity
+                                                        onPress={() => handleMarkPaid(payment.id)}
+                                                    >
+                                                        <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
+                                                            Mark as Paid
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            ) : (
+                                                <View style={styles.statusPill}>
+                                                    <Text style={styles.pillText}>Pending</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    );
+                                })
                             )}
                         </View>
                     )}
@@ -547,6 +838,87 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '800',
     },
+    disclaimerBox: {
+        backgroundColor: '#FFFBEB',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 16,
+    },
+    disclaimerText: {
+        fontSize: 12,
+        color: '#B45309',
+        fontStyle: 'italic',
+        textAlign: 'center',
+    },
+    subHeader: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#64748B',
+        marginBottom: 12,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    paymentRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderRadius: 12,
+        marginBottom: 10,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    userRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    avatarPlaceholder: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#E0E7FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    avatarText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#4F46E5',
+    },
+    userName: {
+        fontSize: 14,
+        fontWeight: '700',
+        color: '#0F172A',
+    },
+    amountText: {
+        fontSize: 13,
+        color: '#64748B',
+        fontWeight: '600',
+    },
+    actionButton: {
+        backgroundColor: '#4F46E5',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 8,
+    },
+    btnText: {
+        color: '#FFF',
+        fontSize: 12,
+        fontWeight: '600',
+    },
+    statusPill: {
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    pillText: {
+        fontSize: 12,
+        color: '#64748B',
+        fontWeight: '600',
+    },
     statsCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 20,
@@ -583,5 +955,21 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#94A3B8',
         fontWeight: '500',
+    },
+    payButton: {
+        backgroundColor: '#EF4444', // Red for payment action
+        marginTop: 8,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        alignSelf: 'flex-start', // Don't stretch
+    },
+    payButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '700',
+        fontSize: 14,
     },
 });

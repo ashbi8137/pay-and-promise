@@ -339,7 +339,7 @@ export default function HomeScreen() {
                     </Animated.View>
 
                     {/* Congratulations Banner for Recently Completed Promises */}
-                    {recentlyCompleted.length > 0 && (
+                    {/* {recentlyCompleted.length > 0 && (
                         <Animated.View entering={FadeInDown.delay(150).springify()}>
                             {recentlyCompleted.map(promise => (
                                 <TouchableOpacity
@@ -367,7 +367,7 @@ export default function HomeScreen() {
                                 </TouchableOpacity>
                             ))}
                         </Animated.View>
-                    )}
+                    )} */}
 
                     {/* ACTION SURFACE (Grouped Actions) */}
                     <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.actionSurface, { backgroundColor: theme.card, shadowColor: theme.tint, borderColor: theme.border }]}>

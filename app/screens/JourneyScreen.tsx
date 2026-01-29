@@ -151,6 +151,7 @@ export default function JourneyScreen() {
                     const amt = Number(l.amount);
                     if (l.type === 'winnings') winnings += amt;
                     if (l.type === 'penalty') penalties += Math.abs(amt);
+                    if (l.type === 'refund') penalties -= Math.abs(amt); // Refund reduces penalty
                 });
 
                 // Count failed days
@@ -352,40 +353,37 @@ export default function JourneyScreen() {
                                                     </View>
                                                 </View>
 
-                                                {/* PAYMENT SECTION (Only for Fully Completed) */}
+                                                {/* PAYMENT / REPORT SECTION */}
                                                 {isFullyCompleted && (
                                                     <View style={styles.paymentSection}>
+                                                        {/* Status Summary Text */}
                                                         {isLoss && !isSettled && (
-                                                            <View>
-                                                                <View style={styles.paymentRow}>
-                                                                    <Text style={styles.paymentLabel}>Payment Status:</Text>
-                                                                    <Text style={styles.paymentValuePending}>Pending</Text>
-                                                                </View>
-                                                                <View style={styles.paymentRow}>
-                                                                    <Text style={styles.paymentLabel}>Amount to Pay:</Text>
-                                                                    <Text style={styles.paymentValueAmount}>₹{Math.abs(item.net).toFixed(2)}</Text>
-                                                                </View>
-                                                                <TouchableOpacity style={styles.payNowButton}>
-                                                                    <Text style={styles.payNowText}>Pay Now</Text>
-                                                                </TouchableOpacity>
-                                                            </View>
+                                                            <Text style={[styles.paymentStatusGain, { color: '#B45309' }]}>
+                                                                Outcome: <Text style={{ fontWeight: '700' }}>Pending Payment</Text>
+                                                            </Text>
                                                         )}
-
                                                         {isGain && (
-                                                            <View>
-                                                                <View style={styles.paymentRow}>
-                                                                    <Text style={styles.paymentLabel}>You will receive:</Text>
-                                                                    <Text style={styles.paymentValueGain}>₹{item.winnings.toFixed(2)}</Text>
-                                                                </View>
-                                                                <Text style={styles.paymentStatusGain}>Status: Awaiting peer payment</Text>
-                                                            </View>
+                                                            <Text style={styles.paymentStatusGain}>
+                                                                Outcome: <Text style={{ fontWeight: '700' }}>Awaiting Peer Payment</Text>
+                                                            </Text>
                                                         )}
-
                                                         {isSettled && (
                                                             <View style={styles.settledContainer}>
                                                                 <Text style={styles.settledText}>Payment Settled ✔</Text>
                                                             </View>
                                                         )}
+
+                                                        {/* Single Action Button: View Report */}
+                                                        <TouchableOpacity
+                                                            style={styles.payNowButton}
+                                                            onPress={() => router.push({
+                                                                pathname: '/screens/PromiseReportScreen',
+                                                                params: { promiseId: item.id }
+                                                            })}
+                                                        >
+                                                            <Text style={styles.payNowText}>View Final Report</Text>
+                                                            <Ionicons name="arrow-forward" size={16} color="#FFF" style={{ marginLeft: 8 }} />
+                                                        </TouchableOpacity>
                                                     </View>
                                                 )}
 
@@ -614,8 +612,10 @@ const styles = StyleSheet.create({
         backgroundColor: '#0F172A',
         borderRadius: 12,
         paddingVertical: 12,
-        alignItems: 'center',
-        marginTop: 8,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center', // Center content
+        marginTop: 12,
     },
     payNowText: {
         color: '#FFFFFF',

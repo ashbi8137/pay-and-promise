@@ -222,6 +222,7 @@ export default function PromiseReportScreen() {
                     setParticipantNames(localNameMap);
                     setParticipantUpiIds(upiMap);
 
+                    console.log('[UPIDebug] UPI Map:', JSON.stringify(upiMap));
                     console.log('[NameDebug] Profiles Loaded:', profiles.length, JSON.stringify(localNameMap));
                 }
             }
@@ -360,6 +361,7 @@ export default function PromiseReportScreen() {
     const isGain = financials.netResult >= 0;
 
     const handlePay = async (upiId: string, name: string, amount: number, settlementId: string) => {
+        console.log(`[PayDebug] Paying to: ${name} (${upiId}) Amount: ${amount}`);
         if (!upiId) {
             Alert.alert("No UPI ID", `${name} has not linked their UPI ID yet. Please contact them directly.`);
             return;
@@ -368,13 +370,19 @@ export default function PromiseReportScreen() {
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=Promise%20Settlement`;
 
         try {
-            const supported = await Linking.canOpenURL(upiUrl);
-            if (supported) {
+            // Android 11+ requires <queries> in Manifest for canOpenURL to work.
+            // Often simpliest to just try openURL directly on Android.
+            if (Platform.OS === 'android') {
                 await Linking.openURL(upiUrl);
-                // Mark locally that we initiated payment, to show "Mark as Paid" button
                 setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
             } else {
-                Alert.alert("Error", "No UPI apps installed found to handle this request.");
+                const supported = await Linking.canOpenURL(upiUrl);
+                if (supported) {
+                    await Linking.openURL(upiUrl);
+                    setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
+                } else {
+                    Alert.alert("Error", "No UPI apps installed found to handle this request.");
+                }
             }
         } catch (err) {
             Alert.alert("Error", "Could not open UPI app.");

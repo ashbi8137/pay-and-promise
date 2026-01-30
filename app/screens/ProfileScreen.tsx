@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
     console.log('ProfileScreen Render. Name:', firstName);
 
     const [latestContext, setLatestContext] = useState<{ desc: string; type: string } | null>(null);
+
     const [financials, setFinancials] = useState({
         winnings: 0,
         penalties: 0,
@@ -49,12 +51,23 @@ export default function ProfileScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 0. Fetch UPI ID from Profiles
+            // 0. Fetch UPI ID and Avatar from Profiles
             const { data: profileData } = await supabase
                 .from('profiles')
                 .select('upi_id')
                 .eq('id', user.id)
                 .single();
+
+            if (profileData) {
+                if (profileData.upi_id) {
+                    setUpiId(profileData.upi_id);
+                    setIsEditingUpi(false);
+                } else {
+                    setIsEditingUpi(true);
+                }
+
+
+            }
 
             if (profileData?.upi_id) {
                 setUpiId(profileData.upi_id);
@@ -127,6 +140,8 @@ export default function ProfileScreen() {
         setRefreshing(true);
         fetchProfileData();
     }, []);
+
+
 
     const saveUpiId = async () => {
         if (!upiId.trim()) {
@@ -439,6 +454,7 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
     },
+
     editBadge: {
         position: 'absolute',
         bottom: 0,

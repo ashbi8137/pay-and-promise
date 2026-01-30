@@ -180,55 +180,64 @@ export default function PromiseReportScreen() {
                 }
             }
 
-            // 4. Fetch Participant Names for settlement info
+            // 4. Fetch Participant Names AND Settlements
             const { data: participants } = await supabase
                 .from('promise_participants')
                 .select('user_id, status')
                 .eq('promise_id', promiseId);
 
-            let localNameMap: Record<string, string> = {};
-
-            if (participants && participants.length > 0) {
-                const userIds = participants.map(p => p.user_id);
-                const { data: names } = await supabase
-                    .rpc('get_user_names', { user_ids: userIds });
-
-                if (names) {
-                    names.forEach((n: any) => {
-                        localNameMap[n.user_id] = n.full_name?.split(' ')[0] || 'User';
-                    });
-                    setParticipantNames(localNameMap);
-                }
-
-                // 4.1 Fetch UPI IDs from profiles
-                const { data: profiles } = await supabase
-                    .from('profiles')
-                    .select('id, upi_id')
-                    .in('id', userIds);
-
-                if (profiles) {
-                    const upiMap: Record<string, string> = {};
-                    profiles.forEach((p: any) => {
-                        if (p.upi_id) upiMap[p.id] = p.upi_id;
-                    });
-                    setParticipantUpiIds(upiMap);
-                }
-            }
-
-            // 5. SETTLEMENT LOGIC
-            // Check if settlements already exist for this promise
+            // Fetch Settlements EARLY to get all possible user IDs
             const { data: existingSettlements } = await supabase
                 .from('settlements')
                 .select('*')
                 .eq('promise_id', promiseId);
 
+            let localNameMap: Record<string, string> = {};
+            const allUserIds = new Set<string>();
+
+            if (participants) participants.forEach(p => allUserIds.add(p.user_id));
+            if (existingSettlements) existingSettlements.forEach(s => {
+                allUserIds.add(s.from_user_id);
+                allUserIds.add(s.to_user_id);
+            });
+
+            if (allUserIds.size > 0) {
+                const userIds = Array.from(allUserIds);
+                console.log('[NameDebug] Fetching profiles for:', userIds);
+
+                // Fetch Profiles (Name + UPI) directly
+                const { data: profiles } = await supabase
+                    .from('profiles')
+                    .select('id, upi_id, full_name')
+                    .in('id', userIds);
+
+                if (profiles) {
+                    const upiMap: Record<string, string> = {};
+                    profiles.forEach((p: any) => {
+                        // Map Name
+                        localNameMap[p.id] = p.full_name?.split(' ')[0] || 'User';
+                        // Map UPI
+                        if (p.upi_id) upiMap[p.id] = p.upi_id;
+                    });
+
+                    setParticipantNames(localNameMap);
+                    setParticipantUpiIds(upiMap);
+
+                    console.log('[NameDebug] Profiles Loaded:', profiles.length, JSON.stringify(localNameMap));
+                }
+            }
+
+            // 5. SETTLEMENT LOGIC
+            // Display Existing Settlements
             if (existingSettlements && existingSettlements.length > 0) {
                 // Already generated, just display
-                const enriched = existingSettlements.map(s => ({
-                    ...s,
-                    from_name: participantNames[s.from_user_id] || 'User',
-                    to_name: participantNames[s.to_user_id] || 'User'
-                }));
+                const enriched = existingSettlements.map(s => {
+                    return {
+                        ...s,
+                        from_name: localNameMap[s.from_user_id] || 'User',
+                        to_name: localNameMap[s.to_user_id] || 'User'
+                    };
+                });
                 // Sort: Pending first, then marked_paid, then others
                 enriched.sort((a, b) => {
                     const score = (s: string) => {
@@ -308,7 +317,7 @@ export default function PromiseReportScreen() {
                 }
             }
         } catch (error) {
-
+            console.error('[fetchReportData] Error:', error);
         } finally {
             setLoading(false);
         }
@@ -379,8 +388,13 @@ export default function PromiseReportScreen() {
             .update({ status: 'marked_paid' })
             .eq('id', settlementId);
 
-        if (error) Alert.alert("Error", "Could not update status");
-        else fetchReportData();
+        if (error) {
+            console.error('[handleMarkPaid] Error:', error);
+            Alert.alert("Error", "Could not update status");
+        } else {
+            console.log('[handleMarkPaid] Success, refreshing report...');
+            fetchReportData();
+        }
     };
 
     const handleConfirm = async (settlementId: string) => {
@@ -538,7 +552,10 @@ export default function PromiseReportScreen() {
                                 </Text>
                             </View>
                         </View>
-                    ) : (
+                    ) : null}
+
+                    {/* Settlement List - Rendered for EVERYONE involved in a settlement */}
+                    {((settlements.length > 0) && (financials.netResult !== 0 || isWash)) && (
                         <View>
                             {/* DISCLAIMER - Always Visible when settlements involved */}
                             <View style={styles.disclaimerBox}>
@@ -558,11 +575,9 @@ export default function PromiseReportScreen() {
                                     const isPayer = payment.from_user_id === currentId;
                                     const isReceiver = payment.to_user_id === currentId;
 
-                                    console.log(`[Item] ID:${payment.id} Status:${payment.status} | Me:${currentId} | From:${payment.from_user_id} To:${payment.to_user_id} | isRec:${isReceiver}`);
-
-                                    const receiverUpiId = isPayer ? participantUpiIds[payment.to_user_id] : null;
-                                    const isPaymentInitiated = (initiatedSettlements || {})[payment.id];
-
+                                    const displayedUpiId = isPayer
+                                        ? participantUpiIds[payment.to_user_id]
+                                        : participantUpiIds[payment.from_user_id];
 
                                     if (!isPayer && !isReceiver) return null;
 
@@ -579,7 +594,7 @@ export default function PromiseReportScreen() {
                                                         {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
                                                     </Text>
                                                     <Text style={styles.amountText}>₹{payment.amount}</Text>
-                                                    {isPayer && <Text style={{ fontSize: 10, color: '#94A3B8' }}>{receiverUpiId || 'No UPI ID Linked'}</Text>}
+                                                    <Text style={{ fontSize: 10, color: '#94A3B8' }}>{displayedUpiId || 'No UPI ID Linked'}</Text>
                                                 </View>
                                             </View>
 
@@ -588,7 +603,7 @@ export default function PromiseReportScreen() {
                                                 <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
                                                     <Text style={[styles.pillText, { color: '#166534' }]}>{isReceiver ? 'Received' : 'Paid & Confirmed'}</Text>
                                                 </View>
-                                            ) : payment.status === 'paid' || payment.status === 'marked_paid' ? (
+                                            ) : (payment.status === 'paid' || payment.status === 'marked_paid') ? (
                                                 isReceiver ? (
                                                     <View style={{ gap: 8 }}>
                                                         <TouchableOpacity
@@ -617,7 +632,7 @@ export default function PromiseReportScreen() {
                                                     {isPayer && (
                                                         <TouchableOpacity
                                                             style={styles.actionButton}
-                                                            onPress={() => handlePay(receiverUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                            onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
                                                         >
                                                             <Text style={styles.btnText}>Pay Again via UPI</Text>
                                                         </TouchableOpacity>
@@ -627,7 +642,7 @@ export default function PromiseReportScreen() {
                                                 <View style={{ gap: 6, alignItems: 'flex-end' }}>
                                                     <TouchableOpacity
                                                         style={styles.actionButton}
-                                                        onPress={() => handlePay(receiverUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                        onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
                                                     >
                                                         <Text style={styles.btnText}>Pay via UPI</Text>
                                                     </TouchableOpacity>

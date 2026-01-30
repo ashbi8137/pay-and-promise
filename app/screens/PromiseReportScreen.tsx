@@ -368,14 +368,11 @@ export default function PromiseReportScreen() {
             return;
         }
 
-        // Restoring full pre-filled link.
-        // It provides the best UX for apps that support it (PhonePe, BHIM).
-        // GPay users can use the Copy button if blocked.
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=Promise%20Settlement`;
 
         try {
-            // Android 11+ requires <queries> in Manifest for canOpenURL to work.
-            // Often simpliest to just try openURL directly on Android.
+            // Android 11+ requires <queries> in Manifest for canOpenURL to work reliably.
+            // Direct openURL is often more successful for Intents.
             if (Platform.OS === 'android') {
                 await Linking.openURL(upiUrl);
                 setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
@@ -389,6 +386,7 @@ export default function PromiseReportScreen() {
                 }
             }
         } catch (err) {
+            console.error("UPI Error:", err);
             Alert.alert("Error", "Could not open UPI app.");
         }
     };

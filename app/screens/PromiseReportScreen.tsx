@@ -81,7 +81,6 @@ export default function PromiseReportScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             setCurrentUserId(user.id);
-            setCurrentUserId(user.id);
 
             // 1. Fetch Promise Details
 
@@ -627,15 +626,27 @@ export default function PromiseReportScreen() {
                                             ) : payment.status === 'rejected' ? (
                                                 <View style={{ gap: 8 }}>
                                                     <View style={[styles.statusPill, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#EF4444' }]}>
-                                                        <Text style={[styles.pillText, { color: '#B91C1C' }]}>Payment Rejected. Retry!</Text>
+                                                        <Text style={[styles.pillText, { color: '#B91C1C' }]}>
+                                                            {isReceiver ? "Rejected by You" : "Payment Rejected. Retry!"}
+                                                        </Text>
                                                     </View>
                                                     {isPayer && (
-                                                        <TouchableOpacity
-                                                            style={styles.actionButton}
-                                                            onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
-                                                        >
-                                                            <Text style={styles.btnText}>Pay Again via UPI</Text>
-                                                        </TouchableOpacity>
+                                                        <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                                                            <TouchableOpacity
+                                                                style={styles.actionButton}
+                                                                onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                            >
+                                                                <Text style={styles.btnText}>Pay Again via UPI</Text>
+                                                            </TouchableOpacity>
+
+                                                            <TouchableOpacity
+                                                                onPress={() => handleMarkPaid(payment.id)}
+                                                            >
+                                                                <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
+                                                                    Mark as Paid
+                                                                </Text>
+                                                            </TouchableOpacity>
+                                                        </View>
                                                     )}
                                                 </View>
                                             ) : isPayer ? (

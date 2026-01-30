@@ -1,5 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
+import * as SplashScreenModule from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import {
@@ -21,11 +22,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
+import { supabase } from '../../lib/supabase';
 
 export default function LandingScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme() ?? 'light';
     const theme = Colors[colorScheme];
+
+    // Auth State Check
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
     // Theme-derived shared values if needed, but for now we use style updates
     const [step, setStep] = useState(0);
@@ -36,10 +41,18 @@ export default function LandingScreen() {
     const glowOpacity = useSharedValue(0);
     const borderColor = useSharedValue(theme.border); // Initial border
 
-    const params = useLocalSearchParams();
-    const isAuthenticated = params.isAuthenticated === 'true';
-
     useEffect(() => {
+        // 1. Hide Native Splash immediately so animation starts
+        SplashScreenModule.hideAsync().catch(() => { });
+
+        // 2. Check Auth in Background
+        const checkAuth = async () => {
+            const { data, error } = await supabase.auth.getUser();
+            setIsAuthenticated(!!(data?.user && !error));
+        };
+        checkAuth();
+
+        // Animation Sequence
         // Step 0: "Promises are easy..." (0-2s)
 
         // Step 1: "Keeping them is hard." (2s -> 4.5s)
@@ -66,7 +79,7 @@ export default function LandingScreen() {
 
         // Final: Navigate based on Auth Status (8s)
         const t3 = setTimeout(() => {
-            if (isAuthenticated) {
+            if (isAuthenticated === true) {
                 router.replace('/screens/HomeScreen');
             } else {
                 router.replace('/screens/AuthScreen');
@@ -78,7 +91,7 @@ export default function LandingScreen() {
             clearTimeout(t2);
             clearTimeout(t3);
         };
-    }, [isAuthenticated]);
+    }, [isAuthenticated]); // Re-run if auth completes late? No, this might cause multiple timeouts.
 
     const animatedCardStyle = useAnimatedStyle(() => ({
         transform: [

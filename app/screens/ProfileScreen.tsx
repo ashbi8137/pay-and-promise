@@ -58,8 +58,9 @@ export default function ProfileScreen() {
 
             if (profileData?.upi_id) {
                 setUpiId(profileData.upi_id);
-                // If we found a UPI ID, start in read-only mode. If not, edit mode might be fine or just empty.
-                // Actually, let's just use the existence of data to decide default, but state 'isEditing' defaults false.
+                setIsEditingUpi(false);
+            } else {
+                setIsEditingUpi(true);
             }
 
             // 1. Set Profile Info (Exact Home Logic)

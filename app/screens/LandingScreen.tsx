@@ -1,4 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import * as SplashScreenModule from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -14,6 +15,7 @@ import Animated, {
     FadeIn,
     FadeInDown,
     FadeInUp,
+    FadeOut,
     useAnimatedStyle,
     useSharedValue,
     withSequence,
@@ -31,6 +33,8 @@ export default function LandingScreen() {
 
     // Auth State Check
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+    const [isDeepLink, setIsDeepLink] = useState(false);
+    const [isImageReady, setIsImageReady] = useState(false);
 
     // Theme-derived shared values if needed, but for now we use style updates
     const [step, setStep] = useState(0);
@@ -42,124 +46,177 @@ export default function LandingScreen() {
     const borderColor = useSharedValue(theme.border); // Initial border
 
     useEffect(() => {
-        // 1. Hide Native Splash immediately so animation starts
-        SplashScreenModule.hideAsync().catch(() => { });
+        // Only hide splash when image is ready
+        if (isImageReady) {
+            SplashScreenModule.hideAsync().catch(() => { });
+        }
+    }, [isImageReady]);
 
-        // 2. Check Auth in Background
-        const checkAuth = async () => {
+    useEffect(() => {
+        let t1: any, t2: any, t3: any, t4: any;
+
+        // 2. Check Auth in Background & Check Deep Link
+        const checkState = async () => {
+            // Check Deep Link First
+            const initialUrl = await Linking.getInitialURL();
+            const isDeepLinkDetected = initialUrl && (initialUrl.includes('access_token') || initialUrl.includes('#access_token'));
+
+            if (isDeepLinkDetected) {
+                console.log('LandingScreen: Deep Link detected, skipping animation...');
+                setIsDeepLink(true);
+                // SKIP ANIMATION: Check auth immediately and redirect
+                const { data, error } = await supabase.auth.getUser();
+                if (data?.user && !error) {
+                    router.replace('/screens/HomeScreen');
+                } else {
+                    router.replace('/screens/AuthScreen');
+                }
+                return; // Exit early, do not schedule timeouts
+            }
+
+            // Normal Flow: Check auth but proceed with animation
             const { data, error } = await supabase.auth.getUser();
             setIsAuthenticated(!!(data?.user && !error));
+
+            // Animation Sequence (Only if NOT deep link)
+
+            // Step 0: ICON (0s - 2s) - Matches native splash
+
+            // Step 1: "Promises are easy..." (2s -> 4s)
+            t1 = setTimeout(() => {
+                setStep(1);
+            }, 2000);
+
+            // Step 2: "Keeping them is hard." (4s -> 6.5s)
+            t2 = setTimeout(() => {
+                setStep(2);
+                // Shake effect + Zoom
+                shake.value = withSequence(
+                    withTiming(-3, { duration: 50 }),
+                    withTiming(3, { duration: 50 }),
+                    withTiming(-3, { duration: 50 }),
+                    withTiming(3, { duration: 50 }),
+                    withTiming(0, { duration: 50 })
+                );
+                scale.value = withSpring(1.03); // Slight zoom
+            }, 4000);
+
+            // Step 3: "So make them expensive." (6.5s -> 10s)
+            t3 = setTimeout(() => {
+                setStep(3);
+                glowOpacity.value = withTiming(1, { duration: 1000 });
+                borderColor.value = withTiming(theme.tint, { duration: 1000 });
+                scale.value = withSpring(1.1); // Scale up
+            }, 6500);
+
+            // Final: Navigate based on Auth Status (10s)
+            t4 = setTimeout(() => {
+                if (data?.user && !error) {
+                    router.replace('/screens/HomeScreen');
+                } else {
+                    router.replace('/screens/AuthScreen');
+                }
+            }, 10000);
         };
-        checkAuth();
 
-        // Animation Sequence
-        // Step 0: "Promises are easy..." (0-2s)
-
-        // Step 1: "Keeping them is hard." (2s -> 4.5s)
-        const t1 = setTimeout(() => {
-            setStep(1);
-            // Shake effect + Zoom
-            shake.value = withSequence(
-                withTiming(-3, { duration: 50 }),
-                withTiming(3, { duration: 50 }),
-                withTiming(-3, { duration: 50 }),
-                withTiming(3, { duration: 50 }),
-                withTiming(0, { duration: 50 })
-            );
-            scale.value = withSpring(1.03); // Slight zoom
-        }, 2000);
-
-        // Step 2: "So make them expensive." (4.5s -> 8s)
-        const t2 = setTimeout(() => {
-            setStep(2);
-            glowOpacity.value = withTiming(1, { duration: 1000 });
-            borderColor.value = withTiming(theme.tint, { duration: 1000 });
-            scale.value = withSpring(1.1); // Scale up
-        }, 4500);
-
-        // Final: Navigate based on Auth Status (8s)
-        const t3 = setTimeout(() => {
-            if (isAuthenticated === true) {
-                router.replace('/screens/HomeScreen');
-            } else {
-                router.replace('/screens/AuthScreen');
-            }
-        }, 8000);
+        checkState();
 
         return () => {
             clearTimeout(t1);
             clearTimeout(t2);
             clearTimeout(t3);
+            clearTimeout(t4);
         };
-    }, [isAuthenticated]); // Re-run if auth completes late? No, this might cause multiple timeouts.
+    }, []); // Run once on mount
 
     const animatedCardStyle = useAnimatedStyle(() => ({
         transform: [
             { translateX: shake.value },
             { scale: scale.value }
         ],
-        // Step 3: Make card transparent/invisible effectively
-        backgroundColor: step === 3 ? 'transparent' : theme.card,
-        shadowOpacity: step === 3 ? 0 : (glowOpacity.value ? 0.3 : 0.08),
-        elevation: step === 3 ? 0 : 4,
-        borderColor: step === 3 ? 'transparent' : borderColor.value,
-        shadowColor: step === 3 ? 'transparent' : theme.icon,
+        // Step 0 (Icon) is handled by main view, card is not visible/relevant until step 1 properly?
+        // Actually in Step 0 we show just the icon, Step 1 shows card.
+        // We can keep card background consistent.
+        backgroundColor: theme.card,
+        shadowOpacity: (glowOpacity.value ? 0.3 : 0.08),
+        elevation: 4,
+        borderColor: borderColor.value,
+        shadowColor: theme.icon,
         // Force reset other shadow props
-        shadowRadius: step === 3 ? 0 : 24,
-        shadowOffset: step === 3 ? { width: 0, height: 0 } : { width: 0, height: 12 },
+        shadowRadius: 24,
+        shadowOffset: { width: 0, height: 12 },
     }), [step, theme]);
 
-    const renderTextContent = () => {
-        switch (step) {
-            case 0:
-                return (
-                    <Animated.Text
-                        entering={FadeIn.duration(800)}
-                        style={[styles.textEasy, { color: theme.icon }]}
-                    >
-                        Promises are easy...
-                    </Animated.Text>
-                );
-            case 1:
-                return (
-                    <Animated.Text
-                        entering={FadeInDown.springify().damping(12)}
-                        style={[styles.textHard, { color: theme.text }]}
-                    >
-                        Keeping them is hard.
-                    </Animated.Text>
-                );
-            case 2:
-                return (
-                    <View style={{ alignItems: 'center' }}>
-                        <Animated.Text
-                            entering={FadeInDown.duration(600)}
-                            style={[styles.textSoMakeThem, { color: theme.icon }]}
-                        >
-                            So make them
-                        </Animated.Text>
-
-                        <Animated.View entering={FadeInDown.delay(200).springify()}>
-                            <LinearGradient
-                                colors={[theme.gold, '#B45309']} // Gold Gradient using theme
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.expensiveBadge}
-                            >
-                                <Text style={styles.textExpensiveWhite}>EXPENSIVE.</Text>
-                            </LinearGradient>
-                        </Animated.View>
-
-                        <Animated.Text
-                            entering={FadeInUp.delay(500).springify()}
-                            style={styles.textBridge}
-                        >
-                            Because pain creates discipline.
-                        </Animated.Text>
-                    </View>
-                );
-            default: return null;
+    const renderContent = () => {
+        // Step 0: Show Icon (Matches Native Splash) -> Then fade to Text
+        if (step === 0) {
+            return (
+                <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.centerContent}>
+                    <Image
+                        source={require('../../assets/images/icon.png')}
+                        style={styles.logoImageLarge}
+                        resizeMode="contain"
+                        onLoadEnd={() => setIsImageReady(true)}
+                    />
+                </Animated.View>
+            );
         }
+
+        return (
+            <View style={styles.centerContent}>
+                <Animated.View
+                    style={[
+                        styles.card,
+                        animatedCardStyle
+                    ]}
+                >
+                    {step === 1 && (
+                        <Animated.Text
+                            entering={FadeIn.duration(800)}
+                            style={[styles.textEasy, { color: theme.icon }]}
+                        >
+                            Promises are easy...
+                        </Animated.Text>
+                    )}
+                    {step === 2 && (
+                        <Animated.Text
+                            entering={FadeInDown.springify().damping(12)}
+                            style={[styles.textHard, { color: theme.text }]}
+                        >
+                            Keeping them is hard.
+                        </Animated.Text>
+                    )}
+                    {step === 3 && (
+                        <View style={{ alignItems: 'center' }}>
+                            <Animated.Text
+                                entering={FadeInDown.duration(600)}
+                                style={[styles.textSoMakeThem, { color: theme.icon }]}
+                            >
+                                So make them
+                            </Animated.Text>
+
+                            <Animated.View entering={FadeInDown.delay(200).springify()}>
+                                <LinearGradient
+                                    colors={[theme.gold, '#B45309']} // Gold Gradient using theme
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 1 }}
+                                    style={styles.expensiveBadge}
+                                >
+                                    <Text style={styles.textExpensiveWhite}>EXPENSIVE.</Text>
+                                </LinearGradient>
+                            </Animated.View>
+
+                            <Animated.Text
+                                entering={FadeInUp.delay(500).springify()}
+                                style={styles.textBridge}
+                            >
+                                Because pain creates discipline.
+                            </Animated.Text>
+                        </View>
+                    )}
+                </Animated.View>
+            </View>
+        );
     };
 
     return (
@@ -167,41 +224,7 @@ export default function LandingScreen() {
             <StatusBar style={colorScheme === 'dark' ? "light" : "dark"} />
 
             <SafeAreaView style={styles.container}>
-                {/* Main Content Centered */}
-                <View style={styles.centerContent}>
-
-                    {/* The Morphing Card */}
-                    {/* In step 3, background is transparent, essentially removing the "shape" */}
-                    <Animated.View
-                        style={[
-                            styles.card,
-                            // Base style needs dynamic border/bg but processed in animated style
-                            // We can set static defaults here if needed
-                            animatedCardStyle,
-                            // Double-safety: force transparency via React props if step is 3
-                            step === 3 && {
-                                backgroundColor: 'transparent',
-                                borderWidth: 0,
-                                shadowOpacity: 0,
-                                elevation: 0
-                            }
-                        ]}
-                    >
-                        {step === 3 && (
-                            <Animated.View entering={FadeIn.duration(500)} style={styles.iconContainer}>
-                                <Image
-                                    source={require('../../assets/images/icon.png')} // Changed to correct icon
-                                    style={styles.logoImage}
-                                    resizeMode="contain"
-                                />
-                            </Animated.View>
-                        )}
-
-                        {renderTextContent()}
-
-                    </Animated.View>
-
-                </View>
+                {renderContent()}
             </SafeAreaView>
         </View>
     );
@@ -214,7 +237,8 @@ const styles = StyleSheet.create({
     },
     container: {
         flex: 1,
-        justifyContent: 'space-between',
+        justifyContent: 'center', // Changed to center to match splash alignment
+        alignItems: 'center',
         paddingVertical: 24,
         paddingHorizontal: 24,
     },
@@ -222,16 +246,24 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
+        width: '100%',
+    },
+    // Use the large icon for the splash match
+    logoImageLarge: {
+        width: 200,
+        height: 200,
     },
     card: {
         width: '100%',
+        maxWidth: 340, // Constrain width for better look
         paddingVertical: 48,
         paddingHorizontal: 24,
         borderRadius: 40,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1, // Ensure default width for animation
+        borderWidth: 1,
         // Colors handled by animated style
+        backgroundColor: '#FFFFFF',
 
         // Base Shadow
         shadowOffset: { width: 0, height: 12 },
@@ -247,7 +279,7 @@ const styles = StyleSheet.create({
         borderRadius: 22,
     },
 
-    // Unique Text Styles
+    // Unique Text Styles (From User Snippet)
     textEasy: {
         fontSize: 24,
         fontWeight: '300',

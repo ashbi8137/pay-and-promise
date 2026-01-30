@@ -231,14 +231,40 @@ export default function PromiseReportScreen() {
             // 5. SETTLEMENT LOGIC
             // Display Existing Settlements
             if (existingSettlements && existingSettlements.length > 0) {
-                // Already generated, just display
-                const enriched = existingSettlements.map(s => {
+                // Deduplicate logic: Map Key -> Settlement
+                // Key: `${s.from_user_id}-${s.to_user_id}`
+                // If collision, prefer status != pending
+                const uniqueSettlementsMap = new Map<string, Settlement>();
+
+                existingSettlements.forEach((s: any) => {
+                    const key = `${s.from_user_id}-${s.to_user_id}`;
+                    const current = uniqueSettlementsMap.get(key);
+
+                    if (!current) {
+                        uniqueSettlementsMap.set(key, s);
+                    } else {
+                        // Conflict resolution: Keep the one that is NOT pending, or just the first one
+                        const score = (status: string) => {
+                            if (status === 'confirmed') return 3;
+                            if (status === 'marked_paid') return 2;
+                            return 1;
+                        };
+                        if (score(s.status) > score(current.status)) {
+                            uniqueSettlementsMap.set(key, s);
+                        }
+                    }
+                });
+
+                const uniqueSettlements = Array.from(uniqueSettlementsMap.values());
+
+                const enriched = uniqueSettlements.map(s => {
                     return {
                         ...s,
                         from_name: localNameMap[s.from_user_id] || 'User',
                         to_name: localNameMap[s.to_user_id] || 'User'
                     };
                 });
+
                 // Sort: Pending first, then marked_paid, then others
                 enriched.sort((a, b) => {
                     const score = (s: string) => {
@@ -302,6 +328,23 @@ export default function PromiseReportScreen() {
                 }
 
                 if (newSettlements.length > 0) {
+                    // RACE CONDITION MITIGATION:
+                    // 1. Random delay (0-200ms) to desync simultaneous requests
+                    await new Promise(r => setTimeout(r, Math.random() * 200));
+
+                    // 2. DOUBLE CHECK: Did someone else insert while we were calculating?
+                    const { count } = await supabase
+                        .from('settlements')
+                        .select('*', { count: 'exact', head: true })
+                        .eq('promise_id', promiseId);
+
+                    if (count && count > 0) {
+                        console.log("Collision avoided! Another user generated settlements.");
+                        // Just re-fetch
+                        fetchReportData();
+                        return;
+                    }
+
                     const { data: inserted, error: insertError } = await supabase
                         .from('settlements')
                         .insert(newSettlements)
@@ -601,109 +644,108 @@ export default function PromiseReportScreen() {
 
                                     if (!isPayer && !isReceiver) return null;
 
-                                    return (
-                                        <View key={index} style={styles.paymentRow}>
-                                            <View style={styles.userRow}>
-                                                <View style={styles.avatarPlaceholder}>
-                                                    <Text style={styles.avatarText}>
-                                                        {(isPayer ? payment.to_name : payment.from_name)?.charAt(0) || '?'}
-                                                    </Text>
-                                                </View>
-                                                <View>
-                                                    <Text style={styles.userName}>
-                                                        {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
-                                                    </Text>
-                                                    <Text style={styles.amountText}>₹{payment.amount}</Text>
-
-                                                    {displayedUpiId ? (
-                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                            <Text style={{ fontSize: 10, color: '#64748B' }}>{displayedUpiId}</Text>
-                                                            <TouchableOpacity onPress={() => handleCopy(displayedUpiId)}>
-                                                                <Ionicons name="copy-outline" size={12} color="#4F46E5" />
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    ) : (
-                                                        <Text style={{ fontSize: 10, color: '#94A3B8' }}>No UPI ID Linked</Text>
-                                                    )}
-                                                </View>
+                                    return (<View key={index} style={styles.paymentRow}>
+                                        <View style={styles.userRow}>
+                                            <View style={styles.avatarPlaceholder}>
+                                                <Text style={styles.avatarText}>
+                                                    {(isPayer ? payment.to_name : payment.from_name)?.charAt(0) || '?'}
+                                                </Text>
                                             </View>
+                                            <View>
+                                                <Text style={styles.userName}>
+                                                    {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
+                                                </Text>
+                                                <Text style={styles.amountText}>₹{payment.amount}</Text>
 
-                                            {/* STATUS & ACTIONS */}
-                                            {payment.status === 'confirmed' ? (
-                                                <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
-                                                    <Text style={[styles.pillText, { color: '#166534' }]}>{isReceiver ? 'Received' : 'Paid & Confirmed'}</Text>
-                                                </View>
-                                            ) : (payment.status === 'paid' || payment.status === 'marked_paid') ? (
-                                                isReceiver ? (
-                                                    <View style={{ gap: 8 }}>
-                                                        <TouchableOpacity
-                                                            style={[styles.actionButton, { backgroundColor: '#166534' }]}
-                                                            onPress={() => handleConfirm(payment.id)}
-                                                        >
-                                                            <Text style={styles.btnText}>Confirm Received @ ₹{payment.amount}</Text>
-                                                        </TouchableOpacity>
-                                                        <TouchableOpacity
-                                                            onPress={() => handleReject(payment.id)}
-                                                            style={{ alignSelf: 'center', padding: 8 }}
-                                                        >
-                                                            <Text style={{ color: '#991B1B', fontSize: 12, fontWeight: '600' }}>Reject & Request Retry</Text>
+                                                {displayedUpiId ? (
+                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                        <Text style={{ fontSize: 10, color: '#64748B' }}>{displayedUpiId}</Text>
+                                                        <TouchableOpacity onPress={() => handleCopy(displayedUpiId)}>
+                                                            <Ionicons name="copy-outline" size={12} color="#4F46E5" />
                                                         </TouchableOpacity>
                                                     </View>
                                                 ) : (
-                                                    <View style={[styles.statusPill, { backgroundColor: '#FEF3C7' }]}>
-                                                        <Text style={[styles.pillText, { color: '#B45309' }]}>Waiting Confirmation</Text>
-                                                    </View>
-                                                )
-                                            ) : payment.status === 'rejected' ? (
+                                                    <Text style={{ fontSize: 10, color: '#94A3B8' }}>No UPI ID Linked</Text>
+                                                )}
+                                            </View>
+                                        </View>
+
+                                        {/* STATUS & ACTIONS */}
+                                        {payment.status === 'confirmed' ? (
+                                            <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
+                                                <Text style={[styles.pillText, { color: '#166534' }]}>{isReceiver ? 'Received' : 'Paid & Confirmed'}</Text>
+                                            </View>
+                                        ) : (payment.status === 'paid' || payment.status === 'marked_paid') ? (
+                                            isReceiver ? (
                                                 <View style={{ gap: 8 }}>
-                                                    <View style={[styles.statusPill, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#EF4444' }]}>
-                                                        <Text style={[styles.pillText, { color: '#B91C1C' }]}>
-                                                            {isReceiver ? "Rejected by You" : "Payment Rejected. Retry!"}
-                                                        </Text>
-                                                    </View>
-                                                    {isPayer && (
-                                                        <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                                                            <TouchableOpacity
-                                                                style={styles.actionButton}
-                                                                onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
-                                                            >
-                                                                <Text style={styles.btnText}>Pay Again via UPI</Text>
-                                                            </TouchableOpacity>
-
-                                                            <TouchableOpacity
-                                                                onPress={() => handleMarkPaid(payment.id)}
-                                                            >
-                                                                <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
-                                                                    Mark as Paid
-                                                                </Text>
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    )}
-                                                </View>
-                                            ) : isPayer ? (
-                                                <View style={{ gap: 6, alignItems: 'flex-end' }}>
                                                     <TouchableOpacity
-                                                        style={styles.actionButton}
-                                                        onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                        style={[styles.actionButton, { backgroundColor: '#166534' }]}
+                                                        onPress={() => handleConfirm(payment.id)}
                                                     >
-                                                        <Text style={styles.btnText}>Pay via UPI</Text>
+                                                        <Text style={styles.btnText}>Confirm Received @ ₹{payment.amount}</Text>
                                                     </TouchableOpacity>
-
-                                                    {/* Show Mark Paid button if payment initiated OR just always available as fallback */}
                                                     <TouchableOpacity
-                                                        onPress={() => handleMarkPaid(payment.id)}
+                                                        onPress={() => handleReject(payment.id)}
+                                                        style={{ alignSelf: 'center', padding: 8 }}
                                                     >
-                                                        <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
-                                                            Mark as Paid
-                                                        </Text>
+                                                        <Text style={{ color: '#991B1B', fontSize: 12, fontWeight: '600' }}>Reject & Request Retry</Text>
                                                     </TouchableOpacity>
                                                 </View>
                                             ) : (
-                                                <View style={styles.statusPill}>
-                                                    <Text style={styles.pillText}>Pending</Text>
+                                                <View style={[styles.statusPill, { backgroundColor: '#FEF3C7' }]}>
+                                                    <Text style={[styles.pillText, { color: '#B45309' }]}>Waiting Confirmation</Text>
                                                 </View>
-                                            )}
-                                        </View>
+                                            )
+                                        ) : payment.status === 'rejected' ? (
+                                            <View style={{ gap: 8 }}>
+                                                <View style={[styles.statusPill, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#EF4444' }]}>
+                                                    <Text style={[styles.pillText, { color: '#B91C1C' }]}>
+                                                        {isReceiver ? "Rejected by You" : "Payment Rejected. Retry!"}
+                                                    </Text>
+                                                </View>
+                                                {isPayer && (
+                                                    <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                                                        <TouchableOpacity
+                                                            style={styles.actionButton}
+                                                            onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                        >
+                                                            <Text style={styles.btnText}>Pay Again via UPI</Text>
+                                                        </TouchableOpacity>
+
+                                                        <TouchableOpacity
+                                                            onPress={() => handleMarkPaid(payment.id)}
+                                                        >
+                                                            <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
+                                                                Mark as Paid
+                                                            </Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                )}
+                                            </View>
+                                        ) : isPayer ? (
+                                            <View style={{ gap: 6, alignItems: 'flex-end' }}>
+                                                <TouchableOpacity
+                                                    style={styles.actionButton}
+                                                    onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                >
+                                                    <Text style={styles.btnText}>Pay via UPI</Text>
+                                                </TouchableOpacity>
+
+                                                {/* Show Mark Paid button if payment initiated OR just always available as fallback */}
+                                                <TouchableOpacity
+                                                    onPress={() => handleMarkPaid(payment.id)}
+                                                >
+                                                    <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
+                                                        Mark as Paid
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        ) : (
+                                            <View style={styles.statusPill}>
+                                                <Text style={styles.pillText}>Pending</Text>
+                                            </View>
+                                        )}
+                                    </View>
                                     );
                                 })
                             )}

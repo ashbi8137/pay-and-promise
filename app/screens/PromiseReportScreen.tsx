@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { setStringAsync } from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -367,6 +368,9 @@ export default function PromiseReportScreen() {
             return;
         }
 
+        // Restoring full pre-filled link.
+        // It provides the best UX for apps that support it (PhonePe, BHIM).
+        // GPay users can use the Copy button if blocked.
         const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=Promise%20Settlement`;
 
         try {
@@ -431,6 +435,17 @@ export default function PromiseReportScreen() {
                 }
             }
         ]);
+    };
+
+    const handleCopy = async (text: string) => {
+        await setStringAsync(text);
+        // Using Alert for simplicity, or could be a toast if you have one
+        if (Platform.OS === 'android') {
+            const ToastAndroid = require('react-native').ToastAndroid;
+            ToastAndroid.show('UPI ID Copied', ToastAndroid.SHORT);
+        } else {
+            Alert.alert("Copied", "UPI ID copied to clipboard");
+        }
     };
 
     return (
@@ -601,7 +616,17 @@ export default function PromiseReportScreen() {
                                                         {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
                                                     </Text>
                                                     <Text style={styles.amountText}>₹{payment.amount}</Text>
-                                                    <Text style={{ fontSize: 10, color: '#94A3B8' }}>{displayedUpiId || 'No UPI ID Linked'}</Text>
+
+                                                    {displayedUpiId ? (
+                                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                                            <Text style={{ fontSize: 10, color: '#64748B' }}>{displayedUpiId}</Text>
+                                                            <TouchableOpacity onPress={() => handleCopy(displayedUpiId)}>
+                                                                <Ionicons name="copy-outline" size={12} color="#4F46E5" />
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    ) : (
+                                                        <Text style={{ fontSize: 10, color: '#94A3B8' }}>No UPI ID Linked</Text>
+                                                    )}
                                                 </View>
                                             </View>
 

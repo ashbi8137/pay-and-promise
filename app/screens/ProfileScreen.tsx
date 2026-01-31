@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Platform,
     RefreshControl,
     SafeAreaView,
@@ -117,19 +117,11 @@ export default function ProfileScreen() {
 
 
 
-    const handleLogout = async () => {
-        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Sign Out',
-                style: 'destructive',
-                onPress: async () => {
-                    const { error } = await supabase.auth.signOut();
-                    if (error) Alert.alert('Error', error.message);
-                    else router.replace('/screens/AuthScreen');
-                }
-            }
-        ]);
+
+
+    const handlePress = (route: any) => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.push(route);
     };
 
     if (loading) {
@@ -143,147 +135,173 @@ export default function ProfileScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
+        <View style={styles.container}>
+            <LinearGradient
+                colors={['#F8FAFC', '#F1F5F9']}
+                style={StyleSheet.absoluteFill}
+            />
+            <SafeAreaView style={{ flex: 1 }}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            tintColor="#4F46E5"
+                            colors={['#4F46E5']}
+                        />
+                    }
+                    showsVerticalScrollIndicator={false}
+                >
 
-                {/* Header */}
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#0F172A" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>My Profile</Text>
-                    <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.backButton}>
-                        <Ionicons name="settings-outline" size={24} color="#0F172A" />
-                    </TouchableOpacity>
-                </View>
+                    {/* Header */}
+                    <View style={styles.header}>
+                        <TouchableOpacity
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.back();
+                            }}
+                            style={styles.headerButton}
+                        >
+                            <Ionicons name="chevron-back" size={24} color="#0F172A" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Profile</Text>
+                        <TouchableOpacity
+                            onPress={() => handlePress('/screens/SettingsScreen')}
+                            style={styles.headerButton}
+                        >
+                            <Ionicons name="settings-outline" size={22} color="#0F172A" />
+                        </TouchableOpacity>
+                    </View>
 
-                {/* Profile Header */}
-                <View style={styles.profileHeader}>
-                    <TouchableOpacity style={styles.avatarContainer}>
-                        <Text style={styles.avatarText}>{(firstName || 'U').charAt(0).toUpperCase()}</Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.profileInfo}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            {/* User requested specific render logic */}
-                            <Text style={styles.profileName} numberOfLines={1}>
-                                {firstName}
-                            </Text>
-                            <Ionicons name="checkmark-circle" size={20} color="#4F46E5" />
+                    {/* Profile Section */}
+                    <View style={styles.profileSection}>
+                        <View style={styles.avatarWrapper}>
+                            <LinearGradient
+                                colors={['#4F46E5', '#3730A3']}
+                                style={styles.avatarGradient}
+                            >
+                                <Text style={styles.avatarInitial}>{(firstName || 'U').charAt(0).toUpperCase()}</Text>
+                            </LinearGradient>
+                            <View style={styles.verifiedBadge}>
+                                <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
+                            </View>
                         </View>
-                        <Text style={styles.profileEmail} numberOfLines={1}>{profile?.email}</Text>
 
-                        <View style={styles.userBadge}>
-                            <Text style={styles.userBadgeText}>Member</Text>
+                        <Text style={styles.profileNameText}>{firstName}</Text>
+                        <Text style={styles.profileEmailText}>{profile?.email}</Text>
+
+                        <View style={styles.badgeRow}>
+                            <View style={styles.statusBadge}>
+                                <View style={styles.dot} />
+                                <Text style={styles.statusText}>Active Member</Text>
+                            </View>
                         </View>
                     </View>
-                </View>
 
+                    {/* Main Financial Card (Luxury Elevation) */}
+                    <View style={styles.statsContainer}>
+                        <LinearGradient
+                            colors={['#FFFFFF', '#F8FAFC']}
+                            style={styles.netProfitCard}
+                        >
+                            <View style={styles.cardHeader}>
+                                <Text style={styles.cardLabel}>Net Performance</Text>
+                                <View style={styles.growthBadge}>
+                                    <Ionicons
+                                        name={financials.net >= 0 ? "trending-up" : "trending-down"}
+                                        size={14}
+                                        color={financials.net >= 0 ? "#059669" : "#DC2626"}
+                                    />
+                                    <Text style={[
+                                        styles.growthText,
+                                        { color: financials.net >= 0 ? "#059669" : "#DC2626", marginLeft: 4 }
+                                    ]}>
+                                        {financials.net >= 0 ? "Profit" : "Loss"}
+                                    </Text>
+                                </View>
+                            </View>
 
-
-                {/* Financial Summary (Stock Style) */}
-                <View style={styles.financialContainer}>
-                    <Text style={styles.sectionTitle}>Wallet Summary</Text>
-
-                    {/* Net P&L Main Card */}
-                    <View style={styles.netCard}>
-                        <Text style={styles.netLabel}>Net Profit / Loss</Text>
-                        {financials.net !== 0 ? (
                             <Text style={[
-                                styles.netValue,
-                                { color: financials.net >= 0 ? '#166534' : '#991B1B' }
+                                styles.mainNetValue,
+                                { color: financials.net >= 0 ? '#0F172A' : '#991B1B' }
                             ]}>
-                                {financials.net >= 0 ? '+' : '-'} ₹{Math.abs(financials.net).toFixed(2)}
+                                {financials.net < 0 ? '-' : ''}₹{Math.abs(financials.net).toLocaleString()}
                             </Text>
-                        ) : (
-                            <Text style={[styles.netValue, { color: '#94A3B8' }]}>₹0.00</Text>
-                        )}
-                        <Text style={[
-                            styles.netHelper,
-                            latestContext ? { color: latestContext.type === 'winnings' ? '#166534' : '#991B1B', fontWeight: '600' } : {}
-                        ]}>
-                            {latestContext
-                                ? latestContext.desc
-                                : (financials.net !== 0
-                                    ? "Overall result from all your promises"
-                                    : "Start your first promise to see your results here.")}
-                        </Text>
+
+                            <Text style={styles.balanceHelper}>
+                                {latestContext?.desc || "Combined total from all active and completed promises"}
+                            </Text>
+
+                            <View style={styles.divider} />
+
+                            <View style={styles.statBreakdown}>
+                                <View style={styles.subStat}>
+                                    <View style={[styles.miniIcon, { backgroundColor: '#ECFDF5' }]}>
+                                        <Ionicons name="arrow-up" size={14} color="#059669" />
+                                    </View>
+                                    <View style={{ marginLeft: 12 }}>
+                                        <Text style={styles.subLabel}>Gained</Text>
+                                        <Text style={styles.subValue}>₹{financials.winnings.toLocaleString()}</Text>
+                                    </View>
+                                </View>
+                                <View style={styles.statLine} />
+                                <View style={styles.subStat}>
+                                    <View style={[styles.miniIcon, { backgroundColor: '#FEF2F2' }]}>
+                                        <Ionicons name="arrow-down" size={14} color="#DC2626" />
+                                    </View>
+                                    <View style={{ marginLeft: 12 }}>
+                                        <Text style={styles.subLabel}>Lost</Text>
+                                        <Text style={styles.subValue}>₹{financials.penalties.toLocaleString()}</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </LinearGradient>
                     </View>
 
-                    <View style={styles.statsRow}>
-                        {/* Winnings */}
-                        <View style={[styles.statCard, styles.statCardGreen]}>
-                            <View style={styles.iconCircleGreen}>
-                                <Ionicons name="trending-up" size={20} color="#166534" />
-                            </View>
-                            <View>
-                                <Text style={styles.statLabel}>Gained</Text>
-                                <Text style={[styles.statValue, { color: '#166534' }]}>₹{financials.winnings.toFixed(2)}</Text>
-                                <Text style={styles.statSubLabel}>Money you earned</Text>
-                            </View>
-                        </View>
+                    {/* Activity Section */}
+                    <View style={styles.menuSection}>
+                        <Text style={styles.menuTitle}>My Activity</Text>
 
-                        {/* Penalties */}
-                        <View style={[styles.statCard, styles.statCardRed]}>
-                            <View style={styles.iconCircleRed}>
-                                <Ionicons name="trending-down" size={20} color="#991B1B" />
+                        <TouchableOpacity
+                            style={styles.menuCard}
+                            onPress={() => handlePress('/screens/JourneyScreen')}
+                        >
+                            <View style={[styles.menuIcon, { backgroundColor: '#EEF2FF' }]}>
+                                <Ionicons name="map" size={22} color="#4F46E5" />
                             </View>
-                            <View>
-                                <Text style={styles.statLabel}>Lost</Text>
-                                <Text style={[styles.statValue, { color: '#991B1B' }]}>₹{financials.penalties.toFixed(2)}</Text>
-                                <Text style={styles.statSubLabel}>Money you paid</Text>
+                            <View style={styles.menuContent}>
+                                <Text style={styles.menuLabel}>Promise Journey</Text>
+                                <Text style={styles.menuSubLabel}>Review stakes and milestones</Text>
                             </View>
-                        </View>
+                            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.menuCard}
+                            onPress={() => handlePress('/screens/TransactionHistoryScreen')}
+                        >
+                            <View style={[styles.menuIcon, { backgroundColor: '#F8FAFC' }]}>
+                                <Ionicons name="wallet" size={22} color="#1E293B" />
+                            </View>
+                            <View style={styles.menuContent}>
+                                <Text style={styles.menuLabel}>Transaction History</Text>
+                                <Text style={styles.menuSubLabel}>View all ledger movements</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                        </TouchableOpacity>
                     </View>
 
 
-                </View>
 
-                {/* Activity Section */}
-                <View style={styles.settingsSection}>
-                    <Text style={styles.sectionTitle}>Activity</Text>
+                    <View style={styles.footerInfo}>
+                        <Ionicons name="shield-checkmark" size={14} color="#94A3B8" />
+                        <Text style={styles.footerText}>Secured by Pay & Promise Protocol v2.0</Text>
+                    </View>
 
-                    <TouchableOpacity
-                        style={styles.settingItem}
-                        onPress={() => router.push('/screens/JourneyScreen')}
-                    >
-                        <View style={styles.settingLeft}>
-                            <View style={[styles.menuIconContainer, { backgroundColor: '#F8FAFC' }]}>
-                                <Ionicons name="map-outline" size={20} color="#4F46E5" />
-                            </View>
-                            <View>
-                                <Text style={styles.settingText}>Journey & Payments</Text>
-                                <Text style={{ fontSize: 12, color: '#94A3B8' }}>Track progress & settle commitments.</Text>
-                            </View>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        style={styles.settingItem}
-                        onPress={() => router.push('/screens/TransactionHistoryScreen')}
-                    >
-                        <View style={styles.settingLeft}>
-                            <View style={[styles.menuIconContainer, { backgroundColor: '#F8FAFC' }]}>
-                                <Ionicons name="time-outline" size={20} color="#475569" />
-                            </View>
-                            <Text style={styles.settingText}>Transaction History</Text>
-                        </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                    </TouchableOpacity>
-                </View>
-
-                {/* Trust Indicator */}
-                <View style={styles.trustContainer}>
-                    <Ionicons name="lock-closed-outline" size={12} color="#94A3B8" />
-                    <Text style={styles.trustText}>All transactions are securely encrypted.</Text>
-                </View>
-
-            </ScrollView>
-        </SafeAreaView >
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
@@ -292,316 +310,282 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F8FAFC',
     },
-    centerContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
     scrollContent: {
-        padding: 24,
-        paddingTop: Platform.OS === 'android' ? 80 : 60,
+        paddingHorizontal: 20,
+        paddingBottom: 40,
+        paddingTop: Platform.OS === 'android' ? 40 : 20,
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 32,
+        marginBottom: 20,
+        paddingVertical: 10,
     },
-    backButton: {
-        padding: 8,
-        backgroundColor: '#FFFFFF',
+    headerButton: {
+        width: 44,
+        height: 44,
         borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
         borderWidth: 1,
-        borderColor: '#E2E8F0',
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
+        fontWeight: '800',
         color: '#0F172A',
+        letterSpacing: -0.5,
     },
-    profileHeader: {
-        flexDirection: 'row',
+    profileSection: {
         alignItems: 'center',
-        marginBottom: 32,
-        paddingHorizontal: 8,
+        marginBottom: 30,
     },
-    avatarContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#4338ca',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 20,
-        shadowColor: '#4338ca',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 6,
+    avatarWrapper: {
+        marginBottom: 16,
         position: 'relative',
     },
-    profileInfo: {
-        flex: 1,
+    avatarGradient: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        padding: 4,
         justifyContent: 'center',
+        alignItems: 'center',
     },
-
-    editBadge: {
+    avatarInitial: {
+        fontSize: 36,
+        fontWeight: '900',
+        color: '#FFFFFF',
+    },
+    verifiedBadge: {
         position: 'absolute',
-        bottom: 0,
-        right: 0,
-        backgroundColor: '#0F172A',
-        padding: 6,
-        borderRadius: 12,
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
+        bottom: 2,
+        right: 2,
+        backgroundColor: '#4F46E5',
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 3,
+        borderColor: '#F8FAFC',
     },
-    editProfileLink: {
-        marginTop: 6,
+    profileNameText: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: '#0F172A',
+        letterSpacing: -0.5,
     },
-    editProfileText: {
+    profileEmailText: {
         fontSize: 14,
-        color: '#4338ca',
-        fontWeight: '600',
+        color: '#64748B',
+        fontWeight: '500',
+        marginTop: 4,
     },
-    userBadge: {
-        backgroundColor: '#EFF6FF',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 12,
-        marginTop: 6,
-        alignSelf: 'flex-start',
+    badgeRow: {
+        flexDirection: 'row',
+        marginTop: 12,
     },
-    userBadgeText: {
-        color: '#4338ca',
+    statusBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#EEF2FF',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+    },
+    dot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#4F46E5',
+    },
+    statusText: {
         fontSize: 12,
         fontWeight: '700',
-    },
-    avatarText: {
-        fontSize: 32,
-        color: '#FFFFFF',
-        fontWeight: '700',
-    },
-    profileName: {
-        fontSize: 24,
-        fontWeight: '800',
-        color: '#0F172A',
-        marginBottom: 2,
-    },
-    profileEmail: {
-        fontSize: 14,
-        color: '#64748B',
-    },
-    financialContainer: {
-        marginBottom: 24,
-    },
-    sectionTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#334155',
-        marginBottom: 16,
-        marginLeft: 4,
-    },
-    netCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 24,
-        marginBottom: 16,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        elevation: 2,
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-    },
-    netLabel: {
-        fontSize: 14,
-        color: '#64748B',
-        marginBottom: 8,
-        fontWeight: '600',
+        color: '#4F46E5',
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+        marginLeft: 6,
     },
-    netValue: {
-        fontSize: 36,
-        fontWeight: '800',
-        marginBottom: 4,
+    statsContainer: {
+        marginBottom: 24,
     },
-    netHelper: {
-        fontSize: 12,
-        color: '#94A3B8',
-        fontWeight: '500',
-    },
-    statsRow: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    statCard: {
-        flex: 1,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 16,
+    netProfitCard: {
+        borderRadius: 24,
+        padding: 24,
         borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 20,
+        elevation: 6,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    cardLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#64748B',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+    },
+    growthBadge: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        backgroundColor: 'rgba(5, 150, 105, 0.08)',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 12,
     },
-    statCardGreen: {
-        borderColor: '#DCFCE7',
-        backgroundColor: '#FFFFFF',
-    },
-    statCardRed: {
-        borderColor: '#FEE2E2',
-        backgroundColor: '#FFFFFF',
-    },
-    iconCircleGreen: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#DCFCE7',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    iconCircleRed: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        backgroundColor: '#FEE2E2',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    statLabel: {
-        fontSize: 12,
-        color: '#64748B',
-        fontWeight: '600',
-        textTransform: 'uppercase',
-    },
-    statValue: {
-        fontSize: 18,
+    growthText: {
+        fontSize: 11,
         fontWeight: '700',
     },
-    statSubLabel: {
-        fontSize: 10,
+    mainNetValue: {
+        fontSize: 40,
+        fontWeight: '900',
+        color: '#0F172A',
+        letterSpacing: -1,
+    },
+    balanceHelper: {
+        fontSize: 13,
         color: '#94A3B8',
-        marginTop: 2,
+        fontWeight: '500',
+        marginTop: 6,
+        lineHeight: 18,
     },
-    settingsSection: {
-        marginBottom: 32,
+    divider: {
+        height: 1,
+        backgroundColor: '#F1F5F9',
+        marginVertical: 20,
     },
-    settingItem: {
+    statBreakdown: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 18,
-        paddingHorizontal: 16,
-        backgroundColor: '#FFFFFF',
+    },
+    subStat: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    statLine: {
+        width: 1,
+        height: 30,
+        backgroundColor: '#F1F5F9',
+    },
+    miniIcon: {
+        width: 32,
+        height: 32,
         borderRadius: 16,
-        marginBottom: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    subLabel: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+    },
+    subValue: {
+        fontSize: 15,
+        fontWeight: '800',
+        color: '#1E293B',
+    },
+    menuSection: {
+        marginBottom: 30,
+    },
+    menuTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#0F172A',
+        marginBottom: 16,
+        marginLeft: 4,
+    },
+    menuCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        padding: 16,
+        borderRadius: 20,
+        marginBottom: 12,
         borderWidth: 1,
         borderColor: '#F1F5F9',
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.03,
-        shadowRadius: 2,
-    },
-    settingLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 14,
-    },
-    settingText: {
-        fontSize: 16,
-        color: '#334155',
-        fontWeight: '600',
-    },
-    actionButton: {
-        marginBottom: 32,
-        borderRadius: 16,
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    actionGradient: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        borderRadius: 16,
-    },
-    actionButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    logoutButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 16,
-        backgroundColor: '#F8FAFC',
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        marginBottom: 12,
-    },
-    logoutText: {
-        color: '#64748B',
-        fontSize: 16,
-        fontWeight: '600',
-    },
-    trustContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        marginBottom: 24,
-    },
-    trustText: {
-        fontSize: 12,
-        color: '#94A3B8',
-        fontWeight: '500',
-    },
-    versionText: {
-        textAlign: 'center',
-        color: '#CBD5E1',
-        fontSize: 12,
-        marginBottom: 24,
-    },
-    section: {
-        marginBottom: 24,
-    },
-    menuItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        shadowColor: '#64748B',
+        shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.04,
+        shadowOpacity: 0.03,
         shadowRadius: 4,
         elevation: 1,
     },
-    menuIconContainer: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        backgroundColor: '#F1F5F9',
-        justifyContent: 'center',
+    menuIcon: {
+        width: 48,
+        height: 48,
+        borderRadius: 14,
         alignItems: 'center',
+        justifyContent: 'center',
         marginRight: 16,
     },
-    menuText: {
+    menuContent: {
         flex: 1,
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#0F172A',
     },
-
-});
+    menuLabel: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1E293B',
+    },
+    menuSubLabel: {
+        fontSize: 12,
+        color: '#94A3B8',
+        marginTop: 2,
+    },
+    logoutBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#FFFFFF',
+        paddingVertical: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        marginBottom: 30,
+    },
+    logoutBtnText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#64748B',
+        marginLeft: 8,
+    },
+    footerInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: 0.5,
+    },
+    footerText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#94A3B8',
+        textTransform: 'uppercase',
+        letterSpacing: 1,
+        marginLeft: 6,
+    },
+    centerContent: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+}) as any;
 
 

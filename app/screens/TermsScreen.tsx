@@ -1,141 +1,131 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React from 'react';
 import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function TermsScreen() {
     const router = useRouter();
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#0F172A" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Terms & Conditions</Text>
-                <View style={{ width: 40 }} />
-            </View>
-
-            <ScrollView contentContainerStyle={styles.content}>
-                <Text style={styles.lastUpdated}>Last Updated: January 2026</Text>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>1. Acceptance of Terms</Text>
-                    <Text style={styles.paragraph}>
-                        By downloading, accessing, or using the Pay & Promise mobile application (the "App"), you agree to be bound by these Terms and Conditions. If you do not agree, strictly do not use the App.
-                    </Text>
+        <View style={styles.container}>
+            <LinearGradient
+                colors={['#F8FAFC', '#F1F5F9']}
+                style={StyleSheet.absoluteFill}
+            />
+            <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.back();
+                        }}
+                        style={styles.backButton}
+                    >
+                        <Ionicons name="chevron-back" size={24} color="#0F172A" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Terms of Protocol</Text>
+                    <View style={{ width: 44 }} />
                 </View>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>2. App Functionality</Text>
-                    <Text style={styles.paragraph}>
-                        Pay & Promise is a social accountability tool designed to help users track habits and commitments ("Promises"). The financial penalties or rewards simulated or tracked within the app are agreed upon by the users themselves.
-                    </Text>
-                </View>
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <View style={styles.termsCard}>
+                        <Text style={styles.lastUpdated}>Version 1.0 • January 2026</Text>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>3. User Responsibility</Text>
-                    <Text style={styles.paragraph}>
-                        You are solely responsible for:
-                        {"\n\n"}
-                        • The commitments you make within the App.
-                        {"\n"}
-                        • Any financial transactions you choose to settle outside the App based on the App's records.
-                        {"\n"}
-                        • Maintaining the confidentiality of your account login information.
-                    </Text>
-                </View>
+                        <Text style={styles.sectionTitle}>1. Protocol Membership</Text>
+                        <Text style={styles.paragraph}>
+                            By using Pay & Promise, you enter into a peer-to-peer social contract. You agree that your commitments are visible to your chosen peers for verification purposes.
+                        </Text>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>4. Limitation of Liability</Text>
-                    <Text style={styles.paragraph}>
-                        We are not a bank, financial institution, or legal enforcer of promises. Pay & Promise is a tracking tool. We are not liable for:
-                        {"\n\n"}
-                        • Any financial losses incurred as a result of using the App.
-                        {"\n"}
-                        • Disputes between users (Promisers and Verifiers).
-                        {"\n"}
-                        • Failed habit formations or personal damages.
-                    </Text>
-                </View>
+                        <Text style={styles.sectionTitle}>2. Verification & Integrity</Text>
+                        <Text style={styles.paragraph}>
+                            The integrity of the protocol relies on honest peer verification. Any attempts to manipulate or falsify proof of commitment may result in account restriction.
+                        </Text>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>5. Fraud & Abuse</Text>
-                    <Text style={styles.paragraph}>
-                        We reserve the right to suspend or terminate accounts that we suspect of fraudulent activity, harassment, or abuse of the platform mechanisms.
-                    </Text>
-                </View>
+                        <Text style={styles.sectionTitle}>3. Transaction Settlement</Text>
+                        <Text style={styles.paragraph}>
+                            Settlements are processed based on peer consensus. Pay & Promise is a facilitation tool; actual monetary transfers occur via external UPI gateways.
+                        </Text>
 
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>6. Changes to Terms</Text>
-                    <Text style={styles.paragraph}>
-                        We reserve the right to modify these terms at any time. Continued use of the App following any changes constitutes acceptance of the new terms.
-                    </Text>
-                </View>
-
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>7. Contact</Text>
-                    <Text style={styles.paragraph}>
-                        For legal inquiries, contact: <Text style={styles.bold}>payandpromise@gmail.com</Text>
-                    </Text>
-                </View>
-
-                <View style={{ height: 40 }} />
-            </ScrollView>
-        </SafeAreaView>
+                        <Text style={styles.sectionTitle}>4. Limitation of Liability</Text>
+                        <Text style={styles.paragraph}>
+                            Pay & Promise Protocol is provided "as is". We are not liable for any disputes arising from peer-to-peer commitments or external payment failures.
+                        </Text>
+                    </View>
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F8FAFC',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingTop: Platform.OS === 'android' ? 45 : 16,
-        paddingBottom: 24,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'android' ? 40 : 10,
+        paddingBottom: 20,
     },
     backButton: {
-        padding: 8,
+        width: 44,
+        height: 44,
         borderRadius: 12,
-        backgroundColor: '#F1F5F9',
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4,
+        elevation: 2,
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
+        fontWeight: '800',
         color: '#0F172A',
+        letterSpacing: -0.5,
     },
     content: {
+        padding: 20,
+    },
+    termsCard: {
+        backgroundColor: '#FFFFFF',
         padding: 24,
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.03,
+        shadowRadius: 12,
+        elevation: 1,
     },
     lastUpdated: {
         fontSize: 12,
         color: '#94A3B8',
+        fontWeight: '700',
         marginBottom: 24,
-        fontStyle: 'italic',
-    },
-    section: {
-        marginBottom: 24,
+        textTransform: 'uppercase',
+        letterSpacing: 1,
     },
     sectionTitle: {
         fontSize: 16,
-        fontWeight: '700',
-        color: '#0F172A',
+        fontWeight: '800',
+        color: '#1E293B',
         marginBottom: 8,
+        marginTop: 16,
     },
     paragraph: {
         fontSize: 14,
-        color: '#475569',
+        color: '#64748B',
         lineHeight: 22,
+        fontWeight: '500',
     },
-    bold: {
-        fontWeight: '700',
-        color: '#334155',
-    },
-});
+}) as any;

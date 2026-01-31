@@ -68,7 +68,7 @@ export default function TabLayout() {
                     title: 'Home',
                     tabBarIcon: ({ size, color, focused }) => (
                         <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={24} color={color} />
+                            <Ionicons name="grid-outline" size={24} color={color} style={{ fontWeight: focused ? 'bold' : 'normal' }} />
                         </View>
                     ),
                 }}
@@ -81,7 +81,7 @@ export default function TabLayout() {
                     title: 'Activity',
                     tabBarIcon: ({ size, color, focused }) => (
                         <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name={focused ? 'analytics' : 'analytics-outline'} size={24} color={color} />
+                            <Ionicons name="analytics-outline" size={24} color={color} />
                         </View>
                     ),
                 }}
@@ -93,20 +93,17 @@ export default function TabLayout() {
                 listeners={({ navigation }) => ({
                     tabPress: (e) => {
                         e.preventDefault();
-                        // Navigate to modal or screen
-                        // We can use a listener or just let the button handle it
                     },
                 })}
                 options={{
                     title: 'Create',
                     tabBarButton: (props) => {
-                        // Fix TS error: delayLongPress can be null in props, but TouchableOpacity expects number | undefined
                         const { delayLongPress, ...otherProps } = props as any;
                         return (
                             <TouchableOpacity
                                 {...otherProps}
                                 style={{
-                                    top: -30, // Positioned in the notch
+                                    top: -24, // Slightly lower
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     zIndex: 10,
@@ -114,20 +111,21 @@ export default function TabLayout() {
                                 onPress={() => router.push('/screens/CreatePromiseScreen')}
                             >
                                 <View style={{
-                                    width: 72, // Larger (was 64)
-                                    height: 72, // Larger (was 64)
-                                    borderRadius: 36,
-                                    backgroundColor: theme.tint, // Primary Green
+                                    width: 60, // Smaller
+                                    height: 60,
+                                    borderRadius: 30,
+                                    backgroundColor: '#FFFFFF', // Hollow
                                     justifyContent: 'center',
                                     alignItems: 'center',
-                                    elevation: 10,
-                                    shadowColor: theme.tint,
-                                    shadowOffset: { width: 0, height: 6 },
-                                    shadowOpacity: 0.35,
-                                    shadowRadius: 10,
-                                    // Removed border/cutout simulation; now it sits IN the curve
+                                    elevation: 4,
+                                    shadowColor: '#1E3A8A', // Deep Blue
+                                    shadowOffset: { width: 0, height: 8 },
+                                    shadowOpacity: 0.1, // Softer shadow
+                                    shadowRadius: 16,
+                                    borderWidth: 1,
+                                    borderColor: 'rgba(30, 58, 138, 0.1)',
                                 }}>
-                                    <Ionicons name="add" size={38} color="#FFFFFF" />
+                                    <Ionicons name="add" size={32} color="#1E3A8A" />
                                 </View>
                             </TouchableOpacity>
                         );
@@ -135,14 +133,14 @@ export default function TabLayout() {
                 }}
             />
 
-            {/* RIGHT TAB 1: WALLET (Swapped) */}
+            {/* RIGHT TAB 1: CALENDAR */}
             <Tabs.Screen
-                name="wallet"
+                name="calendar"
                 options={{
-                    title: 'Wallet',
+                    title: 'Calendar',
                     tabBarIcon: ({ size, color, focused }) => (
                         <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={24} color={color} />
+                            <Ionicons name="calendar-outline" size={24} color={color} />
                         </View>
                     ),
                 }}
@@ -155,7 +153,7 @@ export default function TabLayout() {
                     title: 'Profile',
                     tabBarIcon: ({ size, color, focused }) => (
                         <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+                            <Ionicons name="person-outline" size={24} color={color} />
                         </View>
                     ),
                 }}

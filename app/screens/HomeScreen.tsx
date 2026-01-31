@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -15,7 +16,7 @@ import {
     View,
     useColorScheme
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
@@ -52,13 +53,32 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
 
     // Tooltip State
+    // Tooltip State
     const [showTooltip, setShowTooltip] = useState(false);
     const pulseAnim = useRef(new RNAnimated.Value(1)).current;
+
+    // Swing Animation for Date Tag
+    const rotation = useSharedValue(0);
 
     useEffect(() => {
         checkTooltip();
         startPulse();
+        // Start swinging animation
+        rotation.value = withRepeat(
+            withSequence(
+                withTiming(5, { duration: 2000, easing: Easing.inOut(Easing.quad) }),
+                withTiming(-5, { duration: 2000, easing: Easing.inOut(Easing.quad) })
+            ),
+            -1, // Infinite
+            true // Reverse
+        );
     }, []);
+
+    const animatedSwingStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ rotateZ: `${rotation.value}deg` }],
+        };
+    });
 
     const checkTooltip = async () => {
         // Simple check to show tooltip once
@@ -270,6 +290,63 @@ export default function HomeScreen() {
         router.push('/screens/CreatePromiseScreen');
     };
 
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 5) return 'Good evening'; // Late night is still evening extended
+        if (hour < 12) return 'Good morning';
+        if (hour < 17) return 'Good afternoon';
+        return 'Good evening';
+    };
+
+    const getDailyQuote = () => {
+        const quotes = [
+            "Start with one small, honest commitment today.",
+            "Consistency is the code to success.",
+            "Your word is your most valuable asset.",
+            "Small promises kept lead to big trust earned.",
+            "Focus on the step in front of you, not the whole staircase.",
+            "Discipline is doing what needs to be done, even if you don't want to.",
+            "Success is the sum of small efforts, repeated day in and day out.",
+            "The only bad workout is the one that didn't happen.",
+            "Don't wish for it. Work for it.",
+            "Action is the foundational key to all success."
+        ];
+        // Use day of year to rotate quotes
+        const today = new Date();
+        const start = new Date(today.getFullYear(), 0, 0);
+        const diff = (today.getTime() - start.getTime()) + ((start.getTimezoneOffset() - today.getTimezoneOffset()) * 60 * 1000);
+        const oneDay = 1000 * 60 * 60 * 24;
+        const dayOfYear = Math.floor(diff / oneDay);
+
+        return quotes[dayOfYear % quotes.length];
+    };
+
+    const getGoalIcon = (description?: string, status?: string) => {
+        if (status === 'failed') return 'alert-circle';
+        if (status === 'completed') return 'checkmark-circle';
+
+        switch (description) {
+            case 'gym': return 'barbell';
+            case 'code': return 'code-slash';
+            case 'read': return 'book';
+            case 'water': return 'water';
+            case 'wake': return 'alarm';
+            case 'custom': return 'sparkles';
+            default: return 'prism';
+        }
+    };
+
+    const getGoalColor = (description?: string) => {
+        switch (description) {
+            case 'gym': return '#F43F5E';
+            case 'code': return '#8B5CF6';
+            case 'read': return '#10B981';
+            case 'water': return '#0EA5E9';
+            case 'wake': return '#F59E0B';
+            default: return '#4F46E5';
+        }
+    };
+
     const handlePromisePress = (item: PromiseItem) => {
         const mappedItem = {
             ...item,
@@ -293,54 +370,62 @@ export default function HomeScreen() {
 
         return (
             <Animated.View
-                // entering={FadeInDown.delay(isHistory ? 400 : 300).springify()} // Removing animation to prevent blink on refresh
+                entering={FadeInDown.delay(isHistory ? 400 : 300).springify()}
                 key={item.id}
             >
                 <TouchableOpacity
                     activeOpacity={0.9}
                     onPress={() => handlePromisePress(item)}
                 >
-                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }, isHistory && styles.completedCard]}>
-                        <View style={styles.cardHeader}>
-                            <View style={{ flex: 1, marginRight: 8 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
-                                    <Text style={[styles.cardTitle, { color: theme.text }, isHistory && styles.completedText]}>{item.title}</Text>
-                                    <View style={
-                                        item.status === 'active' ? styles.activeBadge :
-                                            item.status === 'active_waiting' ? styles.waitingBadge :
-                                                item.status === 'failed' ? styles.failedBadge : styles.completedBadge
-                                    }>
-                                        <Text style={
-                                            item.status === 'active' ? styles.activeBadgeText :
-                                                item.status === 'active_waiting' ? styles.waitingBadgeText :
-                                                    item.status === 'failed' ? styles.failedBadgeText : styles.completedBadgeText
-                                        }>
-                                            {item.status === 'active' ? 'Active' :
-                                                item.status === 'active_waiting' ? 'Waiting' :
-                                                    (item.status === 'failed' ? 'Failed' : 'Done')}
-                                        </Text>
-                                    </View>
-                                </View>
-
-                                <Text style={[styles.cardSubtitle, { color: theme.icon }]}>
-                                    {isHistory ? (isFailed ? 'Failed' : 'Completed') : `${currentDay} of ${totalDays} days completed`}
-                                </Text>
-                                <Text style={[styles.cardMeta, { color: theme.icon }]}>
-                                    ₹{item.amount_per_person}/person • {item.number_of_people} participants
-                                </Text>
-                            </View>
+                    <View style={[styles.card, { backgroundColor: theme.card, borderColor: 'rgba(0,0,0,0.02)' }, isHistory && styles.completedCard]}>
+                        {/* Icon Box (Reference Style) */}
+                        <View style={[
+                            styles.cardIconBox,
+                            {
+                                backgroundColor: item.status === 'failed' ? '#FEF2F2' :
+                                    (item.status === 'completed' ? '#F1F5F9' : `${getGoalColor(item.description)}15`)
+                            }
+                        ]}>
+                            <Ionicons
+                                name={getGoalIcon(item.description, item.status) as any}
+                                size={24}
+                                color={item.status === 'failed' ? '#EF4444' :
+                                    (item.status === 'completed' ? '#94A3B8' : getGoalColor(item.description))}
+                            />
                         </View>
 
-                        {/* Progress Bar */}
-                        <View style={[styles.progressBarContainer, { backgroundColor: theme.background }]}>
-                            <View
-                                style={[
-                                    styles.progressBarFill,
-                                    { width: `${progressPercent}%` },
-                                    item.status === 'completed' && { backgroundColor: theme.icon }, // Grey for completed
-                                    isFailed && { backgroundColor: '#EF4444' } // Red for failed
-                                ]}
-                            />
+                        <View style={styles.cardContent}>
+                            <View style={styles.cardHeader}>
+                                <Text style={[styles.cardTitle, { color: theme.text }, isHistory && styles.completedText]} numberOfLines={1}>{item.title}</Text>
+                                <Ionicons name="chevron-forward" size={16} color={theme.icon} style={{ opacity: 0.5 }} />
+                            </View>
+
+                            <View style={styles.cardFooter}>
+                                {item.status === 'active' && (
+                                    <View style={[styles.daysTag, { backgroundColor: '#F8FAFC' }]}>
+                                        <Text style={[styles.daysTagText, { color: theme.icon }]}>{item.duration_days} Days</Text>
+                                    </View>
+                                )}
+                                <View style={styles.metaItem}>
+                                    <Text style={[styles.cardMeta, { color: theme.icon }]}>{item.number_of_people} friends</Text>
+                                </View>
+                                <View style={styles.metaItem}>
+                                    <View style={[styles.dotSeparator, { backgroundColor: theme.border }]} />
+                                    <Text style={[styles.cardMeta, { color: theme.icon }]}>₹{item.amount_per_person}</Text>
+                                </View>
+                            </View>
+
+                            {/* Progress Bar (Subtle at bottom of content) */}
+                            {!isHistory && (
+                                <View style={[styles.progressBarContainer, { backgroundColor: '#E0E7FF', marginTop: 12 }]}>
+                                    <View
+                                        style={[
+                                            styles.progressBarFill,
+                                            { width: `${progressPercent}%`, backgroundColor: '#4F46E5' } // Violet Progress
+                                        ]}
+                                    />
+                                </View>
+                            )}
                         </View>
                     </View>
                 </TouchableOpacity>
@@ -355,21 +440,65 @@ export default function HomeScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.tint} />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" colors={['#4F46E5']} />
                     }
                 >
 
-                    {/* Header Section */}
-                    <Animated.View entering={FadeInDown.delay(100).springify()} style={styles.header}>
-                        <View style={styles.headerColumn}>
-                            <Text style={[styles.dateText, { color: theme.icon }]}>
-                                {new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'short' }).toUpperCase()}
-                            </Text>
-                            <View style={styles.greetingRow}>
-                                <Text style={[styles.greetingText, { color: theme.icon }]}>Welcome back, </Text>
-                                <Text style={[styles.nameText, { color: theme.text }]}>{firstName}</Text>
-                            </View>
+                    {/* TYPOGRAPHIC HERO HEADER */}
+                    <View style={styles.heroHeaderContainer}>
+                        <View style={styles.typographyBlock}>
+                            <Text style={styles.greetingLight}>{getGreeting().split(' ')[0]}</Text>
+                            <Text style={styles.greetingFocus}>{getGreeting().split(' ')[1] || 'DAY'}</Text>
+                            <Text style={styles.userNameHero}>{firstName || 'Agent'}.</Text>
                         </View>
+
+                        {/* HANGING SWING DATE TAG */}
+                        <View style={styles.hangingContainer}>
+                            {/* The String */}
+                            <View style={styles.hangingThread} />
+                            {/* The Tag */}
+                            <Animated.View style={[styles.swingingTag, animatedSwingStyle]}>
+                                <View style={styles.tagHole} />
+                                <Text style={styles.tagDayNum}>
+                                    {new Date().getDate().toString().padStart(2, '0')}
+                                </Text>
+                                <Text style={styles.tagMonth}>
+                                    {new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+                                </Text>
+                            </Animated.View>
+                        </View>
+                    </View>
+
+                    {/* Hero Action Card */}
+                    <Animated.View entering={FadeInDown.delay(200).springify()}>
+                        <LinearGradient
+                            colors={['#4F46E5', '#7C3AED']} // Vibrant Violet/Indigo
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.heroCard}
+                        >
+                            <View style={styles.heroContent}>
+                                <View style={styles.heroTextContainer}>
+                                    <Text style={styles.heroTitle}>Keep the momentum!</Text>
+                                    <Text style={styles.heroSubtitle}>
+                                        {activePromises.length > 0
+                                            ? `You have ${activePromises.length} active promises to verify.`
+                                            : "Start a new promise to build your trust score."}
+                                    </Text>
+                                    <TouchableOpacity
+                                        style={styles.heroButton}
+                                        onPress={() => activePromises.length > 0 ? null : router.push('/(tabs)/create')}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.heroButtonText}>
+                                            {activePromises.length > 0 ? "View Scoreboard" : "Create Promise"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                                {/* Decorative Icon */}
+                                <Ionicons name="trophy" size={80} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', right: -10, bottom: -10 }} />
+                            </View>
+                        </LinearGradient>
                     </Animated.View>
 
                     {/* Congratulations Banner for Recently Completed Promises */}
@@ -406,50 +535,40 @@ export default function HomeScreen() {
                     {/* ACTION SURFACE REMOVED - Replaced by FAB */}
 
                     {/* STATS ROW (If Data Exists) */}
-                    {(activePromises.length > 0 || completedPromises.length > 0) && (
-                        <Animated.View entering={FadeInDown.delay(300).springify()} style={styles.statsRow}>
-                            <View style={[styles.statPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                                <View style={[styles.statPillIcon, { backgroundColor: theme.background }]}>
-                                    <Ionicons name="flame" size={18} color={theme.tint} />
-                                </View>
-                                <View>
-                                    <Text style={[styles.statPillLabel, { color: theme.icon }]}>Active</Text>
-                                    <Text style={[styles.statPillValue, { color: theme.text }]}>{activePromises.length > 0 ? activePromises.length : '-'}</Text>
-                                </View>
-                            </View>
-                            <View style={[styles.statPill, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                                <View style={[styles.statPillIcon, { backgroundColor: theme.background }]}>
-                                    <Ionicons name="checkmark-circle" size={18} color="#16A34A" />
-                                </View>
-                                <View>
-                                    <Text style={[styles.statPillLabel, { color: theme.icon }]}>Done Today</Text>
-                                    <Text style={[styles.statPillValue, { color: theme.text }]}>{completedPromises.length > 0 ? completedPromises.length : '-'}</Text>
-                                </View>
-                            </View>
-                        </Animated.View>
-                    )}
 
-                    {/* Promise List Section with Tabs */}
+
+                    {/* Promise List Section with "Editorial" Tabs */}
                     <View style={styles.promiseListSection}>
-                        <Text style={[styles.sectionTitle, { color: theme.text }]}>Promise List</Text>
 
-                        {/* Tab Switcher */}
-                        <View style={[styles.tabContainer, { backgroundColor: theme.background }]}>
+                        {/* Editorial Tab Switcher */}
+                        <View style={styles.editorialTabs}>
                             <TouchableOpacity
-                                style={[styles.tab, promiseListTab === 'in_progress' && [styles.tabActive, { backgroundColor: theme.card }]]}
                                 onPress={() => setPromiseListTab('in_progress')}
+                                activeOpacity={0.7}
+                                style={{ marginRight: 32 }}
                             >
-                                <Text style={[styles.tabText, { color: theme.icon }, promiseListTab === 'in_progress' && styles.tabTextActive]}>
-                                    In Progress
+                                <Text style={[
+                                    styles.editorialTabTitle,
+                                    { color: promiseListTab === 'in_progress' ? theme.text : '#94A3B8' },
+                                    promiseListTab !== 'in_progress' && { fontWeight: '400' }
+                                ]}>
+                                    Active Promises
                                 </Text>
+                                {promiseListTab === 'in_progress' && <View style={[styles.activeIndicator, { backgroundColor: '#1E3A8A' }]} />}
                             </TouchableOpacity>
+
                             <TouchableOpacity
-                                style={[styles.tab, promiseListTab === 'completed' && [styles.tabActive, { backgroundColor: theme.card }]]}
                                 onPress={() => setPromiseListTab('completed')}
+                                activeOpacity={0.7}
                             >
-                                <Text style={[styles.tabText, { color: theme.icon }, promiseListTab === 'completed' && styles.tabTextActive]}>
-                                    Completed
+                                <Text style={[
+                                    styles.editorialTabTitle,
+                                    { color: promiseListTab === 'completed' ? theme.text : '#94A3B8' },
+                                    promiseListTab !== 'completed' && { fontWeight: '400' }
+                                ]}>
+                                    History
                                 </Text>
+                                {promiseListTab === 'completed' && <View style={[styles.activeIndicator, { backgroundColor: '#1E3A8A' }]} />}
                             </TouchableOpacity>
                         </View>
 
@@ -459,14 +578,13 @@ export default function HomeScreen() {
                             activePromises.length > 0 ? (
                                 activePromises.map(item => renderCard(item, false))
                             ) : (
-                                <View style={[styles.emptyStateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                                    <View style={[styles.emptyStateIcon, { backgroundColor: theme.background }]}>
-                                        <Ionicons name="hourglass-outline" size={32} color={theme.icon} />
+                                <View style={[styles.emptyStateContainer]}>
+                                    <View style={[styles.emptyStateIconContainer, { backgroundColor: '#F8FAFC' }]}>
+                                        <Ionicons name="sparkles-outline" size={32} color="#64748B" />
                                     </View>
-                                    <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No active promises</Text>
-                                    <Text style={[styles.emptyStateText, { color: theme.icon }]}>
-                                        Your active promises will appear here.{"\n"}
-                                        Create one to get started.
+                                    <Text style={[styles.emptyStateTitleLuxury, { color: theme.text }]}>No active promises</Text>
+                                    <Text style={[styles.emptyStateTextLuxury, { color: theme.icon }]}>
+                                        Integrity is chosen, not given.
                                     </Text>
                                 </View>
                             )
@@ -486,29 +604,29 @@ export default function HomeScreen() {
                                     </TouchableOpacity>
                                 ))
                             ) : (
-                                <View style={[styles.emptyStateCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-                                    <View style={[styles.emptyStateIcon, { backgroundColor: theme.background }]}>
-                                        <Ionicons name="trophy-outline" size={32} color={theme.icon} />
-                                    </View>
-                                    <Text style={[styles.emptyStateTitle, { color: theme.text }]}>No completed promises yet</Text>
-                                    <Text style={[styles.emptyStateText, { color: theme.icon }]}>
-                                        Complete a promise to see it here.
+                                <View style={[styles.emptyStateContainer]}>
+                                    <Text style={[styles.emptyStateTextLuxury, { color: theme.icon }]}>
+                                        Your completed journey will appear here.
                                     </Text>
                                 </View>
                             )
                         )}
                     </View>
-                    {/* Integrated Trust Footer (Moved to Bottom) */}
-                    <View style={styles.trustFooter}>
-                        <Ionicons name="lock-closed-outline" size={12} color={theme.icon} />
-                        <Text style={[styles.trustText, { color: theme.icon }]}>Secure & Private</Text>
-                    </View>
+
                 </ScrollView>
 
 
             </SafeAreaView>
 
-
+            <View style={styles.fabContainer}>
+                <TouchableOpacity
+                    style={styles.fabMain}
+                    onPress={handleCreatePromise}
+                    activeOpacity={1}
+                >
+                    <Ionicons name="add" size={28} color="#1E3A8A" />
+                </TouchableOpacity>
+            </View>
 
             {/* TOOLTIP OVERLAY */}
             {showTooltip && (
@@ -538,242 +656,290 @@ const styles = StyleSheet.create({
         paddingTop: Platform.OS === 'android' ? 80 : 60,
         paddingBottom: 40,
     },
-    // COMPACT HEADER
-    // PROFESSIONAL HEADER
-    header: {
-        flexDirection: 'row',
+    // HERO TYPOGRAPHY HEADER
+    heroHeaderContainer: {
+        marginBottom: 32,
+        paddingTop: 10,
+        flexDirection: 'row', // Side by side
         justifyContent: 'space-between',
+        alignItems: 'flex-start',
+    },
+    // SWING DATE TAG
+    hangingContainer: {
         alignItems: 'center',
-        marginBottom: 28,
+        marginRight: 28, // Moved toward left (away from edge)
+        marginTop: -60, // Pull up significantly so rope starts off-screen
     },
-    headerColumn: {
-        flex: 1,
+    hangingThread: {
+        width: 2,
+        height: 100, // Long rope
+        backgroundColor: '#CBD5E1', // Slightly darker thread for visibility
+        marginBottom: -8, // Overlap with tag
+    },
+    swingingTag: {
+        backgroundColor: '#FFFFFF',
+        width: 68, // Bigger
+        paddingVertical: 14,
+        borderRadius: 14, // Slightly softer
+        alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: '#CBD5E1',
+        // Shadow for depth
+        shadowColor: '#475569',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 6,
     },
-    dateText: {
-        fontSize: 10, // Smaller
-        fontWeight: '600',
-        letterSpacing: 0.5,
-        marginBottom: 4,
+    tagHole: {
+        width: 10, // Bigger hole
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#CBD5E1',
+        position: 'absolute',
+        top: 8,
+    },
+    tagDayNum: {
+        fontSize: 28, // Bigger number
+        fontWeight: '800',
+        color: '#1E293B',
+        marginTop: 8,
+        lineHeight: 28,
+    },
+    tagMonth: {
+        fontSize: 12, // Bigger month
+        fontWeight: '700',
+        color: '#64748B',
         textTransform: 'uppercase',
+        marginTop: 3,
+        letterSpacing: 1,
     },
-    greetingRow: {
-        flexDirection: 'row', // Keep them on one line if possible, or wrap naturally
-        alignItems: 'baseline',
-        flexWrap: 'wrap',
+    typographyBlock: {
+        gap: -5,
     },
-    greetingText: {
-        fontSize: 20,
+    greetingLight: {
+        fontSize: 32,
+        fontWeight: '300',
+        color: '#64748B',
+        letterSpacing: -0.5,
+    },
+    greetingFocus: {
+        fontSize: 48, // HUGE
+        fontWeight: '900', // BLACK weight
+        color: '#0F172A',
+        letterSpacing: -1,
+        textTransform: 'uppercase',
+        lineHeight: 56, // Tight line height
+    },
+    userNameHero: {
+        fontSize: 32,
         fontWeight: '400',
+        color: '#4F46E5', // Brand Accent
     },
-    nameText: {
-        fontSize: 20,
-        fontWeight: '700',
-    },
-    profileButton: {
-        // Removed relative position for dot
-    },
-    profileGradient: {
-        width: 42,
-        height: 42,
-        borderRadius: 14, // Squircle-ish
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    profileInitials: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    // Removed notificationDot style
 
-    // ACTION SURFACE (New Hero Card)
-    actionSurface: {
+    // HERO CARD
+    heroCard: {
         borderRadius: 24,
         padding: 24,
         marginBottom: 32,
-        shadowOffset: { width: 0, height: 8 }, // Slightly softer shadow
-        shadowOpacity: 0.1,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
         shadowRadius: 20,
-        elevation: 6,
-        borderWidth: 1,
+        elevation: 8,
     },
-    actionSurfaceTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 4,
-        letterSpacing: -0.5,
-    },
-    actionSurfaceSubtitle: {
-        fontSize: 13,
-        marginBottom: 20,
-    },
-    primaryButtonWrapper: {
-        width: '100%',
-        marginBottom: 16,
-        borderRadius: 16, // Ensure ripple effect is contained
-        overflow: 'hidden', // Ensure ripple effect is contained
-    },
-    primaryButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 18,
-        borderRadius: 16,
-        // Gradient background handled inline
-    },
-    primaryButtonText: {
-        color: '#FFFFFF',
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    divider: {
-        height: 1,
-        marginVertical: 4,
-        marginBottom: 16,
-    },
-    secondaryButtonRow: {
+    heroContent: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 4,
     },
-    secondaryButtonText: {
-        fontSize: 15,
-        fontWeight: '500', // Slightly lighter weight
-    },
-    secondaryButtonHelper: {
-        fontSize: 13,
-        color: '#94A3B8',
-        fontWeight: '500',
-    },
-    // Trust Footer Integrated
-    trustFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginTop: 20,
-        gap: 6,
-        opacity: 0.8,
-    },
-    trustText: {
-        fontSize: 11,
-        fontWeight: '500',
-    },
-
-    // STATS ROW (Compact)
-    statsRow: {
-        flexDirection: 'row',
-        gap: 12,
-        marginBottom: 32,
-    },
-    statPill: {
+    heroTextContainer: {
         flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        padding: 12,
-        borderRadius: 16,
-        borderWidth: 1,
-        // Removed most shadow for cleaner pill look
+        marginRight: 16,
     },
-    statPillIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 12, // Softer radius
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: 10,
+    heroTitle: {
+        fontSize: 22,
+        fontWeight: '800',
+        color: '#FFFFFF',
+        marginBottom: 8,
     },
-    statPillLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
-    statPillValue: {
-        fontSize: 16,
-        fontWeight: '700',
-        marginLeft: 'auto',
-    },
-
-    // EMPTY STATE CARD
-    emptyStateCard: {
-        borderRadius: 24,
-        padding: 32,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderStyle: 'dashed',
-    },
-    emptyStateIcon: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    emptyStateTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        marginBottom: 6,
-    },
-    emptyStateText: {
+    heroSubtitle: {
         fontSize: 14,
-        textAlign: 'center',
+        color: 'rgba(255,255,255,0.9)',
+        marginBottom: 20,
         lineHeight: 20,
     },
-
-    // SECTION HEADERS
-    sectionHeader: {
-        marginBottom: 16,
-        paddingLeft: 4,
+    heroButton: {
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+        alignSelf: 'flex-start',
     },
-    sectionTitle: {
-        fontSize: 18,
+    heroButtonText: {
+        color: '#4F46E5',
         fontWeight: '700',
-        letterSpacing: -0.5,
+        fontSize: 13,
     },
 
-    // EXISTING CARD STYLES (Keep consistent)
+    // MICRO STATS
+    microStatsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 32,
+    },
+    microStatsText: {
+        fontSize: 13,
+        fontWeight: '500',
+        opacity: 0.6,
+        letterSpacing: 0.5,
+    },
+
+    // EDITORIAL TABS (Luxury)
+    editorialTabs: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        marginBottom: 28,
+        paddingHorizontal: 8,
+    },
+    editorialTabTitle: {
+        fontSize: 24,
+        fontWeight: '700', // Modern Bold
+        letterSpacing: -0.5,
+        color: '#1E293B',
+    },
+    activeIndicator: {
+        height: 2, // Thinner
+        width: 32,
+        marginTop: 8,
+    },
+
     card: {
-        borderRadius: 20,
-        padding: 20,
+        borderRadius: 20, // Slightly more rounded
         marginBottom: 16,
+        backgroundColor: '#FFFFFF',
+        flexDirection: 'row',
+        alignItems: 'center', // Align icon box and content
+        padding: 12, // Reduced outer padding
+        // Soft UI
         shadowColor: '#64748B',
         shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04, // Softer
+        shadowOpacity: 0.04,
         shadowRadius: 12,
-        elevation: 2,
-        borderWidth: 1,
+        elevation: 1,
+        borderWidth: 0,
+    },
+    cardIconBox: {
+        width: 56,
+        height: 56,
+        borderRadius: 16, // Soft square
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 12, // Space between icon and content
+    },
+    cardContent: {
+        flex: 1,
+        paddingVertical: 4,
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
+        alignItems: 'center',
+        marginBottom: 6,
     },
     cardTitle: {
         fontSize: 16,
-        fontWeight: '700',
-        marginBottom: 4,
+        fontWeight: '600',
+        flex: 1,
+        marginRight: 12,
+        fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        color: '#1E293B',
     },
-    cardSubtitle: {
-        fontSize: 13,
-        fontWeight: '500',
+    cardFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12, // Modern gap spacing
+    },
+    daysTag: {
+        backgroundColor: '#F1F5F9',
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 6,
+    },
+    daysTagText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#64748B',
     },
     cardMeta: {
         fontSize: 12,
         fontWeight: '500',
+        color: '#94A3B8',
+    },
+    metaItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    dotSeparator: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        marginHorizontal: 8,
+    },
+
+    // TRUST FOOTER
+    trustFooter: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 48,
+        gap: 8,
+        opacity: 0.4,
+    },
+    trustText: {
+        fontSize: 11,
+        fontWeight: '500',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+
+    // EMPTY STATS (Luxury)
+    emptyStateContainer: {
+        paddingVertical: 80,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyStateIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 24,
+        opacity: 0.8,
+    },
+    emptyStateTitleLuxury: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,
+        textAlign: 'center',
+        color: '#1E293B',
+    },
+    emptyStateTextLuxury: {
+        fontSize: 13,
+        textAlign: 'center',
+        fontWeight: '500',
+        letterSpacing: 0.5,
+        opacity: 0.5,
+        textTransform: 'uppercase',
     },
     activeBadge: {
         backgroundColor: '#DCFCE7',
         paddingHorizontal: 8,
         paddingVertical: 2,
-        borderRadius: 6, // Slightly sharper
-        marginLeft: 8, // Add spacing to title
+        borderRadius: 6,
+        marginLeft: 8,
     },
     activeBadgeText: {
         color: '#166534',
@@ -781,7 +947,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     progressBarContainer: {
-        height: 10, // Thicker
+        height: 10,
         borderRadius: 5,
         overflow: 'hidden',
         marginTop: 12,
@@ -818,114 +984,51 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
     waitingBadge: {
-        backgroundColor: '#FEF9C3', // Yellow-100
+        backgroundColor: '#FEF9C3',
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 6,
         marginLeft: 8,
     },
     waitingBadgeText: {
-        color: '#B45309', // Yellow-700
+        color: '#B45309',
         fontSize: 11,
         fontWeight: '700',
     },
-    // Congratulations Banner Styles
-    congratsBanner: {
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 16,
-        borderWidth: 1,
-    },
-    congratsContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 8,
-    },
-    congratsEmoji: {
-        fontSize: 24,
-        marginRight: 12,
-    },
-    congratsTextContainer: {
-        flex: 1,
-    },
-    congratsTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#065F46',
-        marginBottom: 2,
-    },
-    congratsSubtitle: {
-        fontSize: 13,
-        color: '#047857',
-        fontWeight: '500',
-    },
-    congratsArrow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        gap: 4,
-    },
-    congratsLink: {
-        fontSize: 13,
-        fontWeight: '600',
-        color: '#059669',
-    },
+
     // Promise List Section Styles
     promiseListSection: {
         marginBottom: 16,
     },
-    tabContainer: {
-        flexDirection: 'row',
-        backgroundColor: '#F1F5F9',
-        borderRadius: 12,
-        padding: 4,
-        marginBottom: 16,
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        letterSpacing: -0.5,
     },
-    tab: {
-        flex: 1,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 10,
-        alignItems: 'center',
-    },
-    tabActive: {
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    tabText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748B',
-    },
-    tabTextActive: {
-        color: '#4F46E5',
-    },
-    // FAB & Tooltip Styles
+    // FAB & Tooltip Styles (Luxury: Hollow/Gradient Look)
     fabContainer: {
         position: 'absolute',
-        bottom: 150, // Significantly raised to ensure visibility above floating tabs
+        bottom: 40,
         alignSelf: 'center',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 100, // High zIndex layer
-        elevation: 20, // Android elevation
+        zIndex: 100,
     },
     fabMain: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#4F46E5', // Indigo-600
+        width: 60, // Slightly smaller for better fit
+        height: 60,
+        borderRadius: 30,
+        backgroundColor: '#FFFFFF',
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.4,
-        shadowRadius: 16,
+        // Refined shadow (less extreme)
+        shadowColor: '#1E3A8A',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
         elevation: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(30, 58, 138, 0.05)',
     },
     pulseRing: {
         position: 'absolute',

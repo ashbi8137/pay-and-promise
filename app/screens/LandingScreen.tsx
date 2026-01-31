@@ -152,12 +152,14 @@ export default function LandingScreen() {
         if (step === 0) {
             return (
                 <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.centerContent}>
-                    <Image
-                        source={require('../../assets/images/icon.png')}
-                        style={styles.logoImageLarge}
-                        resizeMode="contain"
-                        onLoadEnd={() => setIsImageReady(true)}
-                    />
+                    <View style={[styles.logoImageLarge, { overflow: 'hidden' }]}>
+                        <Image
+                            source={require('../../assets/images/icon.png')}
+                            style={{ width: '100%', height: '100%', transform: [{ scale: 1.30 }] }}
+                            resizeMode="contain"
+                            onLoadEnd={() => setIsImageReady(true)}
+                        />
+                    </View>
                 </Animated.View>
             );
         }
@@ -252,6 +254,7 @@ const styles = StyleSheet.create({
     logoImageLarge: {
         width: 200,
         height: 200,
+        borderRadius: 48,
     },
     card: {
         width: '100%',

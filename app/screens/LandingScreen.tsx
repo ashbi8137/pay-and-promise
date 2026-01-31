@@ -152,10 +152,10 @@ export default function LandingScreen() {
         if (step === 0) {
             return (
                 <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.centerContent}>
-                    <View style={[styles.logoImageLarge, { overflow: 'hidden' }]}>
+                    <View style={styles.logoImageLarge}>
                         <Image
-                            source={require('../../assets/images/icon.png')}
-                            style={{ width: '100%', height: '100%', transform: [{ scale: 1.30 }] }}
+                            source={require('../../assets/images/splash.png')}
+                            style={{ width: '100%', height: '100%', transform: [{ scale: 1.0 }] }}
                             resizeMode="contain"
                             onLoadEnd={() => setIsImageReady(true)}
                         />

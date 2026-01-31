@@ -37,7 +37,6 @@ interface JourneyItem {
     net: number;
     amount_per_person: number;
     failed_days_count: number;
-    is_settled: boolean;
 }
 
 export default function JourneyScreen() {
@@ -102,13 +101,6 @@ export default function JourneyScreen() {
                 .eq('user_id', user.id)
                 .in('promise_id', promiseIds);
 
-            // 5. Fetch Settlements for User (To check if paid)
-            const { data: settlements } = await supabase
-                .from('settlements')
-                .select('promise_id, status, from_user_id')
-                .eq('from_user_id', user.id)
-                .in('promise_id', promiseIds);
-
 
             // Process Data
             const processed: JourneyItem[] = promises.map((p: any) => {
@@ -161,24 +153,13 @@ export default function JourneyScreen() {
                 // Financials
                 let winnings = 0;
                 let penalties = 0;
-                let isSettled = false;
-
-                // Check Ledger
                 const pLedger = ledger?.filter((l: { promise_id: string; amount: number; type: string }) => l.promise_id === p.id) || [];
                 pLedger.forEach((l: { promise_id: string; amount: number; type: string }) => {
                     const amt = Number(l.amount);
                     if (l.type === 'winnings') winnings += amt;
                     if (l.type === 'penalty') penalties += Math.abs(amt);
-                    if (l.type === 'refund') penalties -= Math.abs(amt);
+                    if (l.type === 'refund') penalties -= Math.abs(amt); // Refund reduces penalty
                 });
-
-                // Check Settlements: If I have a confirmed settlement for this promise
-                const pSettlements = settlements?.filter((s: { promise_id: string; status: string }) => s.promise_id === p.id) || [];
-                // If any settlement is 'confirmed', we consider it settled. 
-                // Note: 'marked_paid' is not enough, needs confirmation.
-                if (pSettlements.some(s => s.status === 'confirmed')) {
-                    isSettled = true;
-                }
 
                 // Count failed days
                 const failedDaysCount = daysData.filter(d => d === 'failed').length;
@@ -205,8 +186,7 @@ export default function JourneyScreen() {
                     penalties,
                     net,
                     amount_per_person: p.amount_per_person || 0,
-                    failed_days_count: failedDaysCount,
-                    is_settled: isSettled
+                    failed_days_count: failedDaysCount
                 };
             });
 
@@ -279,11 +259,9 @@ export default function JourneyScreen() {
                                         // Financial State
                                         const isLoss = item.net < 0;
                                         const isGain = item.net > 0;
-
-                                        // Real Payment Status Check
-                                        // We use the pre-calculated is_settled property from the history item
-                                        const isSettled = isLoss ? item.is_settled : false;
-
+                                        // Mock Payment Status
+                                        const paymentStatus = 'Pending'; // Default to Pending for now
+                                        const isSettled = false; // Mock
 
                                         // Determine Visual Style
                                         // explicitly type as any to avoid strict "missing properties" errors with array styles

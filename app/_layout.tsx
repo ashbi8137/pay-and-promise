@@ -40,7 +40,7 @@ export default function RootLayout() {
 
               if (!error) {
                 console.log('Session set successfully via Deep Link');
-                router.replace('/screens/HomeScreen');
+                router.replace('/(tabs)');
               } else {
                 console.error('Error setting session:', error);
               }
@@ -78,8 +78,8 @@ export default function RootLayout() {
         // Check if we're on AuthScreen only. LandingScreen handles its own navigation now.
         const currentScreen = segments[1]; // screens/AuthScreen -> AuthScreen
         if (currentScreen === 'AuthScreen') {
-          console.log('User signed in, navigating to HomeScreen');
-          router.replace('/screens/HomeScreen');
+          console.log('User signed in, navigating to Tabs');
+          router.replace('/(tabs)');
         }
       } else if (event === 'SIGNED_OUT') {
         const currentScreen = segments[1];
@@ -116,9 +116,11 @@ export default function RootLayout() {
 
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
       <Stack.Screen name="index" />
       <Stack.Screen name="screens/SplashScreen" />
       <Stack.Screen name="screens/AuthScreen" />
+      {/* Kept for backward compat but Tabs are primary now */}
       <Stack.Screen name="screens/HomeScreen" />
       <Stack.Screen name="screens/CreatePromiseScreen" />
       <Stack.Screen name="screens/PromiseDetailScreen" />

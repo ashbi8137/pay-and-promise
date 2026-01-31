@@ -1,14 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert,
+    Alert, // Native Animated for Loop
     BackHandler,
     Platform,
-    Pressable,
+    Animated as RNAnimated,
     RefreshControl,
-    SafeAreaView,
     ScrollView,
     StyleSheet,
     Text,
@@ -17,6 +16,7 @@ import {
     useColorScheme
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 
@@ -30,15 +30,19 @@ interface PromiseItem {
     amount_per_person: number;
     total_amount: number;
     participants: any[]; // jsonb 
-    status: string;
+    status: 'active' | 'completed' | 'failed' | 'active_waiting';
+    days_completed: number;
     created_at: string;
 }
+
+const HAS_SEEN_TOOLTIP_KEY = 'HAS_SEEN_ONBOARDING_TOOLTIP';
 
 export default function HomeScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme() ?? 'light';
     const theme = Colors[colorScheme];
 
+    // RESTORED STATE
     const [firstName, setFirstName] = useState<string>('');
     const [activePromises, setActivePromises] = useState<PromiseItem[]>([]);
     const [completedPromises, setCompletedPromises] = useState<PromiseItem[]>([]);
@@ -46,6 +50,49 @@ export default function HomeScreen() {
     const [promiseListTab, setPromiseListTab] = useState<'in_progress' | 'completed'>('in_progress');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+
+    // Tooltip State
+    const [showTooltip, setShowTooltip] = useState(false);
+    const pulseAnim = useRef(new RNAnimated.Value(1)).current;
+
+    useEffect(() => {
+        checkTooltip();
+        startPulse();
+    }, []);
+
+    const checkTooltip = async () => {
+        // Simple check to show tooltip once
+        try {
+            const hasSeen = await AsyncStorage.getItem(HAS_SEEN_TOOLTIP_KEY);
+            if (!hasSeen) {
+                setTimeout(() => setShowTooltip(true), 1500);
+            }
+        } catch (e) {
+            console.log('Error checking tooltip', e);
+        }
+    };
+
+    const dismissTooltip = async () => {
+        setShowTooltip(false);
+        await AsyncStorage.setItem(HAS_SEEN_TOOLTIP_KEY, 'true');
+    };
+
+    const startPulse = () => {
+        RNAnimated.loop(
+            RNAnimated.sequence([
+                RNAnimated.timing(pulseAnim, {
+                    toValue: 1.2,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+                RNAnimated.timing(pulseAnim, {
+                    toValue: 1,
+                    duration: 1000,
+                    useNativeDriver: true,
+                }),
+            ])
+        ).start();
+    };
 
     useFocusEffect(
         useCallback(() => {
@@ -323,28 +370,6 @@ export default function HomeScreen() {
                                 <Text style={[styles.nameText, { color: theme.text }]}>{firstName}</Text>
                             </View>
                         </View>
-
-                        <TouchableOpacity
-                            onPress={() => router.push('/screens/ProfileScreen')}
-                            activeOpacity={0.7}
-                            style={{
-                                width: 44,
-                                height: 44,
-                                borderRadius: 14,
-                                backgroundColor: theme.card,
-                                justifyContent: 'center',
-                                alignItems: 'center',
-                                borderWidth: 1,
-                                borderColor: theme.border,
-                                shadowColor: '#000',
-                                shadowOffset: { width: 0, height: 2 },
-                                shadowOpacity: 0.05,
-                                shadowRadius: 4,
-                                elevation: 2,
-                            }}
-                        >
-                            <Ionicons name="person-outline" size={22} color={theme.text} />
-                        </TouchableOpacity>
                     </Animated.View>
 
                     {/* Congratulations Banner for Recently Completed Promises */}
@@ -378,50 +403,7 @@ export default function HomeScreen() {
                         </Animated.View>
                     )} */}
 
-                    {/* ACTION SURFACE (Grouped Actions) */}
-                    <Animated.View entering={FadeInDown.delay(200).springify()} style={[styles.actionSurface, { backgroundColor: theme.card, shadowColor: theme.tint, borderColor: theme.border }]}>
-                        <View>
-                            <Text style={[styles.actionSurfaceTitle, { color: theme.text }]}>Start a new promise</Text>
-                            <Text style={[styles.actionSurfaceSubtitle, { color: theme.icon }]}>Stay accountable with real stakes</Text>
-                        </View>
-
-                        {/* Primary Trigger */}
-                        <Pressable
-                            onPress={handleCreatePromise}
-                            android_ripple={{ color: 'rgba(255,255,255,0.2)', borderless: false }}
-                            style={({ pressed }) => [
-                                styles.primaryButtonWrapper,
-                                Platform.OS === 'ios' && pressed && { opacity: 0.7 }
-                            ]}
-                        >
-                            <LinearGradient
-                                colors={[theme.tint, '#1e40af']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.primaryButton}
-                            >
-                                <Ionicons name="add-circle" size={24} color="#FFFFFF" style={{ marginRight: 8 }} />
-                                <Text style={styles.primaryButtonText}>Create a Promise</Text>
-                            </LinearGradient>
-                        </Pressable>
-
-                        <View style={[styles.divider, { backgroundColor: theme.border }]} />
-
-                        {/* Secondary Trigger */}
-                        <TouchableOpacity
-                            onPress={() => router.push('/screens/JoinPromiseScreen')}
-                            activeOpacity={0.7}
-                            style={styles.secondaryButtonRow}
-                        >
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Ionicons name="enter-outline" size={20} color={theme.icon} style={{ marginRight: 8 }} />
-                                <Text style={[styles.secondaryButtonText, { color: theme.text }]}>Join an existing promise</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={16} color={theme.border} />
-                        </TouchableOpacity>
-
-
-                    </Animated.View>
+                    {/* ACTION SURFACE REMOVED - Replaced by FAB */}
 
                     {/* STATS ROW (If Data Exists) */}
                     {(activePromises.length > 0 || completedPromises.length > 0) && (
@@ -522,7 +504,26 @@ export default function HomeScreen() {
                         <Text style={[styles.trustText, { color: theme.icon }]}>Secure & Private</Text>
                     </View>
                 </ScrollView>
+
+
             </SafeAreaView>
+
+
+
+            {/* TOOLTIP OVERLAY */}
+            {showTooltip && (
+                <TouchableOpacity
+                    activeOpacity={1}
+                    style={styles.tooltipOverlay}
+                    onPress={dismissTooltip}
+                >
+                    <View style={styles.tooltipBubble}>
+                        <Text style={styles.tooltipTitle}>Start Here!</Text>
+                        <Text style={styles.tooltipText}>Create your first promise to verify.</Text>
+                        <View style={styles.tooltipArrow} />
+                    </View>
+                </TouchableOpacity>
+            )}
         </View>
     );
 }
@@ -902,5 +903,85 @@ const styles = StyleSheet.create({
     },
     tabTextActive: {
         color: '#4F46E5',
+    },
+    // FAB & Tooltip Styles
+    fabContainer: {
+        position: 'absolute',
+        bottom: 150, // Significantly raised to ensure visibility above floating tabs
+        alignSelf: 'center',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 100, // High zIndex layer
+        elevation: 20, // Android elevation
+    },
+    fabMain: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#4F46E5', // Indigo-600
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.4,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    pulseRing: {
+        position: 'absolute',
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#818CF8', // Indigo-400
+        opacity: 0.5,
+    },
+    tooltipOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0, // Cover entire screen
+        backgroundColor: 'rgba(0,0,0,0.3)', // Dim background
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingBottom: 110, // Above FAB
+        zIndex: 60,
+    },
+    tooltipBubble: {
+        backgroundColor: 'white',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 16,
+        alignItems: 'center',
+        shadowColor: 'black',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        elevation: 6,
+        marginBottom: 8,
+    },
+    tooltipTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1F2937',
+        marginBottom: 4,
+    },
+    tooltipText: {
+        fontSize: 14,
+        color: '#6B7280',
+        fontWeight: '500',
+    },
+    tooltipArrow: {
+        position: 'absolute',
+        bottom: -8,
+        width: 0,
+        height: 0,
+        backgroundColor: 'transparent',
+        borderStyle: 'solid',
+        borderLeftWidth: 8,
+        borderRightWidth: 8,
+        borderTopWidth: 8,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+        borderTopColor: 'white',
     },
 });

@@ -325,18 +325,25 @@ export default function HomeScreen() {
                         </View>
 
                         <TouchableOpacity
-                            style={styles.profileButton}
                             onPress={() => router.push('/screens/ProfileScreen')}
-                            activeOpacity={0.8}
+                            activeOpacity={0.7}
+                            style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 14,
+                                backgroundColor: theme.card,
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                borderWidth: 1,
+                                borderColor: theme.border,
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 2 },
+                                shadowOpacity: 0.05,
+                                shadowRadius: 4,
+                                elevation: 2,
+                            }}
                         >
-                            <LinearGradient
-                                colors={[theme.tint, theme.gold]}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.profileGradient}
-                            >
-                                <Text style={styles.profileInitials}>{firstName.charAt(0)}</Text>
-                            </LinearGradient>
+                            <Ionicons name="person-outline" size={22} color={theme.text} />
                         </TouchableOpacity>
                     </Animated.View>
 

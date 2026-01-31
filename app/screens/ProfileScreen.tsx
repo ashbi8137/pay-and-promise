@@ -11,9 +11,8 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    TextInput,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
@@ -23,9 +22,7 @@ export default function ProfileScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
     const [firstName, setFirstName] = useState<string>('Ashbin');
-    const [upiId, setUpiId] = useState('');
-    const [savingUpi, setSavingUpi] = useState(false);
-    const [isEditingUpi, setIsEditingUpi] = useState(false); // To toggle read-only mode
+
 
     console.log('ProfileScreen Render. Name:', firstName);
 
@@ -50,31 +47,6 @@ export default function ProfileScreen() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
-
-            // 0. Fetch UPI ID and Avatar from Profiles
-            const { data: profileData } = await supabase
-                .from('profiles')
-                .select('upi_id')
-                .eq('id', user.id)
-                .single();
-
-            if (profileData) {
-                if (profileData.upi_id) {
-                    setUpiId(profileData.upi_id);
-                    setIsEditingUpi(false);
-                } else {
-                    setIsEditingUpi(true);
-                }
-
-
-            }
-
-            if (profileData?.upi_id) {
-                setUpiId(profileData.upi_id);
-                setIsEditingUpi(false);
-            } else {
-                setIsEditingUpi(true);
-            }
 
             // 1. Set Profile Info (Exact Home Logic)
             const metadataName = user.user_metadata?.full_name || user.user_metadata?.name;
@@ -143,34 +115,7 @@ export default function ProfileScreen() {
 
 
 
-    const saveUpiId = async () => {
-        if (!upiId.trim()) {
-            Alert.alert("Required", "Please enter a valid UPI ID");
-            return;
-        }
 
-        setSavingUpi(true);
-        try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
-
-            const { error } = await supabase
-                .from('profiles')
-                .update({ upi_id: upiId })
-                .eq('id', user.id);
-
-            if (error) {
-                Alert.alert("Error", "Failed to save UPI ID");
-            } else {
-                Alert.alert("Success", "UPI ID saved successfully");
-                setIsEditingUpi(false); // Switch back to read-only
-            }
-        } catch (err) {
-            Alert.alert("Error", "Something went wrong");
-        } finally {
-            setSavingUpi(false);
-        }
-    };
 
     const handleLogout = async () => {
         Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -237,58 +182,7 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Payment Settings */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Payment Settings</Text>
-                    <View style={styles.paymentCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                            <Ionicons name="qr-code-outline" size={20} color="#4F46E5" />
-                            <Text style={[styles.settingText, { marginLeft: 8 }]}>UPI ID (VPA)</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 10 }}>
-                            {/* Read Only vs Edit Mode */}
-                            {upiId && !isEditingUpi ? (
-                                <View style={[styles.input, { backgroundColor: '#F1F5F9', justifyContent: 'center' }]}>
-                                    <Text style={{ color: '#0F172A', fontWeight: '500' }}>{upiId}</Text>
-                                </View>
-                            ) : (
-                                <TextInput
-                                    value={upiId}
-                                    onChangeText={setUpiId}
-                                    placeholder="e.g. name@oksbi"
-                                    style={styles.input}
-                                    autoCapitalize="none"
-                                />
-                            )}
 
-                            {/* Button Logic */}
-                            {upiId && !isEditingUpi ? (
-                                <TouchableOpacity
-                                    style={[styles.saveBtn, { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' }]}
-                                    onPress={() => setIsEditingUpi(true)}
-                                >
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                        <Ionicons name="create-outline" size={16} color="#475569" />
-                                        <Text style={[styles.saveBtnText, { color: '#475569' }]}>Edit</Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ) : (
-                                <TouchableOpacity
-                                    style={[styles.saveBtn, savingUpi && { opacity: 0.7 }]}
-                                    onPress={saveUpiId}
-                                    disabled={savingUpi}
-                                >
-                                    {savingUpi ? (
-                                        <ActivityIndicator size="small" color="#FFF" />
-                                    ) : (
-                                        <Text style={styles.saveBtnText}>Save</Text>
-                                    )}
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                        <Text style={styles.helperText}>Used for receiving payments from peers.</Text>
-                    </View>
-                </View>
 
                 {/* Financial Summary (Stock Style) */}
                 <View style={styles.financialContainer}>
@@ -383,14 +277,10 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Trust Indicator */}
-
-                {/* Trust Indicator */}
                 <View style={styles.trustContainer}>
                     <Ionicons name="lock-closed-outline" size={12} color="#94A3B8" />
                     <Text style={styles.trustText}>All transactions are securely encrypted.</Text>
                 </View>
-
-                <Text style={styles.versionText}>Version 1.0.0</Text>
 
             </ScrollView>
         </SafeAreaView >
@@ -711,41 +601,7 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#0F172A',
     },
-    paymentCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    input: {
-        flex: 1,
-        borderWidth: 1,
-        borderColor: '#CBD5E1',
-        borderRadius: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        fontSize: 14,
-        color: '#0F172A',
-        backgroundColor: '#F8FAFC',
-    },
-    saveBtn: {
-        backgroundColor: '#4F46E5',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
-        justifyContent: 'center',
-    },
-    saveBtnText: {
-        color: '#FFF',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    helperText: {
-        fontSize: 12,
-        color: '#94A3B8',
-        marginTop: 8,
-    },
+
 });
 
 

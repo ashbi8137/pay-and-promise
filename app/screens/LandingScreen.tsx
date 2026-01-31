@@ -71,23 +71,30 @@ export default function LandingScreen() {
                 } else {
                     router.replace('/screens/AuthScreen');
                 }
-                return; // Exit early, do not schedule timeouts
+                return; // Exit early
             }
 
-            // Normal Flow: Check auth but proceed with animation
+            // Normal Flow: Check auth QUICKLY
             const { data, error } = await supabase.auth.getUser();
-            setIsAuthenticated(!!(data?.user && !error));
+            const hasUser = !!(data?.user && !error);
+            setIsAuthenticated(hasUser);
 
-            // Animation Sequence (Only if NOT deep link)
+            if (hasUser) {
+                // User is logged in? GO TO HOME IMMEDIATELY via replace
+                // Small delay to ensure splash is hidden or just go?
+                // If we go immediately, we might not need animation step 1, 2, 3.
+                // Let's go immediately to avoid "Step 0" flicker.
+                router.replace('/screens/HomeScreen');
+                return;
+            }
 
-            // Step 0: ICON (0s - 2s) - Matches native splash
-
-            // Step 1: "Promises are easy..." (2s -> 4s)
+            // ONLY IF NOT AUTHENTICATED -> Play Animation
+            // Step 1: "Promises are easy..." (0s -> 2s) - Start sooner
             t1 = setTimeout(() => {
                 setStep(1);
-            }, 2000);
+            }, 1000); // 1s start
 
-            // Step 2: "Keeping them is hard." (4s -> 6.5s)
+            // Step 2: "Keeping them is hard." (2s -> 4.5s)
             t2 = setTimeout(() => {
                 setStep(2);
                 // Shake effect + Zoom
@@ -99,24 +106,20 @@ export default function LandingScreen() {
                     withTiming(0, { duration: 50 })
                 );
                 scale.value = withSpring(1.03); // Slight zoom
-            }, 4000);
+            }, 3000);
 
-            // Step 3: "So make them expensive." (6.5s -> 10s)
+            // Step 3: "So make them expensive." (4.5s -> 8s)
             t3 = setTimeout(() => {
                 setStep(3);
                 glowOpacity.value = withTiming(1, { duration: 1000 });
                 borderColor.value = withTiming(theme.tint, { duration: 1000 });
                 scale.value = withSpring(1.1); // Scale up
-            }, 6500);
+            }, 5500);
 
-            // Final: Navigate based on Auth Status (10s)
+            // Final: Navigate to Auth (8s)
             t4 = setTimeout(() => {
-                if (data?.user && !error) {
-                    router.replace('/screens/HomeScreen');
-                } else {
-                    router.replace('/screens/AuthScreen');
-                }
-            }, 10000);
+                router.replace('/screens/AuthScreen');
+            }, 8000);
         };
 
         checkState();
@@ -155,7 +158,7 @@ export default function LandingScreen() {
                     <View style={styles.logoImageLarge}>
                         <Image
                             source={require('../../assets/images/splash.png')}
-                            style={{ width: '100%', height: '100%', transform: [{ scale: 1.0 }] }}
+                            style={{ width: '100%', height: '100%', transform: [{ scale: 1.3 }] }}
                             resizeMode="contain"
                             onLoadEnd={() => setIsImageReady(true)}
                         />

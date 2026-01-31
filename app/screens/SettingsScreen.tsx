@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
 import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 export default function SettingsScreen() {
@@ -21,6 +20,18 @@ export default function SettingsScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.content}>
+
+
+                {/* Payments */}
+                <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/PaymentsScreen')}>
+                    <View style={styles.rowLeft}>
+                        <View style={[styles.iconContainer, { backgroundColor: '#EEF2FF' }]}>
+                            <Ionicons name="card-outline" size={20} color="#4F46E5" />
+                        </View>
+                        <Text style={styles.rowLabel}>Payments</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                </TouchableOpacity>
 
                 {/* Help & Support */}
                 <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/SupportScreen')}>

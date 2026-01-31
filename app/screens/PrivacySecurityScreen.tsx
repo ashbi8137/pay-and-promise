@@ -2,32 +2,51 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Alert, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { supabase } from '../../lib/supabase';
+
+import { useAlert } from '../../context/AlertContext';
 
 export default function PrivacySecurityScreen() {
     const router = useRouter();
+    const { showAlert } = useAlert();
 
     const handleLogout = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        Alert.alert('Sign Out', 'Are you sure you want to sign out from all devices?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Sign Out',
-                style: 'destructive',
-                onPress: async () => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                    const { error } = await supabase.auth.signOut();
-                    if (error) Alert.alert('Error', error.message);
-                    else router.replace('/screens/AuthScreen');
+        showAlert({
+            title: 'Sign Out',
+            message: 'Are you sure you want to sign out from all devices?',
+            type: 'warning',
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: async () => {
+                        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        const { error } = await supabase.auth.signOut();
+                        if (error) {
+                            showAlert({
+                                title: 'Error',
+                                message: error.message,
+                                type: 'error'
+                            });
+                        } else {
+                            router.replace('/screens/AuthScreen');
+                        }
+                    }
                 }
-            }
-        ]);
+            ]
+        });
     };
 
     const handleChangePassword = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        Alert.alert('Change Password', 'To change your password, please sign out and use the "Forgot Password" link on the login screen.');
+        showAlert({
+            title: 'Change Password',
+            message: 'To change your password, please sign out and use the "Forgot Password" link on the login screen.',
+            type: 'info'
+        });
     };
 
     const handleDataDeletion = () => {

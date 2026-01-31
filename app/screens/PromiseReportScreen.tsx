@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import { setStringAsync } from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Linking,
     Platform,
     RefreshControl,
@@ -15,6 +15,8 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
 interface PromiseData {
@@ -45,6 +47,7 @@ interface Settlement {
 
 export default function PromiseReportScreen() {
     const router = useRouter();
+    const { showAlert } = useAlert();
     const params = useLocalSearchParams();
     const promiseId = params.promiseId as string;
 
@@ -82,8 +85,6 @@ export default function PromiseReportScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
             setCurrentUserId(user.id);
-
-            // 1. Fetch Promise Details
 
             // 1. Fetch Promise Details
             const { data: promise, error: promiseError } = await supabase
@@ -232,12 +233,12 @@ export default function PromiseReportScreen() {
             // Display Existing Settlements
             if (existingSettlements && existingSettlements.length > 0) {
                 // Deduplicate logic: Map Key -> Settlement
-                // Key: `${s.from_user_id}-${s.to_user_id}`
+                // Key: `${ s.from_user_id } -${ s.to_user_id } `
                 // If collision, prefer status != pending
                 const uniqueSettlementsMap = new Map<string, Settlement>();
 
                 existingSettlements.forEach((s: any) => {
-                    const key = `${s.from_user_id}-${s.to_user_id}`;
+                    const key = `${s.from_user_id} -${s.to_user_id} `;
                     const current = uniqueSettlementsMap.get(key);
 
                     if (!current) {
@@ -405,9 +406,13 @@ export default function PromiseReportScreen() {
     const isGain = financials.netResult >= 0;
 
     const handlePay = async (upiId: string, name: string, amount: number, settlementId: string) => {
-        console.log(`[PayDebug] Paying to: ${name} (${upiId}) Amount: ${amount}`);
+        console.log(`[PayDebug] Paying to: ${name} (${upiId}) Amount: ${amount} `);
         if (!upiId) {
-            Alert.alert("No UPI ID", `${name} has not linked their UPI ID yet. Please contact them directly.`);
+            showAlert({
+                title: "No UPI ID",
+                message: `${name} has not linked their UPI ID yet.Please contact them directly.`,
+                type: "warning"
+            });
             return;
         }
 
@@ -425,12 +430,20 @@ export default function PromiseReportScreen() {
                     await Linking.openURL(upiUrl);
                     setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
                 } else {
-                    Alert.alert("Error", "No UPI apps installed found to handle this request.");
+                    showAlert({
+                        title: "Error",
+                        message: "No UPI apps installed found to handle this request.",
+                        type: "error"
+                    });
                 }
             }
         } catch (err) {
             console.error("UPI Error:", err);
-            Alert.alert("Error", "Could not open UPI app.");
+            showAlert({
+                title: "Error",
+                message: "Could not open UPI app.",
+                type: "error"
+            });
         }
     };
 
@@ -442,7 +455,11 @@ export default function PromiseReportScreen() {
 
         if (error) {
             console.error('[handleMarkPaid] Error:', error);
-            Alert.alert("Error", "Could not update status");
+            showAlert({
+                title: "Error",
+                message: "Could not update status",
+                type: "error"
+            });
         } else {
             console.log('[handleMarkPaid] Success, refreshing report...');
             fetchReportData();
@@ -455,27 +472,43 @@ export default function PromiseReportScreen() {
             .update({ status: 'confirmed' })
             .eq('id', settlementId);
 
-        if (error) Alert.alert("Error", "Could not confirm");
+        if (error) showAlert({
+            title: "Error",
+            message: "Could not confirm",
+            type: "error"
+        });
         else fetchReportData();
     };
 
     const handleReject = async (settlementId: string) => {
-        Alert.alert("Reject Payment", "Are you sure? This will ask the other user to pay again.", [
-            { text: "Cancel", style: "cancel" },
-            {
-                text: "Reject",
-                style: "destructive",
-                onPress: async () => {
-                    const { error } = await supabase
-                        .from('settlements')
-                        .update({ status: 'rejected' })
-                        .eq('id', settlementId);
+        showAlert({
+            title: "Reject Payment",
+            message: "Are you sure? This will ask the other user to pay again.",
+            type: "warning",
+            buttons: [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Reject",
+                    style: "destructive",
+                    onPress: async () => {
+                        const { error } = await supabase
+                            .from('settlements')
+                            .update({ status: 'rejected' })
+                            .eq('id', settlementId);
 
-                    if (error) Alert.alert("Error", "Could not reject");
-                    else fetchReportData();
+                        if (error) {
+                            showAlert({
+                                title: "Error",
+                                message: "Could not reject",
+                                type: "error"
+                            });
+                        } else {
+                            fetchReportData();
+                        }
+                    }
                 }
-            }
-        ]);
+            ]
+        });
     };
 
     const handleCopy = async (text: string) => {
@@ -485,639 +518,649 @@ export default function PromiseReportScreen() {
             const ToastAndroid = require('react-native').ToastAndroid;
             ToastAndroid.show('UPI ID Copied', ToastAndroid.SHORT);
         } else {
-            Alert.alert("Copied", "UPI ID copied to clipboard");
+            showAlert({
+                title: "Copied",
+                message: "UPI ID copied to clipboard",
+                type: "success"
+            });
         }
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-
-                {/* Header */}
+        <View style={styles.container}>
+            <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color="#0F172A" />
+                        <Ionicons name="arrow-back" size={24} color="#1E293B" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Promise Report</Text>
-                    <View style={{ width: 40 }} />
+                    <Text style={styles.headerTitle}>Executive Report</Text>
+                    <View style={{ width: 44 }} />
                 </View>
 
-                {/* Promise Info Card */}
-                <View style={styles.infoCard}>
-                    <View style={styles.infoHeader}>
-                        <Ionicons name="trophy" size={32} color="#4F46E5" />
-                        <View style={{ marginLeft: 12, flex: 1 }}>
-                            <Text style={styles.promiseTitle}>{promiseData.title}</Text>
-                            <Text style={styles.dateRange}>
-                                {formatDate(promiseData.created_at)} → {getEndDate(promiseData.created_at, promiseData.duration_days)}
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={[
-                        styles.statusBadge,
-                        promiseData.status === 'completed' ? styles.badgeCompleted : styles.badgeFailed
-                    ]}>
-                        <Text style={[
-                            styles.statusText,
-                            promiseData.status === 'completed' ? styles.textCompleted : styles.textFailed
-                        ]}>
-                            {promiseData.status === 'completed' ? 'Completed' : 'Failed'}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Financial Summary */}
-                <View style={styles.summaryCard}>
-                    <Text style={styles.sectionTitle}>Financial Summary</Text>
-
-                    <View style={styles.summaryRow}>
-                        <View style={styles.summaryItem}>
-                            <View style={[styles.iconCircle, styles.iconRed]}>
-                                <Ionicons name="arrow-down" size={18} color="#991B1B" />
-                            </View>
-                            <View>
-                                <Text style={styles.summaryLabel}>Total Paid</Text>
-                                <Text style={[styles.summaryValue, { color: '#991B1B' }]}>
-                                    ₹{financials.totalPaid.toFixed(0)}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.summaryItem}>
-                            <View style={[styles.iconCircle, styles.iconGreen]}>
-                                <Ionicons name="arrow-up" size={18} color="#166534" />
-                            </View>
-                            <View>
-                                <Text style={styles.summaryLabel}>Total Earned</Text>
-                                <Text style={[styles.summaryValue, { color: '#166534' }]}>
-                                    ₹{financials.totalEarned.toFixed(0)}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.divider} />
-
-                    {/* Net Result */}
-                    <View style={styles.netResultContainer}>
-                        <Text style={styles.netLabel}>Net Result</Text>
-                        <Text style={[
-                            styles.netValue,
-                            { color: isGain ? '#166534' : '#991B1B' }
-                        ]}>
-                            {isGain ? '+' : '-'} ₹{Math.abs(financials.netResult).toFixed(0)}
-                        </Text>
-                        <Text style={[styles.netBadge, { backgroundColor: isGain ? '#DCFCE7' : '#FEE2E2', color: isGain ? '#166534' : '#991B1B' }]}>
-                            {isGain ? 'Net Gain' : 'Net Loss'}
-                        </Text>
-                    </View>
-                </View>
-
-                {/* Settlement Info */}
-                <View style={styles.settlementCard}>
-                    <View style={styles.settlementHeader}>
-                        <Ionicons name="swap-horizontal" size={24} color="#4F46E5" />
-                        <Text style={styles.settlementTitle}>Settlement</Text>
-                    </View>
-
-                    {financials.netResult === 0 ? (
-                        <View style={styles.settlementContent}>
-                            <Text style={styles.settlementText}>
-                                No settlement required. You broke even!
-                            </Text>
-                        </View>
-                    ) : isGain ? (
-                        <View style={styles.settlementContent}>
-                            <View style={[styles.settlementBadge, { backgroundColor: '#DCFCE7' }]}>
-                                <Ionicons name="cash-outline" size={20} color="#166534" />
-                            </View>
-                            <Text style={styles.settlementText}>
-                                You are owed{' '}
-                                <Text style={[styles.settlementAmount, { color: '#166534' }]}>
-                                    ₹{financials.netResult.toFixed(0)}
-                                </Text>
-                                {'\n'}from the pool
-                            </Text>
-                        </View>
-                    ) : isWash ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, backgroundColor: '#F1F5F9', borderRadius: 12 }}>
-                            <View style={[styles.settlementBadge, { backgroundColor: '#E2E8F0' }]}>
-                                <Ionicons name="alert-circle-outline" size={24} color="#64748B" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.settlementText}>
-                                    Everyone failed to keep the promise perfectly.
-                                    {'\n'}No money is exchanged.
-                                </Text>
-                            </View>
-                        </View>
-                    ) : null}
-
-                    {/* Settlement List - Rendered for EVERYONE involved in a settlement */}
-                    {((settlements.length > 0) && (financials.netResult !== 0 || isWash)) && (
-                        <View>
-                            {/* DISCLAIMER - Always Visible when settlements involved */}
-                            <View style={styles.disclaimerBox}>
-                                <Text style={styles.disclaimerText}>
-                                    "Payments are handled outside the app using UPI. Please verify strictly with peers."
-                                </Text>
-                            </View>
-
-                            <Text style={styles.subHeader}>Pending Payments</Text>
-
-                            {settlements.filter(s => s.from_user_id === currentUserId || s.to_user_id === currentUserId).length === 0 ? (
-                                <Text style={{ color: '#64748B', textAlign: 'center', marginBottom: 20 }}>No pending payments found.</Text>
-                            ) : (
-                                settlements.map((payment, index) => {
-                                    // Robust ID check
-                                    const currentId = currentUserId;
-                                    const isPayer = payment.from_user_id === currentId;
-                                    const isReceiver = payment.to_user_id === currentId;
-
-                                    const displayedUpiId = isPayer
-                                        ? participantUpiIds[payment.to_user_id]
-                                        : participantUpiIds[payment.from_user_id];
-
-                                    if (!isPayer && !isReceiver) return null;
-
-                                    return (<View key={index} style={styles.paymentRow}>
-                                        <View style={styles.userRow}>
-                                            <View style={styles.avatarPlaceholder}>
-                                                <Text style={styles.avatarText}>
-                                                    {(isPayer ? payment.to_name : payment.from_name)?.charAt(0) || '?'}
-                                                </Text>
-                                            </View>
-                                            <View>
-                                                <Text style={styles.userName}>
-                                                    {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
-                                                </Text>
-                                                <Text style={styles.amountText}>₹{payment.amount}</Text>
-
-                                                {displayedUpiId ? (
-                                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                                        <Text style={{ fontSize: 10, color: '#64748B' }}>{displayedUpiId}</Text>
-                                                        <TouchableOpacity onPress={() => handleCopy(displayedUpiId)}>
-                                                            <Ionicons name="copy-outline" size={12} color="#4F46E5" />
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                ) : (
-                                                    <Text style={{ fontSize: 10, color: '#94A3B8' }}>No UPI ID Linked</Text>
-                                                )}
-                                            </View>
-                                        </View>
-
-                                        {/* STATUS & ACTIONS */}
-                                        {payment.status === 'confirmed' ? (
-                                            <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
-                                                <Text style={[styles.pillText, { color: '#166534' }]}>{isReceiver ? 'Received' : 'Paid & Confirmed'}</Text>
-                                            </View>
-                                        ) : (payment.status === 'paid' || payment.status === 'marked_paid') ? (
-                                            isReceiver ? (
-                                                <View style={{ gap: 8 }}>
-                                                    <TouchableOpacity
-                                                        style={[styles.actionButton, { backgroundColor: '#166534' }]}
-                                                        onPress={() => handleConfirm(payment.id)}
-                                                    >
-                                                        <Text style={styles.btnText}>Confirm Received @ ₹{payment.amount}</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        onPress={() => handleReject(payment.id)}
-                                                        style={{ alignSelf: 'center', padding: 8 }}
-                                                    >
-                                                        <Text style={{ color: '#991B1B', fontSize: 12, fontWeight: '600' }}>Reject & Request Retry</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            ) : (
-                                                <View style={[styles.statusPill, { backgroundColor: '#FEF3C7' }]}>
-                                                    <Text style={[styles.pillText, { color: '#B45309' }]}>Waiting Confirmation</Text>
-                                                </View>
-                                            )
-                                        ) : payment.status === 'rejected' ? (
-                                            <View style={{ gap: 8 }}>
-                                                <View style={[styles.statusPill, { backgroundColor: '#FEE2E2', borderWidth: 1, borderColor: '#EF4444' }]}>
-                                                    <Text style={[styles.pillText, { color: '#B91C1C' }]}>
-                                                        {isReceiver ? "Rejected by You" : "Payment Rejected. Retry!"}
-                                                    </Text>
-                                                </View>
-                                                {isPayer && (
-                                                    <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                                                        <TouchableOpacity
-                                                            style={styles.actionButton}
-                                                            onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
-                                                        >
-                                                            <Text style={styles.btnText}>Pay Again via UPI</Text>
-                                                        </TouchableOpacity>
-
-                                                        <TouchableOpacity
-                                                            onPress={() => handleMarkPaid(payment.id)}
-                                                        >
-                                                            <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
-                                                                Mark as Paid
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        ) : isPayer ? (
-                                            <View style={{ gap: 6, alignItems: 'flex-end' }}>
-                                                <TouchableOpacity
-                                                    style={styles.actionButton}
-                                                    onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
-                                                >
-                                                    <Text style={styles.btnText}>Pay via UPI</Text>
-                                                </TouchableOpacity>
-
-                                                {/* Show Mark Paid button if payment initiated OR just always available as fallback */}
-                                                <TouchableOpacity
-                                                    onPress={() => handleMarkPaid(payment.id)}
-                                                >
-                                                    <Text style={{ fontSize: 11, color: '#64748B', textDecorationLine: 'underline' }}>
-                                                        Mark as Paid
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        ) : (
-                                            <View style={styles.statusPill}>
-                                                <Text style={styles.pillText}>Pending</Text>
-                                            </View>
-                                        )}
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />
+                    }
+                >
+                    {/* DASHBOARD HERO */}
+                    <Animated.View entering={FadeInDown.duration(800).springify()}>
+                        <LinearGradient
+                            colors={['#4F46E5', '#7C3AED']}
+                            style={styles.heroCard}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                        >
+                            <View style={styles.heroOverlay}>
+                                <Ionicons name="receipt" size={100} color="rgba(255,255,255,0.1)" style={styles.bgIcon} />
+                                <View style={styles.heroContent}>
+                                    <View style={[styles.statusBadge, promiseData.status === 'completed' ? styles.badgeSuccess : styles.badgeError]}>
+                                        <Text style={styles.statusLabel}>
+                                            {promiseData.status.toUpperCase()}
+                                        </Text>
                                     </View>
-                                    );
-                                })
-                            )}
+                                    <Text style={styles.heroPromiseTitle}>{promiseData.title}</Text>
+                                    <Text style={styles.heroDateRange}>
+                                        {formatDate(promiseData.created_at)} — {getEndDate(promiseData.created_at, promiseData.duration_days)}
+                                    </Text>
+                                </View>
+                            </View>
+                        </LinearGradient>
+                    </Animated.View>
+
+                    {/* FINANCIAL SUMMARY CARDS */}
+                    <View style={styles.financialContainer}>
+                        <Animated.View
+                            entering={FadeInDown.delay(200).duration(800).springify()}
+                            style={[styles.smallCard, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}
+                        >
+                            <Text style={styles.smallCardLabel}>Paid Out</Text>
+                            <Text style={[styles.smallCardValue, { color: '#0369A1' }]}>₹{financials.totalPaid.toFixed(0)}</Text>
+                            <Ionicons name="arrow-down-circle" size={20} color="#0369A1" />
+                        </Animated.View>
+
+                        <Animated.View
+                            entering={FadeInDown.delay(300).duration(800).springify()}
+                            style={[styles.smallCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}
+                        >
+                            <Text style={styles.smallCardLabel}>Earned</Text>
+                            <Text style={[styles.smallCardValue, { color: '#15803D' }]}>₹{financials.totalEarned.toFixed(0)}</Text>
+                            <Ionicons name="arrow-up-circle" size={20} color="#15803D" />
+                        </Animated.View>
+                    </View>
+
+                    {/* NET RESULT SECTION */}
+                    <Animated.View
+                        entering={FadeInDown.delay(400).duration(800).springify()}
+                        style={styles.netResultCard}
+                    >
+                        <View style={styles.netInfo}>
+                            <Text style={styles.netResultLabel}>Net Result</Text>
+                            <Text style={[styles.netResultValue, { color: isGain ? '#15803D' : '#B91C1C' }]}>
+                                {isGain ? '+' : '-'} ₹{Math.abs(financials.netResult).toFixed(0)}
+                            </Text>
                         </View>
-                    )}
-                </View>
+                        <View style={[styles.netIndicator, { backgroundColor: isGain ? '#15803D' : '#B91C1C' }]}>
+                            <Text style={styles.netIndicatorText}>{isGain ? 'GAIN' : 'LOSS'}</Text>
+                        </View>
+                    </Animated.View>
 
-                {/* Promise Stats */}
-                <View style={styles.statsCard}>
-                    <View style={styles.statRow}>
-                        <Text style={styles.statLabel}>Duration</Text>
-                        <Text style={styles.statValue}>{promiseData.duration_days} days</Text>
-                    </View>
-                    <View style={styles.statRow}>
-                        <Text style={styles.statLabel}>Participants</Text>
-                        <Text style={styles.statValue}>{promiseData.number_of_people}</Text>
-                    </View>
-                    <View style={styles.statRow}>
-                        <Text style={styles.statLabel}>Stake per Person</Text>
-                        <Text style={styles.statValue}>₹{promiseData.amount_per_person}</Text>
-                    </View>
-                </View>
+                    {/* SETTLEMENT SECTION */}
+                    <Animated.View
+                        entering={FadeInDown.delay(500).duration(800).springify()}
+                        style={styles.settlementSection}
+                    >
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Vault Settlements</Text>
+                            <View style={styles.titleLine} />
+                        </View>
 
-                {/* Trust Footer */}
-                <View style={styles.trustFooter}>
-                    <Ionicons name="shield-checkmark-outline" size={14} color="#94A3B8" />
-                    <Text style={styles.trustText}>All amounts calculated from verified transactions</Text>
-                </View>
+                        {financials.netResult === 0 ? (
+                            <View style={styles.emptySettlement}>
+                                <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                                <Text style={styles.emptyText}>Balanced Sheets. No settlements needed.</Text>
+                            </View>
+                        ) : isWash ? (
+                            <View style={styles.washBox}>
+                                <Ionicons name="information-circle" size={24} color="#64748B" />
+                                <Text style={styles.washText}>
+                                    The Wash Rule: Everyone failed. Punishments were refunded.
+                                </Text>
+                            </View>
+                        ) : null}
 
-            </ScrollView>
-        </SafeAreaView>
+                        {/* Payment List */}
+                        {((settlements.length > 0) && (financials.netResult !== 0 || isWash)) && (
+                            <View style={styles.paymentList}>
+                                {settlements.filter(s => s.from_user_id === currentUserId || s.to_user_id === currentUserId).length === 0 ? (
+                                    <View style={styles.emptySettlement}>
+                                        <Text style={styles.emptyText}>No pending items for you.</Text>
+                                    </View>
+                                ) : (
+                                    settlements
+                                        .filter(s => s.from_user_id === currentUserId || s.to_user_id === currentUserId)
+                                        .map((payment, index) => {
+                                            const isPayer = payment.from_user_id === currentUserId;
+                                            const displayedUpiId = isPayer
+                                                ? participantUpiIds[payment.to_user_id]
+                                                : participantUpiIds[payment.from_user_id];
+
+                                            return (
+                                                <View key={index} style={styles.paymentCard}>
+                                                    <View style={styles.paymentMain}>
+                                                        <View style={styles.userAvatar}>
+                                                            <Text style={styles.avatarChar}>
+                                                                {(isPayer ? payment.to_name : payment.from_name)?.charAt(0)}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={styles.paymentInfo}>
+                                                            <Text style={styles.paymentUserName}>
+                                                                {isPayer ? `Pay to ${payment.to_name}` : `From ${payment.from_name}`}
+                                                            </Text>
+                                                            <Text style={styles.paymentAmount}>₹{payment.amount}</Text>
+                                                        </View>
+                                                        <View style={styles.paymentMeta}>
+                                                            {displayedUpiId ? (
+                                                                <TouchableOpacity
+                                                                    style={styles.upiBadge}
+                                                                    onPress={() => handleCopy(displayedUpiId)}
+                                                                >
+                                                                    <Text style={styles.upiText} numberOfLines={1}>{displayedUpiId}</Text>
+                                                                    <Ionicons name="copy" size={12} color="#4F46E5" />
+                                                                </TouchableOpacity>
+                                                            ) : (
+                                                                <Text style={styles.noUpi}>No UPI ID</Text>
+                                                            )}
+                                                        </View>
+                                                    </View>
+
+                                                    <View style={styles.paymentActions}>
+                                                        {payment.status === 'confirmed' ? (
+                                                            <View style={styles.successStatus}>
+                                                                <Ionicons name="checkmark-done-circle" size={20} color="#10B981" />
+                                                                <Text style={styles.successStatusText}>Cleared</Text>
+                                                            </View>
+                                                        ) : (payment.status === 'paid' || payment.status === 'marked_paid') ? (
+                                                            !isPayer ? (
+                                                                <View style={styles.receiverActions}>
+                                                                    <TouchableOpacity
+                                                                        style={styles.confirmBtn}
+                                                                        onPress={() => handleConfirm(payment.id)}
+                                                                    >
+                                                                        <Text style={styles.btnTextThin}>Verify Receipt</Text>
+                                                                    </TouchableOpacity>
+                                                                    <TouchableOpacity
+                                                                        style={styles.rejectBtn}
+                                                                        onPress={() => handleReject(payment.id)}
+                                                                    >
+                                                                        <Text style={styles.rejectText}>Reject</Text>
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                            ) : (
+                                                                <View style={styles.waitingStatus}>
+                                                                    <ActivityIndicator size="small" color="#F59E0B" />
+                                                                    <Text style={styles.waitingText}>Awaiting Confirmation</Text>
+                                                                </View>
+                                                            )
+                                                        ) : (
+                                                            isPayer && (
+                                                                <View style={styles.payerActions}>
+                                                                    <TouchableOpacity
+                                                                        style={styles.payBtn}
+                                                                        onPress={() => handlePay(displayedUpiId || "", payment.to_name || "User", payment.amount, payment.id)}
+                                                                    >
+                                                                        <Ionicons name="paper-plane" size={16} color="#FFF" />
+                                                                        <Text style={styles.payBtnText}>Pay via UPI</Text>
+                                                                    </TouchableOpacity>
+                                                                    <TouchableOpacity
+                                                                        style={styles.markPaidBtn}
+                                                                        onPress={() => handleMarkPaid(payment.id)}
+                                                                    >
+                                                                        <Text style={styles.markPaidText}>Mark as Paid</Text>
+                                                                    </TouchableOpacity>
+                                                                </View>
+                                                            )
+                                                        )}
+                                                    </View>
+                                                </View>
+                                            );
+                                        })
+                                )}
+                                <View style={styles.disclaimerBox}>
+                                    <Ionicons name="shield" size={14} color="#B45309" />
+                                    <Text style={styles.disclaimerText}>
+                                        Handled externally via UPI. Verify strictly with peers.
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+                    </Animated.View>
+
+                    {/* STATS TABLE */}
+                    <Animated.View
+                        entering={FadeInUp.delay(600).duration(800)}
+                        style={styles.statsTable}
+                    >
+                        <View style={styles.statRow}>
+                            <Text style={styles.statKey}>Cycle Length</Text>
+                            <Text style={styles.statVal}>{promiseData.duration_days} Days</Text>
+                        </View>
+                        <View style={styles.statRow}>
+                            <Text style={styles.statKey}>Participation</Text>
+                            <Text style={styles.statVal}>{promiseData.number_of_people} Peers</Text>
+                        </View>
+                        <View style={styles.statRow}>
+                            <Text style={styles.statKey}>Original Stake</Text>
+                            <Text style={styles.statVal}>₹{promiseData.amount_per_person}</Text>
+                        </View>
+                    </Animated.View>
+
+                    <View style={styles.footerSpacing} />
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#F8FAFC',
-    },
-    centerContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    scrollContent: {
-        padding: 24,
-        paddingTop: Platform.OS === 'android' ? 80 : 60,
-        paddingBottom: 40,
+        backgroundColor: '#FFFFFF',
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 24,
+        paddingHorizontal: 20,
+        paddingTop: Platform.OS === 'android' ? 40 : 10,
+        paddingBottom: 16,
+        backgroundColor: '#FFF',
     },
     backButton: {
         padding: 8,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F1F5F9',
         borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
     },
     headerTitle: {
         fontSize: 18,
-        fontWeight: '700',
-        color: '#0F172A',
+        fontWeight: '800',
+        color: '#1E293B',
+        letterSpacing: -0.5,
     },
-    errorText: {
-        fontSize: 16,
-        color: '#64748B',
-        marginBottom: 16,
+    scrollContent: {
+        paddingHorizontal: 20,
+        paddingBottom: 40,
     },
-    backButtonAlt: {
-        padding: 12,
-        backgroundColor: '#4F46E5',
-        borderRadius: 12,
+    heroCard: {
+        height: 180,
+        borderRadius: 24,
+        overflow: 'hidden',
+        marginBottom: 24,
+        elevation: 10,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.3,
+        shadowRadius: 20,
     },
-    backButtonText: {
-        color: '#FFFFFF',
-        fontWeight: '600',
+    heroOverlay: {
+        flex: 1,
+        padding: 24,
+        justifyContent: 'flex-end',
     },
-    infoCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
+    bgIcon: {
+        position: 'absolute',
+        top: -20,
+        right: -20,
     },
-    infoHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    promiseTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: '#0F172A',
-        marginBottom: 4,
-    },
-    dateRange: {
-        fontSize: 14,
-        color: '#64748B',
-        fontWeight: '500',
+    heroContent: {
+        gap: 6,
     },
     statusBadge: {
         alignSelf: 'flex-start',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-    },
-    badgeCompleted: {
-        backgroundColor: '#DCFCE7',
-    },
-    badgeFailed: {
-        backgroundColor: '#FEE2E2',
-    },
-    statusText: {
-        fontSize: 12,
-        fontWeight: '700',
-    },
-    textCompleted: {
-        color: '#166534',
-    },
-    textFailed: {
-        color: '#991B1B',
-    },
-    summaryCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 20,
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    sectionTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#334155',
-        marginBottom: 16,
-    },
-    summaryRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    summaryItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10,
-    },
-    iconCircle: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    iconRed: {
-        backgroundColor: '#FEE2E2',
-    },
-    iconGreen: {
-        backgroundColor: '#DCFCE7',
-    },
-    summaryLabel: {
-        fontSize: 12,
-        color: '#64748B',
-        fontWeight: '500',
-    },
-    summaryValue: {
-        fontSize: 18,
-        fontWeight: '700',
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#F1F5F9',
-        marginVertical: 16,
-    },
-    netResultContainer: {
-        alignItems: 'center',
-    },
-    netLabel: {
-        fontSize: 14,
-        color: '#64748B',
-        fontWeight: '600',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8,
         marginBottom: 4,
     },
-    netValue: {
-        fontSize: 32,
-        fontWeight: '800',
-        marginBottom: 8,
+    badgeSuccess: {
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
     },
-    netBadge: {
-        paddingHorizontal: 12,
-        paddingVertical: 4,
-        borderRadius: 12,
-        fontSize: 12,
-        fontWeight: '700',
-        overflow: 'hidden',
+    badgeError: {
+        backgroundColor: 'rgba(239, 68, 68, 0.2)',
     },
-    settlementCard: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 20,
-        padding: 20,
+    statusLabel: {
+        fontSize: 10,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: 1,
+    },
+    heroPromiseTitle: {
+        fontSize: 26,
+        fontWeight: '900',
+        color: '#FFF',
+        letterSpacing: -0.5,
+    },
+    heroDateRange: {
+        fontSize: 14,
+        color: 'rgba(255,255,255,0.7)',
+        fontWeight: '500',
+    },
+    financialContainer: {
+        flexDirection: 'row',
+        gap: 16,
         marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
     },
-    settlementHeader: {
+    smallCard: {
+        flex: 1,
+        height: 100,
+        borderRadius: 20,
+        borderWidth: 1,
+        padding: 16,
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 4,
+    },
+    smallCardLabel: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#64748B',
+    },
+    smallCardValue: {
+        fontSize: 22,
+        fontWeight: '800',
+    },
+    netResultCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 24,
+        padding: 24,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 16,
+        justifyContent: 'space-between',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        marginBottom: 32,
+        elevation: 4,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 10,
     },
-    settlementTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#334155',
+    netInfo: {
+        gap: 4,
     },
-    settlementContent: {
+    netResultLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748B',
+    },
+    netResultValue: {
+        fontSize: 36,
+        fontWeight: '900',
+        letterSpacing: -1,
+    },
+    netIndicator: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 12,
+    },
+    netIndicatorText: {
+        fontSize: 12,
+        fontWeight: '900',
+        color: '#FFF',
+    },
+    settlementSection: {
+        marginBottom: 32,
+    },
+    sectionHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 12,
+        marginBottom: 20,
     },
-    settlementBadge: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    settlementText: {
-        fontSize: 15,
-        color: '#334155',
-        fontWeight: '500',
-        lineHeight: 22,
-    },
-    settlementAmount: {
+    sectionTitle: {
         fontSize: 18,
         fontWeight: '800',
+        color: '#1E293B',
     },
-    disclaimerBox: {
-        backgroundColor: '#FFFBEB',
-        padding: 12,
-        borderRadius: 12,
-        marginBottom: 16,
+    titleLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: '#E2E8F0',
     },
-    disclaimerText: {
-        fontSize: 12,
-        color: '#B45309',
-        fontStyle: 'italic',
+    emptySettlement: {
+        alignItems: 'center',
+        padding: 40,
+        gap: 12,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#94A3B8',
+        fontWeight: '500',
         textAlign: 'center',
     },
-    subHeader: {
+    washBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F1F5F9',
+        padding: 16,
+        borderRadius: 16,
+        gap: 12,
+    },
+    washText: {
+        fontSize: 14,
+        color: '#475569',
+        fontWeight: '600',
+        flex: 1,
+    },
+    paymentList: {
+        gap: 12,
+    },
+    paymentCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+        overflow: 'hidden',
+    },
+    paymentMain: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 16,
+        gap: 12,
+    },
+    userAvatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#EEF2FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#C7D2FE',
+    },
+    avatarChar: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#4F46E5',
+    },
+    paymentInfo: {
+        flex: 1,
+        gap: 2,
+    },
+    paymentUserName: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748B',
+    },
+    paymentAmount: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1E293B',
+    },
+    paymentMeta: {
+        alignItems: 'flex-end',
+    },
+    upiBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F8FAFC',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+        gap: 4,
+        maxWidth: 100,
+    },
+    upiText: {
+        fontSize: 10,
+        color: '#4F46E5',
+        fontWeight: '600',
+    },
+    noUpi: {
+        fontSize: 10,
+        color: '#94A3B8',
+        fontStyle: 'italic',
+    },
+    paymentActions: {
+        backgroundColor: '#F8FAFC',
+        padding: 12,
+        borderTopWidth: 1,
+        borderTopColor: '#E2E8F0',
+    },
+    successStatus: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+    },
+    successStatusText: {
         fontSize: 14,
         fontWeight: '700',
-        color: '#64748B',
-        marginBottom: 12,
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        color: '#10B981',
     },
-    paymentRow: {
+    receiverActions: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#F8FAFC',
-        padding: 12,
-        borderRadius: 12,
-        marginBottom: 10,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
     },
-    userRow: {
+    confirmBtn: {
+        backgroundColor: '#10B981',
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 12,
+    },
+    btnTextThin: {
+        color: '#FFF',
+        fontSize: 13,
+        fontWeight: '700',
+    },
+    rejectBtn: {
+        padding: 8,
+    },
+    rejectText: {
+        color: '#EF4444',
+        fontSize: 13,
+        fontWeight: '600',
+    },
+    waitingStatus: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 10,
-    },
-    avatarPlaceholder: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#E0E7FF',
         justifyContent: 'center',
-        alignItems: 'center',
+        gap: 8,
     },
-    avatarText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#4F46E5',
-    },
-    userName: {
-        fontSize: 14,
-        fontWeight: '700',
-        color: '#0F172A',
-    },
-    amountText: {
+    waitingText: {
         fontSize: 13,
-        color: '#64748B',
         fontWeight: '600',
+        color: '#F59E0B',
     },
-    actionButton: {
+    payerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    payBtn: {
         backgroundColor: '#4F46E5',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 14,
     },
-    btnText: {
+    payBtnText: {
         color: '#FFF',
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 14,
+        fontWeight: '800',
     },
-    statusPill: {
-        backgroundColor: '#F1F5F9',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
+    markPaidBtn: {
+        padding: 10,
     },
-    pillText: {
-        fontSize: 12,
+    markPaidText: {
         color: '#64748B',
+        fontSize: 13,
         fontWeight: '600',
+        textDecorationLine: 'underline',
     },
-    statsCard: {
-        backgroundColor: '#FFFFFF',
+    disclaimerBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFBEB',
+        padding: 12,
+        borderRadius: 12,
+        gap: 8,
+        marginTop: 12,
+    },
+    disclaimerText: {
+        fontSize: 11,
+        color: '#B45309',
+        fontWeight: '500',
+        flex: 1,
+    },
+    statsTable: {
+        backgroundColor: '#F8FAFC',
         borderRadius: 20,
         padding: 20,
-        marginBottom: 16,
+        gap: 16,
         borderWidth: 1,
         borderColor: '#E2E8F0',
     },
     statRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F1F5F9',
+        alignItems: 'center',
     },
-    statLabel: {
+    statKey: {
         fontSize: 14,
-        color: '#64748B',
-        fontWeight: '500',
-    },
-    statValue: {
-        fontSize: 14,
-        color: '#0F172A',
         fontWeight: '600',
+        color: '#64748B',
     },
-    trustFooter: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 6,
-        marginTop: 8,
-    },
-    trustText: {
-        fontSize: 12,
-        color: '#94A3B8',
-        fontWeight: '500',
-    },
-    payButton: {
-        backgroundColor: '#EF4444', // Red for payment action
-        marginTop: 8,
-        paddingVertical: 10,
-        paddingHorizontal: 16,
-        borderRadius: 10,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        alignSelf: 'flex-start', // Don't stretch
-    },
-    payButtonText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
+    statVal: {
         fontSize: 14,
+        fontWeight: '800',
+        color: '#1E293B',
     },
+    footerSpacing: {
+        height: 40,
+    },
+    centerContent: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFF',
+    },
+    errorText: {
+        fontSize: 16,
+        color: '#64748B',
+        marginBottom: 20,
+    },
+    backButtonAlt: {
+        backgroundColor: '#4F46E5',
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        borderRadius: 16,
+    },
+    backButtonText: {
+        color: '#FFF',
+        fontWeight: '700',
+    }
 });

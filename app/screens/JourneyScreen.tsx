@@ -1,7 +1,8 @@
-
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -12,16 +13,18 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
+    useColorScheme
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
+import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
 
 interface Checkin {
     promise_id: string;
-    status: string; // 'done', 'failed', 'pending'
+    status: string;
     date: string;
 }
 
@@ -31,7 +34,7 @@ interface JourneyItem {
     created_at: string;
     duration_days: number;
     status: string;
-    days_data: string[]; // ['done', 'failed', 'pending', ...]
+    days_data: string[];
     winnings: number;
     penalties: number;
     net: number;
@@ -41,6 +44,8 @@ interface JourneyItem {
 
 export default function JourneyScreen() {
     const router = useRouter();
+    const colorScheme = useColorScheme() ?? 'light';
+    const theme = Colors[colorScheme];
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [history, setHistory] = useState<JourneyItem[]>([]);
@@ -62,7 +67,6 @@ export default function JourneyScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Fetch User's Promises
             const { data: participations } = await supabase
                 .from('promise_participants')
                 .select('promise_id')
@@ -75,7 +79,6 @@ export default function JourneyScreen() {
 
             const promiseIds = participations.map((p: { promise_id: string }) => p.promise_id);
 
-            // 2. Fetch Promise Metadata
             const { data: promises } = await supabase
                 .from('promises')
                 .select('*')
@@ -87,70 +90,33 @@ export default function JourneyScreen() {
                 return;
             }
 
-            // 3. Fetch Checkins for ALL these promises
             const { data: checkins } = await supabase
                 .from('daily_checkins')
                 .select('promise_id, status, date')
                 .in('promise_id', promiseIds)
                 .eq('user_id', user.id);
 
-            // 4. Fetch Ledger for Financials
             const { data: ledger } = await supabase
                 .from('ledger')
                 .select('amount, type, promise_id')
                 .eq('user_id', user.id)
                 .in('promise_id', promiseIds);
 
-
-            // Process Data
             const processed: JourneyItem[] = promises.map((p: any) => {
-                // Days Data (The "Story Graph")
                 const pCheckins = checkins?.filter((c: Checkin) => c.promise_id === p.id) || [];
-
-                // Construct day-by-day array based on duration
                 const daysData: string[] = [];
-                let doneCount = 0;
-                let failedCount = 0;
 
-                // Sort checkins by date
                 pCheckins.sort((a: Checkin, b: Checkin) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-                // We can't perfectly reconstruct the exact sequence if dates are missing, 
-                // but we can map existing checkins and fill the rest.
-                // Or better: just map the checkins we have.
-                // Assuming 1 checkin per day represented.
-
-                // Strategy: Create an array of size 'duration_days'.
-                // Fill it with the status of checkins found.
-                // This assumes checkins correspond to days 1..N roughly.
-
-                // Actually, the user wants "Done days" and "Failed days".
-                // Let's just create a visual representation of the *results*.
-                // If there are 5 done and 2 failed, show 5 green blocks and 2 red blocks?
-                // Or try to map them to the actual timeline?
-                // Let's go with mapping the checkins we found.
 
                 pCheckins.forEach((c: Checkin) => {
                     if (c.status === 'done') daysData.push('done');
                     else if (c.status === 'failed') daysData.push('failed');
                 });
 
-                // Fill the rest with 'pending' or 'skipped' if the promise is completed/failed 
-                // but checkins are missing (implied failure/skip or just not recorded?).
-                // If the promise is OVER, missing checkins usually mean failure in some logic, 
-                // but let's stick to what we have recorded to be safe.
-                // If the array is shorter than duration_days, maybe pad it?
-                // Visual consistency: Let's show up to duration_days blocks.
-
                 while (daysData.length < p.duration_days) {
-                    // For completed/failed promises, missing days might imply 'failed' or just 'no_status'
-                    // Let's mark them as 'neutral' or check promise status. 
-                    // If promise is 'failed', maybe the rest are red?
-                    // Let's just leave them empty/gray for visual clarity of what *actually* happened.
                     daysData.push('empty');
                 }
 
-                // Financials
                 let winnings = 0;
                 let penalties = 0;
                 const pLedger = ledger?.filter((l: { promise_id: string; amount: number; type: string }) => l.promise_id === p.id) || [];
@@ -158,19 +124,16 @@ export default function JourneyScreen() {
                     const amt = Number(l.amount);
                     if (l.type === 'winnings') winnings += amt;
                     if (l.type === 'penalty') penalties += Math.abs(amt);
-                    if (l.type === 'refund') penalties -= Math.abs(amt); // Refund reduces penalty
+                    if (l.type === 'refund') penalties -= Math.abs(amt);
                 });
 
-                // Count failed days
                 const failedDaysCount = daysData.filter(d => d === 'failed').length;
                 const stakePerDay = (p.amount_per_person || 0) / (p.duration_days || 1);
 
-                // If no ledger penalty recorded but user has failed days, calculate expected penalty
                 if (penalties === 0 && failedDaysCount > 0) {
                     penalties = failedDaysCount * stakePerDay;
                 }
 
-                // Round all financial values to 2 decimal places
                 winnings = Math.round(winnings * 100) / 100;
                 penalties = Math.round(penalties * 100) / 100;
                 const net = Math.round((winnings - penalties) * 100) / 100;
@@ -199,122 +162,120 @@ export default function JourneyScreen() {
         }
     };
 
+    const globalStats = useMemo(() => {
+        let totalNet = 0;
+        let totalDone = 0;
+        let totalFailed = 0;
+        history.forEach(item => {
+            totalNet += item.net;
+            totalDone += item.days_data.filter(d => d === 'done').length;
+            totalFailed += item.days_data.filter(d => d === 'failed').length;
+        });
+        const totalAttempts = totalDone + totalFailed;
+        const successRate = totalAttempts > 0 ? Math.round((totalDone / totalAttempts) * 100) : 0;
+
+        return { totalNet, successRate, totalPromises: history.length };
+    }, [history]);
+
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    };
+
+    const handleBack = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.back();
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#0F172A" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Your Journey</Text>
-                <View style={{ width: 40 }} />
-            </View>
+        <View style={styles.container}>
+            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
 
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-                {loading ? (
-                    <ActivityIndicator size="large" color="#4F46E5" style={{ marginTop: 50 }} />
-                ) : (
-                    <View style={styles.timeline}>
-                        {history.map((item, index) => (
-                            <Animated.View
-                                key={item.id}
-                                entering={FadeInDown.delay(index * 100).springify()}
-                                style={styles.timelineItem}
+            <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Executive Journey</Text>
+                    <View style={{ width: 44 }} />
+                </View>
+
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+                >
+                    {!loading && history.length > 0 && (
+                        <Animated.View entering={FadeInDown.duration(800)} style={styles.impactCardWrapper}>
+                            <LinearGradient
+                                colors={['#4F46E5', '#7C3AED']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={styles.impactCard}
                             >
-                                {/* Date Line */}
-                                <View style={styles.dateColumn}>
-                                    <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
-                                    <View style={[
-                                        styles.lineNode,
-                                        { backgroundColor: item.net >= 0 ? '#10B981' : '#EF4444' }
-                                    ]} />
-                                    {index !== history.length - 1 && <View style={styles.lineConnector} />}
+                                <Ionicons name="infinite" size={120} color="rgba(255,255,255,0.1)" style={styles.impactBgIcon} />
+                                <Text style={styles.impactLabel}>LIFETIME PERFORMANCE</Text>
+                                <View style={styles.impactGrid}>
+                                    <View style={styles.impactItem}>
+                                        <Text style={styles.impactVal}>{globalStats.totalPromises}</Text>
+                                        <Text style={styles.impactSub}>Promises</Text>
+                                    </View>
+                                    <View style={styles.impactDivider} />
+                                    <View style={styles.impactItem}>
+                                        <Text style={styles.impactVal}>₹{Math.abs(globalStats.totalNet).toFixed(0)}</Text>
+                                        <Text style={styles.impactSub}>{globalStats.totalNet >= 0 ? 'Surplus' : 'Deficit'}</Text>
+                                    </View>
+                                    <View style={styles.impactDivider} />
+                                    <View style={styles.impactItem}>
+                                        <Text style={styles.impactVal}>{globalStats.successRate}%</Text>
+                                        <Text style={styles.impactSub}>Integrity</Text>
+                                    </View>
                                 </View>
+                            </LinearGradient>
+                        </Animated.View>
+                    )}
 
-                                {/* Card */}
-                                <View style={styles.cardContainer}>
-                                    {(() => {
-                                        // LOGIC: Check if Fully Completed
-                                        // Note: days_data contains 'done', 'failed', 'empty' etc.
-                                        // We assume 'done' + 'failed' + maybe specific 'skipped' = duration? 
-                                        // Simpler check: if Status is 'completed' OR 'failed' (meaning time is up) 
-                                        // AND we want to check strict duration matching if needed.
-                                        // User said: "When completedDays == totalDays".
+                    {loading ? (
+                        <View style={styles.loaderContainer}>
+                            <ActivityIndicator size="large" color="#4F46E5" />
+                        </View>
+                    ) : (
+                        <View style={styles.timeline}>
+                            {history.map((item, index) => {
+                                const totalRecordedDays = item.days_data.filter(d => d === 'done' || d === 'failed').length;
+                                const isFullyCompleted = totalRecordedDays >= item.duration_days || item.status === 'completed' || item.status === 'failed';
 
-                                        // Let's count actual recorded days (done + failed)
-                                        const totalRecordedDays = item.days_data.filter(d => d === 'done' || d === 'failed').length;
+                                return (
+                                    <View key={item.id} style={styles.timelineItem}>
+                                        <View style={styles.dateColumn}>
+                                            <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+                                            <View style={styles.lineTrack}>
+                                                <LinearGradient
+                                                    colors={item.net >= 0 ? ['#10B981', '#34D399'] : ['#EF4444', '#F87171']}
+                                                    style={styles.lineNode}
+                                                />
+                                                {index !== history.length - 1 && <View style={styles.lineConnector} />}
+                                            </View>
+                                        </View>
 
-                                        // Robust Check: 
-                                        // 1. Check if days match duration (Calculated completion)
-                                        // 2. OR Check if global status is 'completed' or 'failed' (Backend/Logic completion)
-                                        const isFullyCompleted = totalRecordedDays >= item.duration_days || item.status === 'completed' || item.status === 'failed';
-
-                                        // Financial State
-                                        const isLoss = item.net < 0;
-                                        const isGain = item.net > 0;
-                                        // Mock Payment Status
-                                        const paymentStatus = 'Pending'; // Default to Pending for now
-                                        const isSettled = false; // Mock
-
-                                        // Determine Visual Style
-                                        // explicitly type as any to avoid strict "missing properties" errors with array styles
-                                        let cardStyle: any = styles.card;
-                                        let badgeStyle = styles.bgBlue;
-                                        let textStyle = styles.textBlue;
-                                        let badgeText = 'Active';
-
-                                        if (isFullyCompleted) {
-                                            if (isLoss && !isSettled) {
-                                                // Loss + Pending
-                                                cardStyle = [styles.card, styles.cardLoss]; // Yellow/Orange Border
-                                                badgeStyle = styles.bgOrange;
-                                                textStyle = styles.textOrange;
-                                                badgeText = 'Completed';
-                                            } else if (isGain) {
-                                                // Gain
-                                                cardStyle = [styles.card, styles.cardGain]; // Blue/Neutral Border
-                                                badgeStyle = styles.bgGreen;
-                                                textStyle = styles.textGreen;
-                                                badgeText = 'Completed';
-                                            } else if (isSettled) {
-                                                // Paid / Settled
-                                                cardStyle = [styles.card, styles.cardSettled]; // Green BG
-                                                badgeStyle = styles.bgGreen;
-                                                textStyle = styles.textGreen;
-                                                badgeText = 'Settled';
-                                            } else {
-                                                // Default Completed (e.g. Net 0)
-                                                badgeStyle = styles.bgGreen;
-                                                textStyle = styles.textGreen;
-                                                badgeText = 'Completed';
-                                            }
-                                        } else {
-                                            // Active / Incomplete
-                                            if (item.status === 'failed') {
-                                                badgeStyle = styles.bgRed;
-                                                textStyle = styles.textRed;
-                                                badgeText = 'Failed';
-                                            }
-                                        }
-
-                                        return (
-                                            <View style={cardStyle}>
+                                        <Animated.View
+                                            entering={FadeInRight.delay(index * 150).springify()}
+                                            style={styles.cardContainer}
+                                        >
+                                            <View style={styles.card}>
                                                 <View style={styles.cardHeader}>
-                                                    <Text style={styles.cardTitle}>{item.title}</Text>
-                                                    <View style={[styles.statusBadge, badgeStyle]}>
-                                                        <Text style={[styles.statusText, textStyle]}>{badgeText}</Text>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={styles.cardTitle}>{item.title}</Text>
+                                                        <Text style={styles.cardSubTitle}>Waypoint {history.length - index}</Text>
+                                                    </View>
+                                                    <View style={[styles.statusBadge, isFullyCompleted ? styles.bgSuccess : styles.bgActive]}>
+                                                        <Text style={[styles.statusText, isFullyCompleted ? styles.textSuccess : styles.textActive]}>
+                                                            {isFullyCompleted ? 'ARCHIVED' : 'ACTIVE'}
+                                                        </Text>
                                                     </View>
                                                 </View>
 
-                                                {/* The Story Graph */}
-                                                <Text style={styles.sectionLabel}>Daily Progress</Text>
+                                                <Text style={styles.sectionLabel}>Carbon Grid Progress</Text>
                                                 <View style={styles.storyGraph}>
                                                     {item.days_data.map((dayStatus, i) => (
                                                         <View
@@ -328,328 +289,119 @@ export default function JourneyScreen() {
                                                     ))}
                                                 </View>
 
-                                                {/* Stats */}
-                                                <View style={styles.statsRow}>
-                                                    <View style={styles.stat}>
-                                                        <Text allowFontScaling={false} style={styles.statLabel}>Days</Text>
-                                                        <View style={{ flexDirection: 'row', gap: 4 }}>
-                                                            <Text allowFontScaling={false} style={[styles.statValue, { color: '#10B981' }]}>
-                                                                {item.days_data.filter(d => d === 'done').length}
-                                                            </Text>
-                                                            <Text allowFontScaling={false} style={{ color: '#94A3B8' }}>|</Text>
-                                                            <Text allowFontScaling={false} style={[styles.statValue, { color: '#EF4444' }]}>
-                                                                {item.days_data.filter(d => d === 'failed').length}
-                                                            </Text>
-                                                        </View>
+                                                <View style={styles.statsGrid}>
+                                                    <View style={styles.statBox}>
+                                                        <Text style={styles.statLabel}>STREAK</Text>
+                                                        <Text style={[styles.statValue, { color: '#10B981' }]}>
+                                                            {item.days_data.filter(d => d === 'done').length}d
+                                                        </Text>
                                                     </View>
-
-                                                    <View style={styles.stat}>
-                                                        <Text allowFontScaling={false} style={styles.statLabel}>Outcome</Text>
-                                                        <View style={{ flexDirection: 'row', gap: 4, flexWrap: 'wrap' }}>
-                                                            {item.winnings > 0 &&
-                                                                <Text allowFontScaling={false} style={[styles.statValue, { color: '#10B981' }]}>
-                                                                    +₹{item.winnings.toFixed(2)}
-                                                                </Text>
-                                                            }
-                                                            {item.penalties > 0 &&
-                                                                <Text allowFontScaling={false} style={[styles.statValue, { color: '#EF4444' }]}>
-                                                                    -₹{item.penalties.toFixed(2)}
-                                                                </Text>
-                                                            }
-                                                            {item.winnings === 0 && item.penalties === 0 &&
-                                                                <Text allowFontScaling={false} style={[styles.statValue, { color: '#94A3B8' }]}>-</Text>
-                                                            }
-                                                        </View>
+                                                    <View style={styles.statBox}>
+                                                        <Text style={styles.statLabel}>OUTCOME</Text>
+                                                        <Text style={[styles.statValue, { color: item.net >= 0 ? '#10B981' : '#EF4444' }]}>
+                                                            {item.net >= 0 ? '+' : '-'}₹{Math.abs(item.net).toFixed(0)}
+                                                        </Text>
+                                                    </View>
+                                                    <View style={styles.statBox}>
+                                                        <Text style={styles.statLabel}>EFFICIENCY</Text>
+                                                        <Text style={[styles.statValue, { color: '#6366F1' }]}>
+                                                            {Math.round((item.days_data.filter(d => d === 'done').length / item.duration_days) * 100)}%
+                                                        </Text>
                                                     </View>
                                                 </View>
 
-                                                {/* PAYMENT / REPORT SECTION */}
                                                 {isFullyCompleted && (
-                                                    <View style={styles.paymentSection}>
-                                                        {/* Status Summary Text */}
-                                                        {isLoss && !isSettled && (
-                                                            <Text style={[styles.paymentStatusGain, { color: '#B45309' }]}>
-                                                                Outcome: <Text style={{ fontWeight: '700' }}>Pending Payment</Text>
-                                                            </Text>
-                                                        )}
-                                                        {isGain && (
-                                                            <Text style={styles.paymentStatusGain}>
-                                                                Outcome: <Text style={{ fontWeight: '700' }}>Awaiting Peer Payment</Text>
-                                                            </Text>
-                                                        )}
-                                                        {isSettled && (
-                                                            <View style={styles.settledContainer}>
-                                                                <Text style={styles.settledText}>Payment Settled ✔</Text>
-                                                            </View>
-                                                        )}
-
-                                                        {/* Single Action Button: View Report */}
-                                                        <TouchableOpacity
-                                                            style={styles.payNowButton}
-                                                            onPress={() => router.push({
+                                                    <TouchableOpacity
+                                                        activeOpacity={0.7}
+                                                        style={styles.viewReportBtn}
+                                                        onPress={() => {
+                                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                            router.push({
                                                                 pathname: '/screens/PromiseReportScreen',
                                                                 params: { promiseId: item.id }
-                                                            })}
-                                                        >
-                                                            <Text style={styles.payNowText}>View Final Report</Text>
-                                                            <Ionicons name="arrow-forward" size={16} color="#FFF" style={{ marginLeft: 8 }} />
-                                                        </TouchableOpacity>
-                                                    </View>
+                                                            });
+                                                        }}
+                                                    >
+                                                        <Text style={styles.viewReportText}>Analyze Final Report</Text>
+                                                        <Ionicons name="analytics" size={16} color="#4F46E5" />
+                                                    </TouchableOpacity>
                                                 )}
-
                                             </View>
-                                        );
-                                    })()}
+                                        </Animated.View>
+                                    </View>
+                                );
+                            })}
+                            {history.length === 0 && (
+                                <View style={styles.emptyState}>
+                                    <View style={styles.emptyIconCircle}>
+                                        <Ionicons name="trail-sign-outline" size={40} color="#94A3B8" />
+                                    </View>
+                                    <Text style={styles.emptyText}>Your legacy begins with your first promise.</Text>
+                                    <TouchableOpacity
+                                        style={styles.createFirstBtn}
+                                        onPress={() => router.push('/(tabs)/create')}
+                                    >
+                                        <Text style={styles.createFirstText}>Forge New Promise</Text>
+                                    </TouchableOpacity>
                                 </View>
-                            </Animated.View>
-                        ))}
-                        {history.length === 0 && (
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyText}>No journey history yet.</Text>
-                            </View>
-                        )}
-                    </View>
-                )}
-            </ScrollView>
-        </SafeAreaView>
+                            )}
+                        </View>
+                    )}
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: width * 0.05,
-        paddingTop: Platform.OS === 'android' ? 40 : 20,
-        paddingBottom: 16,
-    },
-    backButton: {
-        padding: 8,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#0F172A',
-    },
-    scrollContent: {
-        padding: width * 0.04,
-    },
-    timeline: {
-        paddingLeft: 8,
-    },
-    timelineItem: {
-        flexDirection: 'row',
-        marginBottom: 32,
-    },
-    dateColumn: {
-        width: width * 0.18,
-        minWidth: 60,
-        maxWidth: 85,
-        alignItems: 'flex-end',
-        paddingRight: 12,
-        position: 'relative',
-    },
-    dateText: {
-        fontSize: 10,
-        fontWeight: '600',
-        color: '#64748B',
-        marginBottom: 4,
-        textAlign: 'right',
-    },
-    lineNode: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#CBD5E1',
-        position: 'absolute',
-        right: -6,
-        top: 6,
-        zIndex: 10,
-        borderWidth: 2,
-        borderColor: '#F8FAFC',
-    },
-    lineConnector: {
-        position: 'absolute',
-        right: -1,
-        top: 20,
-        bottom: -50, // Extend to next item
-        width: 2,
-        backgroundColor: '#E2E8F0',
-    },
-    cardContainer: {
-        flex: 1,
-        paddingLeft: 16,
-    },
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 16,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: 12,
-    },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#0F172A',
-        flex: 1,
-        marginRight: 8,
-    },
-    statusBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-    },
-    bgGreen: { backgroundColor: '#DCFCE7' },
-    bgRed: { backgroundColor: '#FEF2F2' },
-    bgBlue: { backgroundColor: '#EFF6FF' },
-    textGreen: { color: '#166534', fontSize: 10, fontWeight: '700' },
-    textRed: { color: '#991B1B', fontSize: 10, fontWeight: '700' },
-    textBlue: { color: '#1E40AF', fontSize: 10, fontWeight: '700' },
-    statusText: { fontSize: 10, fontWeight: '700' },
-
-    sectionLabel: {
-        fontSize: 11,
-        color: '#94A3B8',
-        fontWeight: '600',
-        marginTop: 4,
-        marginBottom: 6,
-        textTransform: 'uppercase',
-    },
-    storyGraph: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 4,
-        marginBottom: 16,
-    },
-    storyBlock: {
-        width: 14,
-        height: 14,
-        borderRadius: 3,
-    },
-    blockGreen: { backgroundColor: '#22C55E' },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 16 },
+    backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', letterSpacing: -0.5 },
+    scrollContent: { padding: 20 },
+    impactCardWrapper: { marginBottom: 32, borderRadius: 28, overflow: 'hidden', elevation: 12, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20 },
+    impactCard: { padding: 24 },
+    impactBgIcon: { position: 'absolute', bottom: -20, right: -20 },
+    impactLabel: { fontSize: 10, fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: 2, marginBottom: 20, textAlign: 'center' },
+    impactGrid: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    impactItem: { flex: 1, alignItems: 'center' },
+    impactVal: { fontSize: 24, fontWeight: '900', color: '#FFF', marginBottom: 4 },
+    impactSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '700' },
+    impactDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
+    loaderContainer: { marginTop: 100, alignItems: 'center' },
+    timeline: { flex: 1 },
+    timelineItem: { flexDirection: 'row', marginBottom: 24 },
+    dateColumn: { width: 65, alignItems: 'flex-start' },
+    dateText: { fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8 },
+    lineTrack: { flex: 1, alignItems: 'center', width: 20 },
+    lineNode: { width: 12, height: 12, borderRadius: 6, zIndex: 2, borderWidth: 2, borderColor: '#FFFFFF' },
+    lineConnector: { position: 'absolute', top: 10, width: 2, bottom: -30, backgroundColor: '#F1F5F9', zIndex: 1 },
+    cardContainer: { flex: 1 },
+    card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
+    cardTitle: { fontSize: 17, fontWeight: '800', color: '#1E293B', letterSpacing: -0.5 },
+    cardSubTitle: { fontSize: 12, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
+    statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+    bgSuccess: { backgroundColor: '#F0FDF4' },
+    bgActive: { backgroundColor: '#EEF2FF' },
+    textSuccess: { color: '#10B981', fontSize: 10, fontWeight: '900' },
+    textActive: { color: '#4F46E5', fontSize: 10, fontWeight: '900' },
+    statusText: { letterSpacing: 1 },
+    sectionLabel: { fontSize: 10, fontWeight: '800', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+    storyGraph: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 24 },
+    storyBlock: { width: 18, height: 18, borderRadius: 5 },
+    blockGreen: { backgroundColor: '#10B981' },
     blockRed: { backgroundColor: '#EF4444' },
     blockGray: { backgroundColor: '#F1F5F9' },
-
-    statsRow: {
-        flexDirection: 'row',
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
-        paddingTop: 12,
-    },
-    stat: {
-        marginRight: 16,
-        flex: 1,
-    },
-    statLabel: {
-        fontSize: 10,
-        color: '#94A3B8',
-        fontWeight: '600',
-        marginBottom: 2,
-    },
-    statValue: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#334155',
-    },
-    emptyState: {
-        padding: 40,
-        alignItems: 'center',
-    },
-    emptyText: {
-        color: '#94A3B8',
-        fontSize: 14,
-    },
-    // NEW CARD STYLES
-    cardLoss: {
-        borderColor: '#FDBA74', // Soft Orange
-        borderWidth: 1.5,
-    },
-    cardGain: {
-        borderColor: '#94A3B8', // Neutral/Blueish
-    },
-    cardSettled: {
-        backgroundColor: '#F0FDF4', // Soft Green BG
-        borderColor: '#BBF7D0',
-    },
-    bgOrange: { backgroundColor: '#FFEDD5' },
-    textOrange: { color: '#C2410C', fontSize: 10, fontWeight: '700' },
-
-    paymentSection: {
-        marginTop: 16,
-        paddingTop: 16,
-        borderTopWidth: 1,
-        borderTopColor: '#F1F5F9',
-    },
-    paymentRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-    paymentLabel: {
-        color: '#64748B',
-        fontSize: 14,
-    },
-    paymentValuePending: {
-        color: '#F59E0B', // Amber
-        fontWeight: '700',
-    },
-    paymentValueAmount: {
-        color: '#0F172A',
-        fontWeight: '800',
-        fontSize: 16,
-    },
-    payNowButton: {
-        backgroundColor: '#0F172A',
-        borderRadius: 12,
-        paddingVertical: 12,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center', // Center content
-        marginTop: 12,
-    },
-    payNowText: {
-        color: '#FFFFFF',
-        fontWeight: '700',
-        fontSize: 14,
-    },
-    paymentValueGain: {
-        color: '#166534',
-        fontWeight: '800',
-        fontSize: 16,
-    },
-    paymentStatusGain: {
-        color: '#64748B',
-        fontSize: 12,
-        fontStyle: 'italic',
-        marginTop: 4,
-    },
-    settledContainer: {
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    settledText: {
-        color: '#166534',
-        fontWeight: '700',
-        fontSize: 14,
-    }
+    statsGrid: { flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 16, marginBottom: 20 },
+    statBox: { flex: 1, alignItems: 'center' },
+    statLabel: { fontSize: 9, fontWeight: '800', color: '#94A3B8', marginBottom: 4 },
+    statValue: { fontSize: 16, fontWeight: '900' },
+    viewReportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 18, backgroundColor: '#EEF2FF', gap: 10 },
+    viewReportText: { fontSize: 14, fontWeight: '800', color: '#4F46E5' },
+    emptyState: { paddingTop: 80, alignItems: 'center', paddingHorizontal: 40 },
+    emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: '#F1F5F9' },
+    emptyText: { fontSize: 15, color: '#64748B', fontWeight: '600', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
+    createFirstBtn: { backgroundColor: '#1E293B', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 20, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
+    createFirstText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' }
 });

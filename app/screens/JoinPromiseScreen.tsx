@@ -2,10 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Keyboard,
     KeyboardAvoidingView,
     Modal,
@@ -16,12 +15,15 @@ import {
     TextInput,
     TouchableOpacity,
     TouchableWithoutFeedback,
-    View,
+    View
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
+import { useAlert } from '../../context/AlertContext';
+
 export default function JoinPromiseScreen() {
     const router = useRouter();
+    const { showAlert } = useAlert();
     const [code, setCode] = useState('');
     const [loading, setLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
@@ -29,7 +31,11 @@ export default function JoinPromiseScreen() {
 
     const handleJoin = async () => {
         if (!code || code.length < 6) {
-            Alert.alert('Invalid Code', 'Please enter a valid 6-character invite code.', [{ text: 'OK' }]);
+            showAlert({
+                title: 'Invalid Code',
+                message: 'Please enter a valid 6-character invite code.',
+                type: 'warning'
+            });
             return;
         }
 
@@ -45,16 +51,21 @@ export default function JoinPromiseScreen() {
                 .single();
 
             if (fetchError || !promise) {
-                Alert.alert('Not Found', 'No promise found with this code. Please check and try again.');
+                showAlert({
+                    title: 'Not Found',
+                    message: 'No promise found with this code. Please check and try again.',
+                    type: 'error'
+                });
                 setLoading(false);
                 return;
             }
 
             // 2. Alert Confirmation (The "Review" Step)
-            Alert.alert(
-                'Join Promise?',
-                `Do you want to join "${promise.title}" with other participants?`,
-                [
+            showAlert({
+                title: 'Join Promise?',
+                message: `Do you want to join "${promise.title}" with other participants?`,
+                type: 'info',
+                buttons: [
                     {
                         text: 'Cancel',
                         style: 'cancel',
@@ -80,17 +91,31 @@ export default function JoinPromiseScreen() {
 
                                 if (joinError) {
                                     if (joinError.code === '23505') { // Unique violation
-                                        Alert.alert('Already Joined', 'You are already a participant in this promise.');
+                                        showAlert({
+                                            title: 'Already Joined',
+                                            message: 'You are already a participant in this promise.',
+                                            type: 'info'
+                                        });
                                     } else {
-                                        Alert.alert('Error', 'Failed to join promise.');
+                                        showAlert({
+                                            title: 'Error',
+                                            message: 'Failed to join promise.',
+                                            type: 'error'
+                                        });
                                         console.error(joinError);
                                     }
                                 } else {
-                                    Alert.alert(
-                                        'Success!',
-                                        `You have successfully joined "${promise.title}".`,
-                                        [{ text: 'Let\'s Go', onPress: () => router.navigate('/screens/HomeScreen') }]
-                                    );
+                                    showAlert({
+                                        title: 'Success!',
+                                        message: `You have successfully joined "${promise.title}".`,
+                                        type: 'success',
+                                        buttons: [
+                                            {
+                                                text: 'Let\'s Go',
+                                                onPress: () => router.navigate('/screens/HomeScreen')
+                                            }
+                                        ]
+                                    });
                                 }
                             } catch (e) {
                                 console.error(e);
@@ -100,11 +125,15 @@ export default function JoinPromiseScreen() {
                         }
                     }
                 ]
-            );
+            });
 
         } catch (e) {
             console.error(e);
-            Alert.alert('Error', 'An unexpected error occurred.');
+            showAlert({
+                title: 'Error',
+                message: 'An unexpected error occurred.',
+                type: 'error'
+            });
             setLoading(false);
         }
     };
@@ -119,7 +148,11 @@ export default function JoinPromiseScreen() {
                 if (res.granted) {
                     setIsScanning(true);
                 } else {
-                    Alert.alert('Camera Permission', 'We need camera permission to scan QR codes.');
+                    showAlert({
+                        title: 'Camera Permission',
+                        message: 'We need camera permission to scan QR codes.',
+                        type: 'warning'
+                    });
                 }
             });
         } else {
@@ -153,11 +186,20 @@ export default function JoinPromiseScreen() {
             // Let's just setCode and show a toast/alert or auto-trigger? 
             // Auto-triggering is risky nicely. I'll setCode and let them click "Review & Join" or I can add a useEffect.
             // Actually, I'll allow them to review.
-            Alert.alert("QR Code Detected", `Found code: ${extracted}`, [
-                { text: "Use Code", onPress: () => { } } // It's already set
-            ]);
+            showAlert({
+                title: "QR Code Detected",
+                message: `Found code: ${extracted}`,
+                type: "info",
+                buttons: [
+                    { text: "Use Code", onPress: () => { } } // It's already set
+                ]
+            });
         } else {
-            Alert.alert("Invalid QR", "Could not find a valid 6-character code.");
+            showAlert({
+                title: "Invalid QR",
+                message: "Could not find a valid 6-character code.",
+                type: "error"
+            });
         }
     };
 

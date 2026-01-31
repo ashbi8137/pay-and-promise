@@ -1,10 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
+    Dimensions,
     Platform,
     RefreshControl,
     SafeAreaView,
@@ -16,26 +16,16 @@ import {
 } from 'react-native';
 import { supabase } from '../../lib/supabase';
 
+const { width } = Dimensions.get('window');
+
 export default function ProfileScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
-    const [firstName, setFirstName] = useState<string>('Ashbin');
-
-
-    console.log('ProfileScreen Render. Name:', firstName);
-
-    const [latestContext, setLatestContext] = useState<{ desc: string; type: string } | null>(null);
-
-    const [financials, setFinancials] = useState({
-        winnings: 0,
-        penalties: 0,
-        net: 0
-    });
-
-
-
+    const [firstName, setFirstName] = useState<string>('User');
+    const [financials, setFinancials] = useState({ winnings: 0, penalties: 0, net: 0 });
+    const [metrics, setMetrics] = useState({ active: 0, success: '96%' });
 
     useFocusEffect(
         React.useCallback(() => {
@@ -48,7 +38,6 @@ export default function ProfileScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Set Profile Info (Exact Home Logic)
             const metadataName = user.user_metadata?.full_name || user.user_metadata?.name;
             if (metadataName) {
                 setFirstName(metadataName.split(' ')[0]);
@@ -56,249 +45,135 @@ export default function ProfileScreen() {
                 setFirstName(user.email.split('@')[0]);
             }
 
-            setProfile({ name: metadataName || 'User', email: user.email || '' });
+            setProfile({ name: metadataName || 'Executive Member', email: user.email || '' });
 
-
-
-            // 4. Fetch Ledger for Financials AND History
-            const { data: ledger, error } = await supabase
-                .from('ledger')
-                .select('amount, type, description, created_at, promise_id')
-                .eq('user_id', user.id)
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
+            const { data: ledger } = await supabase.from('ledger').select('amount, type').eq('user_id', user.id);
+            const { count: activeCount } = await supabase.from('promises').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active');
 
             if (ledger) {
-                console.log('DEBUG CHECK - Ledger Data:', JSON.stringify(ledger, null, 2)); // DEBUG LOG
-                let totalWinnings = 0;
-                let totalPenalties = 0;
-
-
-
+                let totalWinnings = 0, totalPenalties = 0;
                 ledger.forEach(item => {
                     const val = Number(item.amount);
                     if (item.type === 'winnings') totalWinnings += val;
                     if (item.type === 'penalty') totalPenalties += val;
-
-
                 });
-
-                const absPenalties = Math.abs(totalPenalties);
-
-                setFinancials({
-                    winnings: totalWinnings,
-                    penalties: absPenalties,
-                    net: totalWinnings - absPenalties
-                });
-
-
-
-                if (ledger.length > 0) {
-                    setLatestContext({ desc: ledger[0].description, type: ledger[0].type });
-                }
+                setFinancials({ winnings: totalWinnings, penalties: Math.abs(totalPenalties), net: totalWinnings - Math.abs(totalPenalties) });
             }
+            setMetrics(prev => ({ ...prev, active: activeCount || 0 }));
 
         } catch (error) {
             console.error('Error loading profile:', error);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
-        setLoading(false);
-        setRefreshing(false);
-    };
-
-    const onRefresh = React.useCallback(() => {
-        setRefreshing(true);
-        fetchProfileData();
-    }, []);
-
-
-
-
-
-
-
-    const handlePress = (route: any) => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push(route);
     };
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.centerContent}>
-                    <ActivityIndicator size="large" color="#4338ca" />
-                </View>
-            </SafeAreaView>
+            <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#4F46E5" />
+            </View>
         );
     }
 
     return (
         <View style={styles.container}>
-            <LinearGradient
-                colors={['#F8FAFC', '#F1F5F9']}
-                style={StyleSheet.absoluteFill}
-            />
+            {/* Ambient Background Elements */}
+            <View style={styles.ambientGlow} />
+            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
+
             <SafeAreaView style={{ flex: 1 }}>
+                {/* Executive Header */}
+                <View style={styles.header}>
+                    <View>
+                        <Text style={styles.headerGreeting}>EXECUTIVE COMMAND</Text>
+                        <Text style={styles.headerDate}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.settingsBtn}>
+                        <Ionicons name="settings-sharp" size={22} color="#4F46E5" />
+                    </TouchableOpacity>
+                </View>
+
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
-                    refreshControl={
-                        <RefreshControl
-                            refreshing={refreshing}
-                            onRefresh={onRefresh}
-                            tintColor="#4F46E5"
-                            colors={['#4F46E5']}
-                        />
-                    }
                     showsVerticalScrollIndicator={false}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchProfileData(); }} tintColor="#4F46E5" />}
                 >
-
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <TouchableOpacity
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                router.back();
-                            }}
-                            style={styles.headerButton}
-                        >
-                            <Ionicons name="chevron-back" size={24} color="#0F172A" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Profile</Text>
-                        <TouchableOpacity
-                            onPress={() => handlePress('/screens/SettingsScreen')}
-                            style={styles.headerButton}
-                        >
-                            <Ionicons name="settings-outline" size={22} color="#0F172A" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Profile Section */}
-                    <View style={styles.profileSection}>
+                    {/* IDENTITY BLOCK */}
+                    <View style={styles.identitySection}>
                         <View style={styles.avatarWrapper}>
-                            <LinearGradient
-                                colors={['#4F46E5', '#3730A3']}
-                                style={styles.avatarGradient}
-                            >
-                                <Text style={styles.avatarInitial}>{(firstName || 'U').charAt(0).toUpperCase()}</Text>
+                            <LinearGradient colors={['#4F46E5', '#818CF8']} style={styles.avatarGradient}>
+                                <Text style={styles.avatarTxt}>{firstName.charAt(0).toUpperCase()}</Text>
                             </LinearGradient>
-                            <View style={styles.verifiedBadge}>
-                                <Ionicons name="checkmark-circle" size={22} color="#FFFFFF" />
-                            </View>
+                            <View style={styles.statusPing} />
                         </View>
-
-                        <Text style={styles.profileNameText}>{firstName}</Text>
-                        <Text style={styles.profileEmailText}>{profile?.email}</Text>
-
-                        <View style={styles.badgeRow}>
-                            <View style={styles.statusBadge}>
-                                <View style={styles.dot} />
-                                <Text style={styles.statusText}>Active Member</Text>
+                        <View style={styles.nameBlock}>
+                            <Text style={styles.userName}>{profile?.name}</Text>
+                            <View style={styles.tierBadge}>
+                                <Ionicons name="diamond" size={10} color="#4F46E5" />
+                                <Text style={styles.tierTxt}>PREMIUM PROTOCOL</Text>
                             </View>
                         </View>
                     </View>
 
-                    {/* Main Financial Card (Luxury Elevation) */}
-                    <View style={styles.statsContainer}>
-                        <LinearGradient
-                            colors={['#FFFFFF', '#F8FAFC']}
-                            style={styles.netProfitCard}
-                        >
-                            <View style={styles.cardHeader}>
-                                <Text style={styles.cardLabel}>Net Performance</Text>
-                                <View style={styles.growthBadge}>
-                                    <Ionicons
-                                        name={financials.net >= 0 ? "trending-up" : "trending-down"}
-                                        size={14}
-                                        color={financials.net >= 0 ? "#059669" : "#DC2626"}
-                                    />
-                                    <Text style={[
-                                        styles.growthText,
-                                        { color: financials.net >= 0 ? "#059669" : "#DC2626", marginLeft: 4 }
-                                    ]}>
-                                        {financials.net >= 0 ? "Profit" : "Loss"}
-                                    </Text>
-                                </View>
+                    {/* CORE FINANCIAL DASHBOARD */}
+                    <View style={styles.dashboardSection}>
+                        <LinearGradient colors={['#FFFFFF', '#F9FAFB']} style={styles.mainCard}>
+                            <View style={styles.cardInfo}>
+                                <Text style={styles.cardLabel}>TOTAL PROTOCOL VALUATION</Text>
+                                <Text style={[styles.mainNetValue, { color: financials.net >= 0 ? '#0F172A' : '#EF4444' }]}>
+                                    ₹{financials.net.toLocaleString()}
+                                </Text>
                             </View>
 
-                            <Text style={[
-                                styles.mainNetValue,
-                                { color: financials.net >= 0 ? '#0F172A' : '#991B1B' }
-                            ]}>
-                                {financials.net < 0 ? '-' : ''}₹{Math.abs(financials.net).toLocaleString()}
-                            </Text>
-
-                            <Text style={styles.balanceHelper}>
-                                {latestContext?.desc || "Combined total from all active and completed promises"}
-                            </Text>
-
-                            <View style={styles.divider} />
-
-                            <View style={styles.statBreakdown}>
-                                <View style={styles.subStat}>
-                                    <View style={[styles.miniIcon, { backgroundColor: '#ECFDF5' }]}>
-                                        <Ionicons name="arrow-up" size={14} color="#059669" />
-                                    </View>
-                                    <View style={{ marginLeft: 12 }}>
-                                        <Text style={styles.subLabel}>Gained</Text>
-                                        <Text style={styles.subValue}>₹{financials.winnings.toLocaleString()}</Text>
+                            <View style={styles.cardFooter}>
+                                <View style={styles.footerStat}>
+                                    <Text style={styles.footerLabel}>GAINS</Text>
+                                    <View style={styles.valueRow}>
+                                        <Ionicons name="caret-up" size={12} color="#10B981" />
+                                        <Text style={[styles.footerValue, { color: '#1E293B' }]}>₹{financials.winnings.toLocaleString()}</Text>
                                     </View>
                                 </View>
-                                <View style={styles.statLine} />
-                                <View style={styles.subStat}>
-                                    <View style={[styles.miniIcon, { backgroundColor: '#FEF2F2' }]}>
-                                        <Ionicons name="arrow-down" size={14} color="#DC2626" />
-                                    </View>
-                                    <View style={{ marginLeft: 12 }}>
-                                        <Text style={styles.subLabel}>Lost</Text>
-                                        <Text style={styles.subValue}>₹{financials.penalties.toLocaleString()}</Text>
+                                <View style={styles.vDivider} />
+                                <View style={styles.footerStat}>
+                                    <Text style={styles.footerLabel}>EXITS</Text>
+                                    <View style={styles.valueRow}>
+                                        <Ionicons name="caret-down" size={12} color="#EF4444" />
+                                        <Text style={[styles.footerValue, { color: '#1E293B' }]}>₹{financials.penalties.toLocaleString()}</Text>
                                     </View>
                                 </View>
                             </View>
                         </LinearGradient>
                     </View>
 
-                    {/* Activity Section */}
-                    <View style={styles.menuSection}>
-                        <Text style={styles.menuTitle}>My Activity</Text>
 
-                        <TouchableOpacity
-                            style={styles.menuCard}
-                            onPress={() => handlePress('/screens/JourneyScreen')}
-                        >
-                            <View style={[styles.menuIcon, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="map" size={22} color="#4F46E5" />
-                            </View>
-                            <View style={styles.menuContent}>
-                                <Text style={styles.menuLabel}>Promise Journey</Text>
-                                <Text style={styles.menuSubLabel}>Review stakes and milestones</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                        </TouchableOpacity>
 
-                        <TouchableOpacity
-                            style={styles.menuCard}
-                            onPress={() => handlePress('/screens/TransactionHistoryScreen')}
-                        >
-                            <View style={[styles.menuIcon, { backgroundColor: '#F8FAFC' }]}>
-                                <Ionicons name="wallet" size={22} color="#1E293B" />
-                            </View>
-                            <View style={styles.menuContent}>
-                                <Text style={styles.menuLabel}>Transaction History</Text>
-                                <Text style={styles.menuSubLabel}>View all ledger movements</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-                        </TouchableOpacity>
+                    {/* QUICK ACCESS (Account Integrity) */}
+                    <View style={styles.shortcutSection}>
+                        <Text style={styles.sectionTitle}>SYSTEM INTEGRITY</Text>
+                        <View style={styles.shortcutCard}>
+                            <TouchableOpacity style={styles.shortcutRow} onPress={() => router.push('/screens/PaymentsScreen')}>
+                                <View style={styles.shortcutLeft}>
+                                    <View style={styles.shortIconBg}><Ionicons name="card-outline" size={20} color="#64748B" /></View>
+                                    <Text style={styles.shortLabel}>Connected Accounts</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                            </TouchableOpacity>
+                            <View style={styles.hDivider} />
+                            <TouchableOpacity style={styles.shortcutRow} onPress={() => router.push('/screens/PrivacySecurityScreen')}>
+                                <View style={styles.shortcutLeft}>
+                                    <View style={styles.shortIconBg}><Ionicons name="shield-outline" size={20} color="#64748B" /></View>
+                                    <Text style={styles.shortLabel}>Biometric Access</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                            </TouchableOpacity>
+                        </View>
                     </View>
-
-
 
                     <View style={styles.footerInfo}>
-                        <Ionicons name="shield-checkmark" size={14} color="#94A3B8" />
-                        <Text style={styles.footerText}>Secured by Pay & Promise Protocol v2.0</Text>
+                        <Text style={styles.versionTxt}>ESTABLISHED PROTOCOL v1.0.4 • 2026</Text>
                     </View>
-
                 </ScrollView>
             </SafeAreaView>
         </View>
@@ -306,286 +181,63 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-    },
-    scrollContent: {
-        paddingHorizontal: 20,
-        paddingBottom: 40,
-        paddingTop: Platform.OS === 'android' ? 40 : 20,
-    },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    ambientGlow: { position: 'absolute', top: -50, right: -50, width: 250, height: 250, borderRadius: 125, backgroundColor: 'rgba(79, 70, 229, 0.05)', filter: 'blur(60px)' } as any,
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: 20,
-        paddingVertical: 10,
+        paddingHorizontal: 24,
+        paddingTop: Platform.OS === 'android' ? 68 : 32,
+        paddingBottom: 16
     },
-    headerButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#0F172A',
-        letterSpacing: -0.5,
-    },
-    profileSection: {
-        alignItems: 'center',
-        marginBottom: 30,
-    },
-    avatarWrapper: {
-        marginBottom: 16,
-        position: 'relative',
-    },
-    avatarGradient: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        padding: 4,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    avatarInitial: {
-        fontSize: 36,
-        fontWeight: '900',
-        color: '#FFFFFF',
-    },
-    verifiedBadge: {
-        position: 'absolute',
-        bottom: 2,
-        right: 2,
-        backgroundColor: '#4F46E5',
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 3,
-        borderColor: '#F8FAFC',
-    },
-    profileNameText: {
-        fontSize: 26,
-        fontWeight: '900',
-        color: '#0F172A',
-        letterSpacing: -0.5,
-    },
-    profileEmailText: {
-        fontSize: 14,
-        color: '#64748B',
-        fontWeight: '500',
-        marginTop: 4,
-    },
-    badgeRow: {
-        flexDirection: 'row',
-        marginTop: 12,
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#EEF2FF',
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 20,
-    },
-    dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
-        backgroundColor: '#4F46E5',
-    },
-    statusText: {
-        fontSize: 12,
-        fontWeight: '700',
-        color: '#4F46E5',
-        textTransform: 'uppercase',
-        letterSpacing: 0.5,
-        marginLeft: 6,
-    },
-    statsContainer: {
-        marginBottom: 24,
-    },
-    netProfitCard: {
-        borderRadius: 24,
-        padding: 24,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 20,
-        elevation: 6,
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    cardLabel: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#64748B',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    growthBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: 'rgba(5, 150, 105, 0.08)',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 12,
-    },
-    growthText: {
-        fontSize: 11,
-        fontWeight: '700',
-    },
-    mainNetValue: {
-        fontSize: 40,
-        fontWeight: '900',
-        color: '#0F172A',
-        letterSpacing: -1,
-    },
-    balanceHelper: {
-        fontSize: 13,
-        color: '#94A3B8',
-        fontWeight: '500',
-        marginTop: 6,
-        lineHeight: 18,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: '#F1F5F9',
-        marginVertical: 20,
-    },
-    statBreakdown: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-    },
-    subStat: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    statLine: {
-        width: 1,
-        height: 30,
-        backgroundColor: '#F1F5F9',
-    },
-    miniIcon: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    subLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#94A3B8',
-        textTransform: 'uppercase',
-    },
-    subValue: {
-        fontSize: 15,
-        fontWeight: '800',
-        color: '#1E293B',
-    },
-    menuSection: {
-        marginBottom: 30,
-    },
-    menuTitle: {
-        fontSize: 18,
-        fontWeight: '800',
-        color: '#0F172A',
-        marginBottom: 16,
-        marginLeft: 4,
-    },
-    menuCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 20,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.03,
-        shadowRadius: 4,
-        elevation: 1,
-    },
-    menuIcon: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    menuContent: {
-        flex: 1,
-    },
-    menuLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1E293B',
-    },
-    menuSubLabel: {
-        fontSize: 12,
-        color: '#94A3B8',
-        marginTop: 2,
-    },
-    logoutBtn: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#FFFFFF',
-        paddingVertical: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        marginBottom: 30,
-    },
-    logoutBtnText: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#64748B',
-        marginLeft: 8,
-    },
-    footerInfo: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        opacity: 0.5,
-    },
-    footerText: {
-        fontSize: 12,
-        fontWeight: '600',
-        color: '#94A3B8',
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-        marginLeft: 6,
-    },
-    centerContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-}) as any;
+    headerGreeting: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 2 },
+    headerDate: { fontSize: 13, fontWeight: '700', color: '#1E293B', marginTop: 2 },
+    settingsBtn: { width: 44, height: 44, borderRadius: 15, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
 
+    scrollContent: { paddingBottom: 100 },
+    identitySection: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, marginVertical: 20, gap: 16 },
+    avatarWrapper: { position: 'relative' },
+    avatarGradient: { width: 64, height: 64, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+    avatarTxt: { fontSize: 26, fontWeight: '900', color: '#FFF' },
+    statusPing: { position: 'absolute', bottom: -2, right: -2, width: 14, height: 14, borderRadius: 7, backgroundColor: '#10B981', borderWidth: 3, borderColor: '#F8FAFC' },
+    nameBlock: { flex: 1 },
+    userName: { fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1 },
+    tierBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+    tierTxt: { fontSize: 10, fontWeight: '800', color: '#64748B', letterSpacing: 1 },
 
+    dashboardSection: { paddingHorizontal: 24, marginBottom: 20 },
+    mainCard: { borderRadius: 28, paddingHorizontal: 28, paddingVertical: 24, minHeight: 160, justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 3 },
+    cardInfo: { alignItems: 'center', marginBottom: 24 },
+    cardLabel: { fontSize: 8, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 4 },
+    mainNetValue: { fontSize: 52, fontWeight: '900', letterSpacing: -2.5 },
+    cardVisual: { position: 'absolute', right: -30, top: -20, opacity: 0.8 },
+    meshPattern: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent', opacity: 0.1 },
+    cardIcon: { zIndex: 1 },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+    footerStat: { flex: 1, alignItems: 'center' },
+    footerLabel: { fontSize: 7, fontWeight: '900', color: '#CBD5E1', letterSpacing: 1, marginBottom: 2 },
+    valueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    footerValue: { fontSize: 16, fontWeight: '800', color: '#FFF' },
+    vDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
+
+    metricsContainer: { paddingHorizontal: 24, marginBottom: 32 },
+    sectionTitle: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 2, marginBottom: 16 },
+    metricsRow: { flexDirection: 'row', gap: 16 },
+    metricBox: { flex: 1, backgroundColor: '#FFF', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#F1F5F9' },
+    metricIconBg: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    metricLabel: { fontSize: 9, fontWeight: '800', color: '#64748B', letterSpacing: 1, marginBottom: 4 },
+    metricValue: { fontSize: 22, fontWeight: '900', color: '#0F172A' },
+
+    shortcutSection: { paddingHorizontal: 24, marginBottom: 20 },
+    shortcutCard: { backgroundColor: '#FFF', borderRadius: 24, padding: 8, borderWidth: 1, borderColor: '#F1F5F9' },
+    shortcutRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16 },
+    shortcutLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    shortIconBg: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
+    shortLabel: { fontSize: 15, fontWeight: '700', color: '#1E293B' },
+    hDivider: { height: 1, backgroundColor: '#F8FAFC', marginHorizontal: 16 },
+
+    footerInfo: { alignItems: 'center', marginVertical: 20, opacity: 0.3 },
+    versionTxt: { fontSize: 9, fontWeight: '900', color: '#64748B', letterSpacing: 1.5 }
+});

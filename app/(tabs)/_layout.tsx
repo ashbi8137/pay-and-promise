@@ -133,14 +133,14 @@ export default function TabLayout() {
                 }}
             />
 
-            {/* RIGHT TAB 1: CALENDAR */}
+            {/* RIGHT TAB 1: LEDGER */}
             <Tabs.Screen
-                name="calendar"
+                name="ledger"
                 options={{
-                    title: 'Calendar',
+                    title: 'Ledger',
                     tabBarIcon: ({ size, color, focused }) => (
                         <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="calendar-outline" size={24} color={color} />
+                            <Ionicons name="receipt-outline" size={24} color={color} />
                         </View>
                     ),
                 }}

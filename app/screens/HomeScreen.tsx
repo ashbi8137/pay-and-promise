@@ -4,7 +4,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    Alert, // Native Animated for Loop
     BackHandler,
     Platform,
     Animated as RNAnimated,
@@ -19,6 +18,7 @@ import {
 import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/theme';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
 // Data Interface matching Supabase Schema
@@ -42,6 +42,7 @@ export default function HomeScreen() {
     const router = useRouter();
     const colorScheme = useColorScheme() ?? 'light';
     const theme = Colors[colorScheme];
+    const { showAlert } = useAlert();
 
     // RESTORED STATE
     const [firstName, setFirstName] = useState<string>('');
@@ -119,21 +120,23 @@ export default function HomeScreen() {
             fetchData();
 
             const onBackPress = () => {
-                Alert.alert(
-                    'Hold on!',
-                    'Are you sure you want to exit the app?',
-                    [
+                showAlert({
+                    title: 'Hold on!',
+                    message: 'Are you sure you want to exit the app? Any unsaved progress may be lost.',
+                    type: 'info',
+                    buttons: [
                         {
                             text: 'Cancel',
                             onPress: () => null,
                             style: 'cancel',
                         },
                         {
-                            text: 'Exit',
-                            onPress: () => BackHandler.exitApp()
+                            text: 'Exit Application',
+                            onPress: () => BackHandler.exitApp(),
+                            style: 'destructive'
                         },
                     ]
-                );
+                });
                 return true;
             };
 
@@ -338,11 +341,12 @@ export default function HomeScreen() {
 
     const getGoalColor = (description?: string) => {
         switch (description) {
-            case 'gym': return '#F43F5E';
-            case 'code': return '#8B5CF6';
-            case 'read': return '#10B981';
-            case 'water': return '#0EA5E9';
-            case 'wake': return '#F59E0B';
+            case 'gym': return '#4F46E5';
+            case 'code': return '#6366F1';
+            case 'read': return '#8B5CF6';
+            case 'water': return '#7C3AED';
+            case 'wake': return '#4338CA';
+            case 'custom': return '#6D28D9';
             default: return '#4F46E5';
         }
     };
@@ -487,7 +491,7 @@ export default function HomeScreen() {
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.heroButton}
-                                        onPress={() => activePromises.length > 0 ? null : router.push('/(tabs)/create')}
+                                        onPress={() => activePromises.length > 0 ? router.push('/screens/ScoreboardScreen') : router.push('/(tabs)/create')}
                                         activeOpacity={0.8}
                                     >
                                         <Text style={styles.heroButtonText}>
@@ -629,20 +633,22 @@ export default function HomeScreen() {
             </View>
 
             {/* TOOLTIP OVERLAY */}
-            {showTooltip && (
-                <TouchableOpacity
-                    activeOpacity={1}
-                    style={styles.tooltipOverlay}
-                    onPress={dismissTooltip}
-                >
-                    <View style={styles.tooltipBubble}>
-                        <Text style={styles.tooltipTitle}>Start Here!</Text>
-                        <Text style={styles.tooltipText}>Create your first promise to verify.</Text>
-                        <View style={styles.tooltipArrow} />
-                    </View>
-                </TouchableOpacity>
-            )}
-        </View>
+            {
+                showTooltip && (
+                    <TouchableOpacity
+                        activeOpacity={1}
+                        style={styles.tooltipOverlay}
+                        onPress={dismissTooltip}
+                    >
+                        <View style={styles.tooltipBubble}>
+                            <Text style={styles.tooltipTitle}>Start Here!</Text>
+                            <Text style={styles.tooltipText}>Create your first promise to verify.</Text>
+                            <View style={styles.tooltipArrow} />
+                        </View>
+                    </TouchableOpacity>
+                )
+            }
+        </View >
     );
 }
 

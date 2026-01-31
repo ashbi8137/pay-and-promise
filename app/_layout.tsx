@@ -1,9 +1,10 @@
-
 import * as Linking from 'expo-linking';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import PremiumAlert from '../components/ui/PremiumAlert';
+import { AlertProvider } from '../context/AlertContext';
 import { cleanupOldProofImages, supabase } from '../lib/supabase';
 
 // Keep the splash screen visible while we fetch resources
@@ -117,28 +118,32 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="index" />
-        <Stack.Screen name="screens/SplashScreen" />
-        <Stack.Screen name="screens/AuthScreen" />
-        {/* Kept for backward compat but Tabs are primary now */}
-        <Stack.Screen name="screens/HomeScreen" />
-        <Stack.Screen name="screens/CreatePromiseScreen" />
-        <Stack.Screen name="screens/PromiseDetailScreen" />
-        <Stack.Screen name="screens/JoinPromiseScreen" />
-        <Stack.Screen name="screens/ProfileScreen" />
-        <Stack.Screen name="screens/TransactionHistoryScreen" />
-        <Stack.Screen name="screens/LandingScreen" />
-        <Stack.Screen name="screens/SettingsScreen" />
-        <Stack.Screen name="screens/SupportScreen" />
-        <Stack.Screen name="screens/PrivacySecurityScreen" />
-        <Stack.Screen name="screens/PrivacyPolicyScreen" />
-        <Stack.Screen name="screens/TermsScreen" />
-        <Stack.Screen name="screens/AboutScreen" />
-        <Stack.Screen name="screens/PromiseReportScreen" />
-        <Stack.Screen name="screens/JourneyScreen" />
-      </Stack>
+      <AlertProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="index" />
+          <Stack.Screen name="screens/SplashScreen" />
+          <Stack.Screen name="screens/AuthScreen" />
+          {/* Kept for backward compat but Tabs are primary now */}
+          <Stack.Screen name="screens/HomeScreen" />
+          <Stack.Screen name="screens/CreatePromiseScreen" />
+          <Stack.Screen name="screens/PromiseDetailScreen" />
+          <Stack.Screen name="screens/JoinPromiseScreen" />
+          <Stack.Screen name="screens/ProfileScreen" />
+          <Stack.Screen name="screens/TransactionHistoryScreen" />
+          <Stack.Screen name="screens/LandingScreen" />
+          <Stack.Screen name="screens/SettingsScreen" />
+          <Stack.Screen name="screens/SupportScreen" />
+          <Stack.Screen name="screens/PrivacySecurityScreen" />
+          <Stack.Screen name="screens/PrivacyPolicyScreen" />
+          <Stack.Screen name="screens/TermsScreen" />
+          <Stack.Screen name="screens/AboutScreen" />
+          <Stack.Screen name="screens/PromiseReportScreen" />
+          <Stack.Screen name="screens/JourneyScreen" />
+          <Stack.Screen name="screens/ScoreboardScreen" />
+        </Stack>
+        <PremiumAlert />
+      </AlertProvider>
     </GestureHandlerRootView>
   );
 }

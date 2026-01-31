@@ -1,8 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
+    Dimensions,
     Platform,
     RefreshControl,
     ScrollView,
@@ -11,16 +14,17 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+
+const { width } = Dimensions.get('window');
 
 export default function TransactionHistoryScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [history, setHistory] = useState<any[]>([]);
-
-
 
     useFocusEffect(
         React.useCallback(() => {
@@ -33,7 +37,6 @@ export default function TransactionHistoryScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // Fetch Ledger History with promise details
             const { data: ledger, error } = await supabase
                 .from('ledger')
                 .select('amount, type, description, created_at, promise_id')
@@ -42,7 +45,6 @@ export default function TransactionHistoryScreen() {
 
             if (error) throw error;
 
-            // Fetch promise titles for the ledger entries
             if (ledger && ledger.length > 0) {
                 const promiseIds = [...new Set(ledger.map(l => l.promise_id).filter(Boolean))];
 
@@ -60,7 +62,6 @@ export default function TransactionHistoryScreen() {
                     }
                 }
 
-                // Enrich ledger with promise titles
                 const enrichedHistory = ledger.map(item => ({
                     ...item,
                     promise_title: item.promise_id ? promiseTitles[item.promise_id] : null
@@ -70,7 +71,6 @@ export default function TransactionHistoryScreen() {
             } else {
                 setHistory([]);
             }
-
         } catch (error) {
             console.error('Error loading history:', error);
         } finally {
@@ -85,149 +85,113 @@ export default function TransactionHistoryScreen() {
     }, []);
 
     const formatCurrency = (amount: number) => {
-        return '₹ ' + Math.abs(amount).toFixed(0);
+        return '₹' + Math.abs(amount).toFixed(0);
+    };
+
+    const formatDate = (dateString: string) => {
+        const d = new Date(dateString);
+        return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const handleBack = () => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        router.back();
     };
 
     return (
-        <SafeAreaView style={styles.container}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color="#0F172A" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Transaction History</Text>
-                <View style={{ width: 40 }} />
-            </View>
+        <View style={styles.container}>
+            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
 
-            {loading ? (
-                <View style={styles.centerContent}>
-                    <ActivityIndicator size="large" color="#4338ca" />
+            <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={handleBack} style={styles.backButton}>
+                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Ledger Logs</Text>
+                    <View style={{ width: 44 }} />
                 </View>
-            ) : (
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-                >
-                    {history.length === 0 ? (
-                        <View style={styles.centerContent}>
-                            <Text style={styles.emptyText}>No transactions yet.</Text>
-                        </View>
-                    ) : (
-                        history.map((item, index) => (
-                            <View key={index} style={styles.historyCard}>
-                                {item.promise_title && (
-                                    <Text style={styles.promiseTag}>{item.promise_title}</Text>
-                                )}
-                                <View style={styles.historyHeader}>
-                                    <Text style={styles.historyDate}>
-                                        {new Date(item.created_at).toLocaleDateString()}
-                                    </Text>
-                                    <Text style={[
-                                        styles.historyAmount,
-                                        item.type === 'winnings' ? styles.textGreen : styles.textRed
-                                    ]}>
-                                        {item.type === 'winnings' ? '+' : '-'} {formatCurrency(item.amount)}
-                                    </Text>
+
+                {loading ? (
+                    <View style={styles.centerContent}>
+                        <ActivityIndicator size="large" color="#4F46E5" />
+                    </View>
+                ) : (
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />
+                        }
+                    >
+                        {history.length === 0 ? (
+                            <View style={styles.emptyState}>
+                                <View style={styles.emptyIconCircle}>
+                                    <Ionicons name="receipt-outline" size={32} color="#94A3B8" />
                                 </View>
-                                <Text style={[
-                                    styles.historyDesc,
-                                    item.type === 'winnings' ? styles.descGreen : styles.descRed
-                                ]}>
-                                    {item.description}
-                                </Text>
+                                <Text style={styles.emptyText}>No financial records captured yet.</Text>
                             </View>
-                        ))
-                    )}
-                </ScrollView>
-            )}
-        </SafeAreaView>
+                        ) : (
+                            history.map((item, index) => (
+                                <Animated.View
+                                    key={index}
+                                    entering={FadeInDown.delay(index * 50).duration(400)}
+                                    style={styles.historyCard}
+                                >
+                                    <View style={styles.cardTop}>
+                                        <View style={[styles.typeBadge, { backgroundColor: item.type === 'winnings' ? '#ECFDF5' : '#FEF2F2' }]}>
+                                            <Ionicons
+                                                name={item.type === 'winnings' ? 'trending-up' : 'trending-down'}
+                                                size={12}
+                                                color={item.type === 'winnings' ? '#10B981' : '#EF4444'}
+                                            />
+                                            <Text style={[styles.typeText, { color: item.type === 'winnings' ? '#10B981' : '#EF4444' }]}>
+                                                {item.type.toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+                                    </View>
+
+                                    <View style={styles.cardMain}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.description}>{item.description}</Text>
+                                            {item.promise_title && (
+                                                <Text style={styles.promiseRef}>Ref: {item.promise_title}</Text>
+                                            )}
+                                        </View>
+                                        <Text style={[
+                                            styles.amount,
+                                            { color: item.type === 'winnings' ? '#10B981' : '#1E293B' }
+                                        ]}>
+                                            {item.type === 'winnings' ? '+' : '-'}{formatCurrency(item.amount)}
+                                        </Text>
+                                    </View>
+                                </Animated.View>
+                            ))
+                        )}
+                    </ScrollView>
+                )}
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#F8FAFC',
-    },
-    centerContent: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 40,
-    },
-    scrollContent: {
-        padding: 24,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 24,
-        paddingTop: Platform.OS === 'android' ? 60 : 40,
-        marginBottom: 16,
-    },
-    backButton: {
-        padding: 8,
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#0F172A',
-    },
-    historyCard: {
-        backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
-        elevation: 1,
-    },
-    historyHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 6,
-    },
-    historyDate: {
-        fontSize: 12,
-        color: '#94A3B8',
-        fontWeight: '500',
-    },
-    historyAmount: {
-        fontSize: 16,
-        fontWeight: '700',
-    },
-    historyDesc: {
-        fontSize: 14,
-        fontWeight: '500',
-        lineHeight: 20,
-    },
-    textGreen: { color: '#16A34A' },
-    textRed: { color: '#DC2626' },
-    descGreen: { color: '#15803D' },
-    descRed: { color: '#B91C1C' },
-    emptyText: {
-        color: '#94A3B8',
-        fontSize: 16,
-    },
-    promiseTag: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#4338ca',
-        backgroundColor: '#EEF2FF',
-        paddingHorizontal: 10,
-        paddingVertical: 4,
-        borderRadius: 8,
-        alignSelf: 'flex-start',
-        marginBottom: 8,
-        overflow: 'hidden',
-    },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 16 },
+    backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', letterSpacing: -0.5 },
+    scrollContent: { padding: 20, paddingBottom: 40 },
+    centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    historyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
+    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+    typeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+    dateText: { fontSize: 11, fontWeight: '700', color: '#94A3B8' },
+    cardMain: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+    description: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 4, lineHeight: 20 },
+    promiseRef: { fontSize: 12, color: '#6366F1', fontWeight: '600' },
+    amount: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
+    emptyState: { paddingVertical: 100, alignItems: 'center' },
+    emptyIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+    emptyText: { fontSize: 14, color: '#94A3B8', fontWeight: '600' }
 });

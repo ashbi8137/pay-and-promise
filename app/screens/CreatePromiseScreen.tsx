@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
+    ActivityIndicator,
     Dimensions,
     Platform,
     SafeAreaView,
@@ -16,21 +17,24 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+    FadeInDown,
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
     withSpring,
     withTiming
 } from 'react-native-reanimated';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
-const SLIDER_WIDTH = width - 48; // Padding 24 * 2
-const KNOB_SIZE = 40;
+const SLIDER_WIDTH = width - 48;
+const KNOB_SIZE = 44;
 const MAX_STAKE = 5000;
 
 export default function CreatePromiseScreen() {
     const router = useRouter();
+    const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
 
     // Wizard State
@@ -47,19 +51,9 @@ export default function CreatePromiseScreen() {
     // Success Animation States
     const successScale = useSharedValue(0);
     const successOpacity = useSharedValue(0);
-    const titleTranslateY = useSharedValue(20);
 
     const successIconStyle = useAnimatedStyle(() => ({
         transform: [{ scale: successScale.value }],
-        opacity: successOpacity.value
-    }));
-
-    const successContentStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: titleTranslateY.value }],
-        opacity: successOpacity.value
-    }));
-
-    const successCardStyle = useAnimatedStyle(() => ({
         opacity: successOpacity.value
     }));
 
@@ -67,7 +61,6 @@ export default function CreatePromiseScreen() {
         if (step === 3) {
             successScale.value = withSpring(1, { damping: 12 });
             successOpacity.value = withTiming(1, { duration: 600 });
-            titleTranslateY.value = withSpring(0, { damping: 15 });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
     }, [step]);
@@ -75,15 +68,14 @@ export default function CreatePromiseScreen() {
     // Slider State
     const translateX = useSharedValue(0);
 
-    // Logic
     const handleTemplateSelect = (selectedTitle: string, id: string) => {
         setCategory(id);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         if (id === 'custom') {
-            setTitle(''); // Let user type it
-            // Stay on step 0 but UI will swap to input
+            setTitle('');
         } else {
             setTitle(selectedTitle);
-            setStep(1); // Go to next step
+            setStep(1);
             const defaultX = (500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE);
             translateX.value = withSpring(defaultX);
         }
@@ -92,7 +84,6 @@ export default function CreatePromiseScreen() {
     const updateStake = (x: number) => {
         const percent = x / (SLIDER_WIDTH - KNOB_SIZE);
         const rawValue = Math.round(percent * MAX_STAKE);
-        // Snap to nearest 10
         const snapped = Math.round(rawValue / 10) * 10;
         const final = Math.max(20, Math.min(snapped, MAX_STAKE));
 
@@ -102,182 +93,32 @@ export default function CreatePromiseScreen() {
         }
     };
 
-    // Gesture Logic (Modern API)
     const context = useSharedValue(0);
-
     const panGesture = Gesture.Pan()
-        .onStart(() => {
-            context.value = translateX.value;
-        })
+        .onStart(() => { context.value = translateX.value; })
         .onUpdate((event) => {
             let nextX = context.value + event.translationX;
-            // Clamp
             if (nextX < 0) nextX = 0;
             if (nextX > (SLIDER_WIDTH - KNOB_SIZE)) nextX = (SLIDER_WIDTH - KNOB_SIZE);
-
             translateX.value = nextX;
             runOnJS(updateStake)(nextX);
         });
 
-    const knobStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ translateX: translateX.value }]
-        };
-    });
-
-    const activeTrackStyle = useAnimatedStyle(() => {
-        return {
-            width: translateX.value + KNOB_SIZE / 2
-        };
-    });
-
-    const renderStakeStep = () => (
-        <View style={styles.wizardContainer}>
-            <Text style={styles.wizardTitle}>How much is on the line?</Text>
-            <Text style={styles.wizardSubtitle}>Set the stake per person. 💸</Text>
-
-            <View style={styles.stakeDisplay}>
-                <Text style={styles.currencySymbol}>₹</Text>
-                <Text style={styles.stakeValue}>{amountPerPerson}</Text>
-            </View>
-
-            <View style={styles.sliderContainer}>
-                <View style={styles.sliderTrack} />
-                <Animated.View style={[styles.sliderTrackActive, activeTrackStyle]} />
-                <GestureDetector gesture={panGesture}>
-                    <Animated.View style={[styles.sliderKnob, knobStyle]}>
-                        <View style={styles.knobDot} />
-                    </Animated.View>
-                </GestureDetector>
-            </View>
-            <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabel}>₹0</Text>
-                <Text style={styles.sliderLabel}>₹5000</Text>
-            </View>
-
-            <TouchableOpacity
-                style={styles.continueButton}
-                onPress={() => setStep(2)}
-            >
-                <Text style={styles.continueButtonText}>Continue</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFF" />
-            </TouchableOpacity>
-        </View>
-    );
-
-    const renderDetailsStep = () => (
-        <View style={styles.wizardContainer}>
-            <Text style={styles.wizardTitle}>The Details</Text>
-            <Text style={styles.wizardSubtitle}>How long and with how many?</Text>
-
-            <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Duration (Days)</Text>
-                <View style={styles.chipContainer}>
-                    {['1', '7', '14', '30'].map(d => (
-                        <TouchableOpacity
-                            key={d}
-                            style={[styles.chip, duration === d && styles.chipActive]}
-                            onPress={() => setDuration(d)}
-                        >
-                            <Text style={[styles.chipText, duration === d && styles.chipTextActive]}>{d} Days</Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
-                <TextInput
-                    style={styles.detailInput}
-                    placeholder="Custom Days"
-                    keyboardType="numeric"
-                    value={duration}
-                    onChangeText={setDuration}
-                />
-            </View>
-
-            <View style={styles.detailSection}>
-                <Text style={styles.detailLabel}>Participants</Text>
-                <View style={styles.counterContainer}>
-                    <TouchableOpacity
-                        style={styles.counterBtn}
-                        onPress={() => setNumPeople(Math.max(2, parseInt(numPeople) - 1).toString())}
-                    >
-                        <Ionicons name="remove" size={24} color="#1E293B" />
-                    </TouchableOpacity>
-                    <Text style={styles.counterValue}>{numPeople}</Text>
-                    <TouchableOpacity
-                        style={styles.counterBtn}
-                        onPress={() => setNumPeople(Math.min(10, parseInt(numPeople) + 1).toString())}
-                    >
-                        <Ionicons name="add" size={24} color="#1E293B" />
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.counterHelper}>Min 2 • Max 10 (including you)</Text>
-            </View>
-
-            <TouchableOpacity
-                style={styles.continueButton}
-                onPress={handleCreatePromiseReal} // Changed from handleCreatePromise
-                disabled={loading}
-            >
-                <Text style={styles.continueButtonText}>{loading ? 'Creating...' : 'Launch Promise'}</Text>
-                {!loading && <Ionicons name="rocket" size={20} color="#FFF" />}
-            </TouchableOpacity>
-        </View>
-    );
-
-    const renderInviteStep = () => (
-        <View style={styles.wizardContainer}>
-            <View style={styles.successIconContainer}>
-                <Animated.View style={[
-                    styles.successCircle,
-                    successIconStyle
-                ]}>
-                    <Ionicons name="checkmark" size={60} color="#10B981" />
-                </Animated.View>
-            </View>
-            <Animated.View style={successContentStyle}>
-                <Text style={[styles.wizardTitle, { textAlign: 'center' }]}>You're Bound!</Text>
-                <Text style={[styles.wizardSubtitle, { textAlign: 'center' }]}>The promise is active. Now, bring your crew.</Text>
-            </Animated.View>
-
-            <Animated.View style={[styles.inviteCard, successCardStyle]}>
-                <Text style={styles.inviteLabel}>Invite Code</Text>
-                <Text style={styles.inviteCode}>{inviteCode || 'GENERATING...'}</Text>
-                <TouchableOpacity
-                    style={styles.copyButton}
-                    onPress={() => {
-                        Alert.alert('Copied!', 'Invite code copied to clipboard.');
-                    }}
-                >
-                    <Ionicons name="copy-outline" size={18} color="#4F46E5" />
-                    <Text style={styles.copyText}>Copy Link</Text>
-                </TouchableOpacity>
-            </Animated.View>
-
-            <TouchableOpacity
-                style={[styles.continueButton, { marginTop: 40, backgroundColor: '#4F46E5' }]}
-                onPress={() => router.navigate('/(tabs)')}
-            >
-                <Text style={styles.continueButtonText}>Done</Text>
-            </TouchableOpacity>
-        </View>
-    );
+    const knobStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
+    const activeTrackStyle = useAnimatedStyle(() => ({ width: translateX.value + KNOB_SIZE / 2 }));
 
     const handleCreatePromiseReal = async () => {
         setLoading(true);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
-            const { data: { user }, error: authError } = await supabase.auth.getUser();
-            if (authError || !user) {
-                Alert.alert('Error', 'You must be logged in.');
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                showAlert({ title: 'Error', message: 'You must be logged in.', type: 'error' });
                 return;
             }
 
-            // Enforce Business Rules
             if (parseInt(numPeople) < 2) {
-                Alert.alert('Participants Required', 'A promise requires at least 2 people.');
-                setLoading(false);
-                return;
-            }
-            if (parseInt(amountPerPerson) < 20) {
-                Alert.alert('Minimum Stake', 'The minimum stake must be at least ₹20.');
+                showAlert({ title: 'Attention', message: 'At least 2 people required.', type: 'warning' });
                 setLoading(false);
                 return;
             }
@@ -310,421 +151,234 @@ export default function CreatePromiseScreen() {
                 user_id: user.id
             });
 
-            setStep(3); // Go to Success View
+            setStep(3);
         } catch (e) {
             console.error(e);
-            Alert.alert('Error', 'Failed to create promise.');
+            showAlert({ title: 'Error', message: 'Failed to launch promise.', type: 'error' });
         } finally {
             setLoading(false);
         }
     };
 
     const renderTemplateSelector = () => (
-        <View style={styles.wizardContainer}>
-            <Text style={styles.wizardTitle}>
-                {category === 'custom' ? "Name your goal" : "What's the goal?"}
-            </Text>
-            <Text style={styles.wizardSubtitle}>
-                {category === 'custom' ? "Be specific about your promise." : "Choose a commitment type."}
-            </Text>
+        <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
+            <Text style={styles.wizardSubtitle}>STEP 1</Text>
+            <Text style={styles.wizardTitle}>What's the goal?</Text>
 
             {category === 'custom' ? (
-                <View style={{ width: '100%', alignItems: 'center' }}>
+                <View style={styles.customInputContainer}>
                     <TextInput
-                        style={[styles.detailInput, { width: '100%', fontSize: 24, textAlign: 'center', paddingVertical: 20 }]}
-                        placeholder="e.g. No Sugar"
+                        style={styles.customInput}
+                        placeholder="e.g. Morning Yoga"
                         placeholderTextColor="#94A3B8"
                         autoFocus
                         value={title}
                         onChangeText={setTitle}
                     />
-                    <TouchableOpacity
-                        style={[styles.continueButton, { marginTop: 32 }]}
-                        onPress={() => {
-                            if (!title.trim()) {
-                                Alert.alert('Missing Name', 'Please name your custom promise.');
-                                return;
-                            }
-                            setStep(1);
-                            const defaultX = (500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE);
-                            translateX.value = withSpring(defaultX);
-                        }}
-                    >
-                        <Text style={styles.continueButtonText}>Set Stake</Text>
+                    <TouchableOpacity style={styles.nextBtn} onPress={() => {
+                        if (!title.trim()) return showAlert({ title: 'Missing Name', message: 'Please name your goal.', type: 'warning' });
+                        setStep(1);
+                        translateX.value = withSpring((500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE));
+                    }}>
+                        <Text style={styles.nextBtnText}>Set Stake</Text>
                         <Ionicons name="arrow-forward" size={20} color="#FFF" />
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={{ marginTop: 20 }}
-                        onPress={() => setCategory(null)}
-                    >
-                        <Text style={{ color: '#64748B', fontWeight: '600' }}>Back to Templates</Text>
+                    <TouchableOpacity onPress={() => setCategory(null)} style={styles.backLink}>
+                        <Text style={styles.backLinkText}>Choose Template</Text>
                     </TouchableOpacity>
                 </View>
             ) : (
                 <View style={styles.gridContainer}>
                     {[
-                        { id: 'gym', label: 'Hit the Gym', icon: 'barbell', color: '#F43F5E' },
-                        { id: 'code', label: 'Code Session', icon: 'code-slash', color: '#8B5CF6' },
-                        { id: 'read', label: 'Read Books', icon: 'book', color: '#10B981' },
-                        { id: 'water', label: 'Drink Water', icon: 'water', color: '#0EA5E9' },
-                        { id: 'wake', label: 'Wake Early', icon: 'alarm', color: '#F59E0B' },
-                        { id: 'custom', label: 'Custom', icon: 'sparkles', color: '#64748B' },
-                    ].map((template) => (
-                        <TouchableOpacity
-                            key={template.id}
-                            style={styles.templateCard}
-                            onPress={() => handleTemplateSelect(template.id === 'custom' ? '' : template.label, template.id)}
-                            activeOpacity={0.8}
-                        >
-                            <View style={[styles.iconCircle, { backgroundColor: `${template.color}20` }]}>
-                                <Ionicons name={template.icon as any} size={28} color={template.color} />
+                        { id: 'gym', label: 'Hit the Gym', icon: 'barbell', color: '#4F46E5' },
+                        { id: 'code', label: 'Code Session', icon: 'code-slash', color: '#6366F1' },
+                        { id: 'read', label: 'Read Books', icon: 'book', color: '#8B5CF6' },
+                        { id: 'water', label: 'Drink Water', icon: 'water', color: '#7C3AED' },
+                        { id: 'wake', label: 'Wake Early', icon: 'alarm', color: '#4338CA' },
+                        { id: 'custom', label: 'Custom', icon: 'sparkles', color: '#6D28D9' },
+                    ].map((tpl) => (
+                        <TouchableOpacity key={tpl.id} style={styles.templateCard} onPress={() => handleTemplateSelect(tpl.label, tpl.id)}>
+                            <LinearGradient colors={[`${tpl.color}15`, `${tpl.color}05`]} style={styles.tplGradient} />
+                            <View style={[styles.tplIconCircle, { backgroundColor: `${tpl.color}20` }]}>
+                                <Ionicons name={tpl.icon as any} size={28} color={tpl.color} />
                             </View>
-                            <Text style={styles.templateLabel}>{template.label}</Text>
+                            <Text style={styles.tplLabel}>{tpl.label}</Text>
                         </TouchableOpacity>
                     ))}
                 </View>
             )}
+        </Animated.View>
+    );
+
+    const renderStakeStep = () => (
+        <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
+            <Text style={styles.wizardSubtitle}>STEP 2</Text>
+            <Text style={styles.wizardTitle}>Commit your share</Text>
+            <View style={styles.stakeDisplay}>
+                <Text style={styles.currency}>₹</Text>
+                <Text style={styles.stakeValue}>{amountPerPerson}</Text>
+            </View>
+            <View style={styles.sliderContainer}>
+                <View style={styles.sliderTrack} />
+                <Animated.View style={[styles.sliderTrackActive, activeTrackStyle]} />
+                <GestureDetector gesture={panGesture}>
+                    <Animated.View style={[styles.sliderKnob, knobStyle]}>
+                        <View style={styles.knobInner} />
+                    </Animated.View>
+                </GestureDetector>
+            </View>
+            <View style={styles.sliderLabels}>
+                <Text style={styles.sliderLabel}>₹20</Text>
+                <Text style={styles.sliderLabel}>₹5000</Text>
+            </View>
+            <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
+                <Text style={styles.nextBtnText}>Define Terms</Text>
+                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+            </TouchableOpacity>
+        </Animated.View>
+    );
+
+    const renderDetailsStep = () => (
+        <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
+            <Text style={styles.wizardSubtitle}>STEP 3</Text>
+            <Text style={styles.wizardTitle}>The Fine Print</Text>
+            <View style={styles.detailBox}>
+                <Text style={styles.boxLabel}>DURATION</Text>
+                <View style={styles.chipRow}>
+                    {['1', '7', '14', '30'].map(d => (
+                        <TouchableOpacity key={d} style={[styles.chip, duration === d && styles.chipActive]} onPress={() => setDuration(d)}>
+                            <Text style={[styles.chipText, duration === d && styles.chipTextActive]}>{d} Days</Text>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+                <TextInput style={styles.daysInput} placeholder="Custom Days" keyboardType="numeric" value={duration} onChangeText={setDuration} />
+            </View>
+            <View style={styles.detailBox}>
+                <Text style={styles.boxLabel}>PARTICIPANTS</Text>
+                <View style={styles.counter}>
+                    <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.max(2, parseInt(numPeople) - 1).toString())}>
+                        <Ionicons name="remove" size={20} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.counterVal}>{numPeople}</Text>
+                    <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.min(10, parseInt(numPeople) + 1).toString())}>
+                        <Ionicons name="add" size={20} color="#1E293B" />
+                    </TouchableOpacity>
+                </View>
+                <Text style={styles.counterHint}>Min 2 • Max 10</Text>
+            </View>
+            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: '#4F46E5' }]} onPress={handleCreatePromiseReal} disabled={loading}>
+                {loading ? <ActivityIndicator color="#FFF" /> : (
+                    <>
+                        <Text style={styles.nextBtnText}>Launch Promise</Text>
+                        <Ionicons name="rocket" size={20} color="#FFF" />
+                    </>
+                )}
+            </TouchableOpacity>
+        </Animated.View>
+    );
+
+    const renderSuccessStep = () => (
+        <View style={styles.successContainer}>
+            <Animated.View style={[styles.successIconBox, successIconStyle]}>
+                <LinearGradient colors={['#10B981', '#059669']} style={StyleSheet.absoluteFill} />
+                <Ionicons name="checkmark" size={60} color="#FFF" />
+            </Animated.View>
+            <Text style={styles.successTitle}>You're Bound</Text>
+            <Text style={styles.successSub}>Commitment is now live on the chain.</Text>
+            <View style={styles.codeCard}>
+                <Text style={styles.codeLabel}>INVITE YOUR CREW</Text>
+                <Text style={styles.codeValue}>{inviteCode}</Text>
+                <TouchableOpacity style={styles.copyBtn} onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    showAlert({ title: 'Copied', message: 'Invite code copied!', type: 'success' });
+                }}>
+                    <Ionicons name="copy-outline" size={18} color="#4F46E5" />
+                    <Text style={styles.copyBtnText}>Copy Code</Text>
+                </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.doneBtn} onPress={() => router.replace('/(tabs)')}>
+                <Text style={styles.doneBtnText}>Return to Dashboard</Text>
+            </TouchableOpacity>
         </View>
     );
 
     return (
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#FFFFFF' }}>
-            {/* Header with Progress */}
+        <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity
-                    onPress={() => step > 0 && step < 3 ? setStep(step - 1) : router.back()}
-                    style={styles.backButton}
-                    disabled={step === 3}
-                >
-                    <Ionicons name={step === 3 ? "close" : "arrow-back"} size={24} color="#1E293B" />
+                <TouchableOpacity onPress={() => step > 0 && step < 3 ? setStep(step - 1) : router.back()} style={styles.backBtn} disabled={step === 3}>
+                    <Ionicons name={step === 3 ? "close" : "chevron-back"} size={24} color="#1E293B" />
                 </TouchableOpacity>
-                <View style={styles.progressBar}>
-                    {/* Progress Fill: step 0 = 25%, step 1 = 50% etc */}
-                    <View style={[styles.progressFill, { width: `${(step + 1) * 25}%` }]} />
+                <View style={styles.progressContainer}>
+                    <View style={styles.progressTrack} />
+                    <Animated.View style={[styles.progressFill, { width: `${(step + 1) * 33.3}%` }]} />
                 </View>
             </View>
-
             <ScrollView contentContainerStyle={styles.scrollContent} scrollEnabled={step !== 1}>
                 {step === 0 && renderTemplateSelector()}
                 {step === 1 && renderStakeStep()}
                 {step === 2 && renderDetailsStep()}
-                {step === 3 && renderInviteStep()}
+                {step === 3 && renderSuccessStep()}
             </ScrollView>
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'android' ? 40 : 10,
-        marginBottom: 20,
-    },
-    backButton: {
-        padding: 8,
-        marginRight: 16,
-    },
-    progressBar: {
-        flex: 1,
-        height: 6,
-        backgroundColor: '#F1F5F9',
-        borderRadius: 3,
-        overflow: 'hidden',
-    },
-    progressFill: {
-        height: '100%',
-        backgroundColor: '#4F46E5', // Theme Violet
-        borderRadius: 3,
-    },
-    scrollContent: {
-        flexGrow: 1,
-        paddingHorizontal: 24,
-        paddingTop: 20,
-        paddingBottom: 40,
-    },
-    wizardContainer: {
-        flex: 1,
-        width: '100%',
-        justifyContent: 'center', // Vertically center within the flex container
-        alignItems: 'center',
-    },
-    wizardTitle: {
-        fontSize: 28, // Slightly smaller for header feel
-        fontWeight: '800',
-        color: '#1E293B',
-        marginBottom: 4,
-        textAlign: 'center',
-    },
-    wizardSubtitle: {
-        fontSize: 16,
-        color: '#64748B',
-        marginBottom: 32,
-        textAlign: 'center',
-    },
-    gridContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between',
-        width: '100%',
-    },
-    templateCard: {
-        width: '48%', // Ensure it fits 2 per row
-        backgroundColor: '#F8FAFC',
-        borderRadius: 20,
-        padding: 16, // Reduced padding
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 2,
-    },
-    iconCircle: {
-        width: 48, // Reduced from 56
-        height: 48,
-        borderRadius: 24,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 10,
-    },
-    templateLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#334155',
-    },
-    // SECTION: STAKE SLIDER
-    stakeDisplay: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 40,
-        marginTop: 20,
-        width: '100%',
-    },
-    currencySymbol: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: '#64748B',
-        marginRight: 4,
-        marginTop: 8,
-    },
-    stakeValue: {
-        fontSize: 64,
-        fontWeight: '800',
-        color: '#1E293B',
-    },
-    sliderContainer: {
-        height: 40,
-        justifyContent: 'center',
-        marginBottom: 8,
-        width: '100%',
-    },
-    sliderTrack: {
-        position: 'absolute',
-        width: '100%',
-        height: 8,
-        backgroundColor: '#E2E8F0',
-        borderRadius: 4,
-    },
-    sliderTrackActive: {
-        position: 'absolute',
-        height: 8,
-        backgroundColor: '#4F46E5',
-        borderRadius: 4,
-    },
-    sliderKnob: {
-        width: KNOB_SIZE,
-        height: KNOB_SIZE,
-        borderRadius: KNOB_SIZE / 2,
-        backgroundColor: '#FFFFFF',
-        position: 'absolute',
-        justifyContent: 'center',
-        alignItems: 'center',
-        // Shadow
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 5,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    knobDot: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        backgroundColor: '#4F46E5',
-    },
-    sliderLabels: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 40,
-        width: '100%',
-    },
-    sliderLabel: {
-        color: '#94A3B8',
-        fontWeight: '600',
-    },
-    continueButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#1E293B',
-        paddingVertical: 18,
-        borderRadius: 16,
-        gap: 8,
-        width: '100%',
-        shadowColor: '#1E293B',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-        elevation: 4,
-    },
-    continueButtonText: {
-        color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '700',
-    },
+    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 20 },
+    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    progressContainer: { flex: 1, marginLeft: 20, height: 4, borderRadius: 2, overflow: 'hidden' },
+    progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F1F5F9' },
+    progressFill: { height: '100%', backgroundColor: '#4F46E5' },
+    scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
+    wizardContainer: { flex: 1, paddingTop: 20 },
+    wizardSubtitle: { fontSize: 12, fontWeight: '800', color: '#4F46E5', letterSpacing: 1.5, marginBottom: 8 },
+    wizardTitle: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginBottom: 32, letterSpacing: -1 },
+    gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+    templateCard: { width: '48%', height: 160, borderRadius: 24, padding: 20, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#FFF' },
+    tplGradient: { ...StyleSheet.absoluteFillObject },
+    tplIconCircle: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+    tplLabel: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
+    customInputContainer: { width: '100%', gap: 24 },
+    customInput: { fontSize: 28, fontWeight: '800', color: '#1E293B', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingVertical: 12 },
+    nextBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E293B', paddingVertical: 18, borderRadius: 20, gap: 10, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 10 },
+    nextBtnText: { color: '#FFF', fontSize: 17, fontWeight: '800' },
+    backLink: { alignSelf: 'center', marginTop: 12 },
+    backLinkText: { fontSize: 14, color: '#64748B', fontWeight: '600' },
+    // STAKE
+    stakeDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 40 },
+    currency: { fontSize: 32, fontWeight: '700', color: '#94A3B8', marginRight: 4, marginTop: 12 },
+    stakeValue: { fontSize: 80, fontWeight: '900', color: '#1E293B', letterSpacing: -2 },
+    sliderContainer: { height: 44, justifyContent: 'center', width: '100%' },
+    sliderTrack: { height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, width: '100%' },
+    sliderTrackActive: { height: 8, backgroundColor: '#4F46E5', borderRadius: 4, position: 'absolute' },
+    sliderKnob: { width: KNOB_SIZE, height: KNOB_SIZE, borderRadius: KNOB_SIZE / 2, backgroundColor: '#FFF', position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' },
+    knobInner: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#4F46E5' },
+    sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, marginBottom: 40 },
+    sliderLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
     // DETAILS
-    detailSection: {
-        marginBottom: 32,
-        width: '100%',
-    },
-    detailLabel: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1E293B',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    chipContainer: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        gap: 10,
-        marginBottom: 12,
-        justifyContent: 'center',
-    },
-    chip: {
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 20,
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    chipActive: {
-        backgroundColor: '#EEF2FF',
-        borderColor: '#4F46E5',
-    },
-    chipText: {
-        color: '#64748B',
-        fontWeight: '600',
-    },
-    chipTextActive: {
-        color: '#4F46E5',
-    },
-    detailInput: {
-        backgroundColor: '#F8FAFC',
-        borderRadius: 12,
-        padding: 14,
-        fontSize: 16,
-        color: '#0F172A',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    counterContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 30,
-        backgroundColor: '#F8FAFC',
-        paddingVertical: 16,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-        width: '100%',
-    },
-    counterBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-    },
-    counterValue: {
-        fontSize: 32,
-        fontWeight: '800',
-        color: '#1E293B',
-        minWidth: 40,
-        textAlign: 'center',
-    },
-    counterHelper: {
-        textAlign: 'center',
-        marginTop: 12,
-        color: '#94A3B8',
-        fontSize: 14,
-    },
-    // INVITE
-    successIconContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginVertical: 40,
-    },
-    successCircle: {
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: '#ECFDF5',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    inviteCard: {
-        backgroundColor: '#F8FAFC',
-        borderRadius: 24,
-        padding: 24,
-        marginTop: 20,
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#E2E8F0',
-    },
-    inviteLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748B',
-        marginBottom: 8,
-        textTransform: 'uppercase',
-        letterSpacing: 1,
-    },
-    inviteCode: {
-        fontSize: 42,
-        fontWeight: '900',
-        color: '#1E293B',
-        letterSpacing: 2,
-        marginBottom: 20,
-    },
-    copyButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        paddingVertical: 10,
-        paddingHorizontal: 20,
-        backgroundColor: '#EEF2FF',
-        borderRadius: 20,
-    },
-    copyText: {
-        color: '#4F46E5',
-        fontWeight: '700',
-    },
+    detailBox: { marginBottom: 32 },
+    boxLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 16 },
+    chipRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+    chipActive: { backgroundColor: '#EEF2FF', borderColor: '#4F46E5' },
+    chipText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+    chipTextActive: { color: '#4F46E5' },
+    daysInput: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, fontSize: 16, fontWeight: '600', color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0' },
+    counter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 12, borderWidth: 1, borderColor: '#E2E8F0' },
+    counterAction: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: 2 },
+    counterVal: { fontSize: 24, fontWeight: '900', color: '#1E293B' },
+    counterHint: { fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 10, fontWeight: '600' },
+    // SUCCESS
+    successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 40 },
+    successIconBox: { width: 100, height: 100, borderRadius: 32, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 24, elevation: 10, shadowColor: '#10B981', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 15 },
+    successTitle: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginBottom: 8 },
+    successSub: { fontSize: 16, color: '#64748B', marginBottom: 40, textAlign: 'center' },
+    codeCard: { width: '100%', backgroundColor: '#F8FAFC', borderRadius: 28, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 40 },
+    codeLabel: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 2, marginBottom: 12 },
+    codeValue: { fontSize: 48, fontWeight: '900', color: '#1E293B', letterSpacing: 4, marginBottom: 24 },
+    copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EEF2FF', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14 },
+    copyBtnText: { color: '#4F46E5', fontWeight: '800', fontSize: 14 },
+    doneBtn: { width: '100%', backgroundColor: '#1E293B', paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
+    doneBtnText: { color: '#FFF', fontSize: 17, fontWeight: '800' }
 });

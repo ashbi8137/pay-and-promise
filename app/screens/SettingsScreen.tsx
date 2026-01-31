@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { Alert, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
 export default function SettingsScreen() {
     const router = useRouter();
+    const { showAlert } = useAlert();
 
     const navigateTo = (path: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -15,19 +17,31 @@ export default function SettingsScreen() {
 
     const handleLogout = async () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Sign Out',
-                style: 'destructive',
-                onPress: async () => {
-                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                    const { error } = await supabase.auth.signOut();
-                    if (error) Alert.alert('Error', error.message);
-                    else router.replace('/screens/AuthScreen');
+
+        showAlert({
+            title: 'Sign Out',
+            message: 'Are you sure you want to sign out of your protocol session?',
+            type: 'warning',
+            buttons: [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Sign Out',
+                    style: 'destructive',
+                    onPress: async () => {
+                        const { error } = await supabase.auth.signOut();
+                        if (error) {
+                            showAlert({
+                                title: 'Error',
+                                message: error.message,
+                                type: 'error'
+                            });
+                        } else {
+                            router.replace('/screens/AuthScreen');
+                        }
+                    }
                 }
-            }
-        ]);
+            ]
+        });
     };
 
     return (

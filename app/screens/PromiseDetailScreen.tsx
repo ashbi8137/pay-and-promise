@@ -323,15 +323,44 @@ export default function PromiseDetailScreen() {
 
                 const { data: { publicUrl } } = supabase.storage.from('proofs').getPublicUrl(fileName);
                 const dateStr = new Date().toISOString().split('T')[0];
-                const { error: checkinError } = await supabase.from('promise_submissions').insert({
-                    promise_id: promiseData.id,
-                    user_id: user.id,
-                    date: dateStr,
-                    image_url: publicUrl,
-                    status: 'pending'
-                });
+
+                // Check for existing submission to UPSERT
+                const { data: existing } = await supabase.from('promise_submissions')
+                    .select('id')
+                    .eq('promise_id', promiseData.id)
+                    .eq('user_id', user.id)
+                    .eq('date', dateStr)
+                    .single();
+
+                let checkinError;
+                if (existing) {
+                    const { error } = await supabase.from('promise_submissions').update({
+                        image_url: publicUrl,
+                        status: 'pending' // Reset to pending on retry
+                    }).eq('id', existing.id);
+                    checkinError = error;
+                } else {
+                    const { error } = await supabase.from('promise_submissions').insert({
+                        promise_id: promiseData.id,
+                        user_id: user.id,
+                        date: dateStr,
+                        image_url: publicUrl,
+                        status: 'pending'
+                    });
+                    checkinError = error;
+                }
 
                 if (checkinError) throw checkinError;
+
+                // Also reset any decision votes for this day so people can vote again?
+                // For now, simpler to just reset status. The votes link to specific submission_id?
+                // If I update rows, the submission_id stays same. Old verifications linked to it might persist.
+                // Ideally, clear old verifications? 
+                if (existing) {
+                    await supabase.from('submission_verifications').delete().eq('submission_id', existing.id);
+                    setMyVotes(prev => prev.filter(id => id !== existing.id)); // Clear local cache if any (though this is for others' task)
+                }
+
                 showAlert({ title: "Submitted!", message: "Proof is pending verification.", type: "success" });
                 fetchDailyReview();
             } catch (e) {
@@ -439,12 +468,16 @@ export default function PromiseDetailScreen() {
                     </View>
                     <View style={styles.heroBottom}>
                         <View style={styles.stakePill}>
-                            <Text style={styles.stakeLabel}>Stake/Person</Text>
+                            <Text style={styles.stakeLabel}>STAKE/PERSON</Text>
                             <Text style={styles.stakeValue}>₹{amountPerPerson}</Text>
                         </View>
                         {invite_code && (
-                            <TouchableOpacity style={styles.inviteBtn} onPress={handleCopyCode}>
-                                <Ionicons name="share-social" size={18} color="#FFF" />
+                            <TouchableOpacity style={styles.stakePill} onPress={handleCopyCode}>
+                                <Text style={[styles.stakeLabel, { textAlign: 'right' }]}>INVITE CODE</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                    <Text style={styles.stakeValue}>{invite_code}</Text>
+                                    <Ionicons name="copy-outline" size={14} color="#FFF" opacity={0.8} />
+                                </View>
                             </TouchableOpacity>
                         )}
                     </View>
@@ -532,10 +565,34 @@ export default function PromiseDetailScreen() {
                                 <Text style={styles.failText}>Marked as Failed</Text>
                             </View>
                         ) : (
-                            <Image source={{ uri: mySub.image_url }} style={styles.submissionImage} />
-                        )}
-                        {mySub.status === 'pending' && (
-                            <Text style={styles.waitingText}>Waiting for peers to verify...</Text>
+                            <View>
+                                <Image source={{ uri: mySub.image_url }} style={styles.submissionImage} />
+
+                                {mySub.status === 'rejected' && (
+                                    <View style={{ marginTop: 16 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12 }}>
+                                            <Ionicons name="alert-circle" size={20} color="#EF4444" />
+                                            <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 13, flex: 1 }}>
+                                                Submission Rejected.
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn}>
+                                            <Ionicons name="refresh" size={20} color="#FFF" />
+                                            <Text style={styles.mainActionText}>Retry Submission</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+
+                                {mySub.status === 'pending' && (
+                                    <View style={{ marginTop: 16 }}>
+                                        <Text style={styles.waitingText}>Waiting for peers...</Text>
+                                        <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#F1F5F9', marginTop: 12, elevation: 0, borderWidth: 1, borderColor: '#E2E8F0' }]} onPress={handlePhotoCheckIn}>
+                                            <Ionicons name="camera-reverse" size={20} color="#64748B" />
+                                            <Text style={[styles.mainActionText, { color: '#64748B' }]}>Update Proof</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                )}
+                            </View>
                         )}
                     </Animated.View>
                 ) : (
@@ -833,16 +890,6 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: '#FFF',
         fontWeight: '800',
-    },
-    inviteBtn: {
-        width: 44,
-        height: 44,
-        borderRadius: 14,
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
     },
     // SECTION
     section: {

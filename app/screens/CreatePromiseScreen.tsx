@@ -31,7 +31,7 @@ import { supabase } from '../../lib/supabase';
 const { width } = Dimensions.get('window');
 const SLIDER_WIDTH = width - 48;
 const KNOB_SIZE = 44;
-const MAX_STAKE = 5000;
+const MAX_STAKE = 2000;
 
 export default function CreatePromiseScreen() {
     const router = useRouter();
@@ -84,14 +84,21 @@ export default function CreatePromiseScreen() {
 
     const updateStake = (x: number) => {
         const percent = x / (SLIDER_WIDTH - KNOB_SIZE);
-        const rawValue = Math.round(percent * MAX_STAKE);
-        const snapped = Math.round(rawValue / 10) * 10;
+        const rawValue = percent * MAX_STAKE;
+        const snapped = Math.round(rawValue / 20) * 20;
         const final = Math.max(20, Math.min(snapped, MAX_STAKE));
 
         if (final !== parseInt(amountPerPerson)) {
             setAmountPerPerson(final.toString());
             Haptics.selectionAsync();
         }
+    };
+
+    const handleQuickSelect = (amount: number) => {
+        setAmountPerPerson(amount.toString());
+        const x = (amount / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE);
+        translateX.value = withSpring(x);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     };
 
     const context = useSharedValue(0);
@@ -221,6 +228,20 @@ export default function CreatePromiseScreen() {
                 <Text style={styles.currency}>₹</Text>
                 <Text style={styles.stakeValue}>{amountPerPerson}</Text>
             </View>
+            <View style={styles.quickSelectRow}>
+                {[50, 100, 200, 500].map(amt => (
+                    <TouchableOpacity
+                        key={amt}
+                        style={[styles.quickCard, amountPerPerson === amt.toString() && styles.quickCardActive]}
+                        onPress={() => handleQuickSelect(amt)}
+                    >
+                        <Text style={[styles.quickText, amountPerPerson === amt.toString() && styles.quickTextActive]}>
+                            ₹{amt}
+                        </Text>
+                    </TouchableOpacity>
+                ))}
+            </View>
+
             <View style={styles.sliderContainer}>
                 <View style={styles.sliderTrack} />
                 <Animated.View style={[styles.sliderTrackActive, activeTrackStyle]} />
@@ -232,7 +253,7 @@ export default function CreatePromiseScreen() {
             </View>
             <View style={styles.sliderLabels}>
                 <Text style={styles.sliderLabel}>₹20</Text>
-                <Text style={styles.sliderLabel}>₹5000</Text>
+                <Text style={styles.sliderLabel}>₹2000</Text>
             </View>
             <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
                 <Text style={styles.nextBtnText}>Define Terms</Text>
@@ -402,6 +423,30 @@ const styles = StyleSheet.create({
     knobInner: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#4F46E5' },
     sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, marginBottom: 40 },
     sliderLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
+    // QUICK SELECT
+    quickSelectRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 40 },
+    quickCard: {
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderRadius: 16,
+        backgroundColor: '#F1F5F9',
+        borderWidth: 1,
+        borderColor: 'transparent',
+        minWidth: 70,
+        alignItems: 'center'
+    },
+    quickCardActive: {
+        backgroundColor: '#EEF2FF',
+        borderColor: '#4F46E5',
+    },
+    quickText: {
+        fontSize: 14,
+        fontWeight: '800',
+        color: '#64748B',
+    },
+    quickTextActive: {
+        color: '#4F46E5',
+    },
     // DETAILS
     detailBox: { marginBottom: 32 },
     boxLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 16 },

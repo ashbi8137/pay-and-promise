@@ -5,7 +5,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Linking,
     Platform,
     RefreshControl,
     SafeAreaView,
@@ -13,7 +12,7 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GridOverlay } from '../../components/LuxuryVisuals';
@@ -407,45 +406,11 @@ export default function PromiseReportScreen() {
     const isGain = financials.netResult >= 0;
 
     const handlePay = async (upiId: string, name: string, amount: number, settlementId: string) => {
-        console.log(`[PayDebug] Paying to: ${name} (${upiId}) Amount: ${amount} `);
-        if (!upiId) {
-            showAlert({
-                title: "No UPI ID",
-                message: `${name} has not linked their UPI ID yet.Please contact them directly.`,
-                type: "warning"
-            });
-            return;
-        }
-
-        const upiUrl = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=Promise%20Settlement`;
-
-        try {
-            // Android 11+ requires <queries> in Manifest for canOpenURL to work reliably.
-            // Direct openURL is often more successful for Intents.
-            if (Platform.OS === 'android') {
-                await Linking.openURL(upiUrl);
-                setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
-            } else {
-                const supported = await Linking.canOpenURL(upiUrl);
-                if (supported) {
-                    await Linking.openURL(upiUrl);
-                    setInitiatedSettlements(prev => ({ ...prev, [settlementId]: true }));
-                } else {
-                    showAlert({
-                        title: "Error",
-                        message: "No UPI apps installed found to handle this request.",
-                        type: "error"
-                    });
-                }
-            }
-        } catch (err) {
-            console.error("UPI Error:", err);
-            showAlert({
-                title: "Error",
-                message: "Could not open UPI app.",
-                type: "error"
-            });
-        }
+        showAlert({
+            title: "Payments Evolving",
+            message: "We're crafting a seamless direct payment experience just for you. For now, please settle externally and tap 'Mark as Paid' to allow the system to track your promise analytics accurately.",
+            type: "info"
+        });
     };
 
     const handleMarkPaid = async (settlementId: string) => {

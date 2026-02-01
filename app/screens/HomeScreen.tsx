@@ -488,24 +488,22 @@ export default function HomeScreen() {
                         >
                             <View style={styles.heroContent}>
                                 <View style={styles.heroTextContainer}>
-                                    <Text style={styles.heroTitle}>Keep the momentum!</Text>
+                                    <Text style={styles.heroTitle}>Expand your circle!</Text>
                                     <Text style={styles.heroSubtitle}>
-                                        {activePromises.length > 0
-                                            ? `You have ${activePromises.length} active promises to verify.`
-                                            : "Start a new promise to build your trust score."}
+                                        Have a code? Join an existing promise and start building trust today.
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.heroButton}
-                                        onPress={() => activePromises.length > 0 ? router.push('/screens/ScoreboardScreen') : router.push('/screens/CreatePromiseScreen')}
+                                        onPress={() => router.push('/screens/JoinPromiseScreen')}
                                         activeOpacity={0.8}
                                     >
                                         <Text style={styles.heroButtonText}>
-                                            {activePromises.length > 0 ? "View Scoreboard" : "Create Promise"}
+                                            Join Promise
                                         </Text>
                                     </TouchableOpacity>
                                 </View>
                                 {/* Decorative Icon */}
-                                <Ionicons name="trophy" size={80} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', right: -10, bottom: -10 }} />
+                                <Ionicons name="people" size={80} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', right: -10, bottom: -10 }} />
                             </View>
                         </LinearGradient>
                     </Animated.View>

@@ -155,10 +155,12 @@ export default function AuthScreen() {
               </View>
             </View>
 
-            <Text style={styles.welcomeText}>Executive Access</Text>
             <Text style={styles.appName}>Pay & Promise</Text>
-            <View style={styles.divider} />
-            <Text style={styles.tagline}>"Precision in Discipline"</Text>
+            <View style={styles.taglineWrapper}>
+              <View style={styles.taglineLine} />
+              <Text style={styles.tagline}>Where Discipline Begins</Text>
+              <View style={styles.taglineLine} />
+            </View>
           </Animated.View>
 
           {/* Lower Section: Actions */}
@@ -166,55 +168,45 @@ export default function AuthScreen() {
             entering={FadeInUp.delay(400).duration(1000).springify()}
             style={styles.actionContainer}
           >
-            {/* <View style={styles.glassCard}> */}
-            <Text style={styles.authTitle}>Secure Access</Text>
-            <Text style={styles.authDescription}>
-              Join a community of honorable individuals committed to their goals.
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.googleButton, loading && styles.googleButtonDisabled]}
-              onPress={signInWithGoogle}
-              disabled={loading}
-              activeOpacity={0.9}
-            >
-              <LinearGradient
-                colors={['#4F46E5', '#7C3AED']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.buttonGradient}
-              >
-                {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
-                ) : (
-                  <>
-                    <View style={styles.whiteBadge}>
-                      <Ionicons name="logo-google" size={18} color="#4F46E5" />
-                    </View>
-                    <Text style={styles.googleButtonText}>Continue with Google</Text>
-                  </>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <View style={styles.termsContainer}>
-              <Text style={styles.termsText}>
-                By continuing, you agree to our{' '}
-                <Text style={styles.linkText} onPress={() => router.push('/screens/TermsScreen')}>Terms</Text>
-                {' '}and{' '}
-                <Text style={styles.linkText} onPress={() => router.push('/screens/PrivacyPolicyScreen')}>Privacy</Text>
+            <View style={styles.accessCard}>
+              <View style={styles.accessHeader}>
+                <View style={styles.securityIndicator} />
+                <Text style={styles.authTitle}>PROTOCOL ACCESS</Text>
+              </View>
+              <Text style={styles.authDescription}>
+                Authenticate your identity to continue to the executive dashboard.
               </Text>
+
+              <TouchableOpacity
+                style={[styles.googleButton, loading && styles.googleButtonDisabled]}
+                onPress={signInWithGoogle}
+                disabled={loading}
+                activeOpacity={0.9}
+              >
+                <LinearGradient
+                  colors={['#4F46E5', '#6366F1']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.buttonGradient}
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <View style={styles.googleIconContainer}>
+                        <Ionicons name="logo-google" size={20} color="#FFFFFF" />
+                      </View>
+                      <Text style={styles.googleButtonText}>Continue with Google</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
             </View>
-            {/* </View> */}
 
             <View style={styles.footer}>
-              <TouchableOpacity style={styles.footerLink}>
-                <Text style={styles.footerText}>Need Help?</Text>
-              </TouchableOpacity>
+              <Text style={styles.footerText} onPress={() => router.push('/screens/TermsScreen')}>Terms</Text>
               <View style={styles.footerDot} />
-              <TouchableOpacity style={styles.footerLink}>
-                <Text style={styles.footerText}>About Us</Text>
-              </TouchableOpacity>
+              <Text style={styles.footerText} onPress={() => router.push('/screens/PrivacyPolicyScreen')}>Privacy</Text>
             </View>
           </Animated.View>
 
@@ -243,18 +235,20 @@ const styles = StyleSheet.create({
     marginTop: height * 0.05,
   },
   logoOuterCircle: {
-    width: 130,
-    height: 130,
-    borderRadius: 65,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(226, 232, 240, 0.8)',
     shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 15 },
-    shadowOpacity: 0.2,
-    shadowRadius: 25,
-    marginBottom: 32,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
+    elevation: 10,
+    marginBottom: 40,
   },
   logoInnerCircle: {
     width: 100,
@@ -278,118 +272,117 @@ const styles = StyleSheet.create({
     fontSize: 42,
     fontWeight: '900',
     color: '#0F172A',
-    letterSpacing: -1.5,
+    letterSpacing: -2,
   },
-  divider: {
-    width: 44,
-    height: 5,
-    backgroundColor: '#4F46E5',
-    borderRadius: 2.5,
-    marginVertical: 18,
+  taglineWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 12,
+  },
+  taglineLine: {
+    width: 20,
+    height: 1,
+    backgroundColor: '#E2E8F0',
   },
   tagline: {
-    fontSize: 15,
-    color: '#94A3B8',
-    fontWeight: '700',
-    letterSpacing: 1,
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '800',
+    letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
   actionContainer: {
     width: '100%',
     paddingBottom: 20,
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+  accessCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 32,
-    padding: 28,
+    padding: 32,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
+    borderColor: 'rgba(0,0,0,0.05)',
+    shadowColor: '#4F46E5',
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.1,
+    shadowRadius: 30,
+    elevation: 10,
+  },
+  accessHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  securityIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
   },
   authTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: '#1E293B',
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '900',
+    color: '#0F172A',
+    letterSpacing: 2,
   },
   authDescription: {
     fontSize: 14,
     color: '#64748B',
     lineHeight: 22,
+    fontWeight: '600',
     marginBottom: 32,
   },
   googleButton: {
     width: '100%',
-    height: 68,
-    borderRadius: 22,
+    height: 64,
+    borderRadius: 20,
     overflow: 'hidden',
-    elevation: 12,
-    shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
   },
   buttonGradient: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
+    gap: 14,
   },
   googleButtonDisabled: {
     opacity: 0.7,
   },
-  whiteBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
+  googleIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   googleButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  termsContainer: {
-    marginTop: 24,
-    alignItems: 'center',
-  },
-  termsText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-  linkText: {
-    color: '#4F46E5',
-    fontWeight: '700',
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 32,
+    marginTop: 40,
     gap: 12,
   },
-  footerLink: {
-    padding: 4,
-  },
   footerText: {
-    fontSize: 13,
-    fontWeight: '600',
+    fontSize: 12,
+    fontWeight: '800',
     color: '#94A3B8',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   footerDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
     backgroundColor: '#CBD5E1',
   }
 });

@@ -1,6 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
@@ -16,6 +15,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -100,8 +100,7 @@ export default function TransactionHistoryScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
-
+            <GridOverlay />
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>

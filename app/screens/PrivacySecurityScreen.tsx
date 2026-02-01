@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { supabase } from '../../lib/supabase';
 
 import { useAlert } from '../../context/AlertContext';
@@ -61,10 +61,7 @@ export default function PrivacySecurityScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient
-                colors={['#F8FAFC', '#F1F5F9']}
-                style={StyleSheet.absoluteFill}
-            />
+            <GridOverlay />
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity

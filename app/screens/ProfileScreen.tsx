@@ -14,6 +14,7 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -79,9 +80,7 @@ export default function ProfileScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Ambient Background Elements */}
-            <View style={styles.ambientGlow} />
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
+            <GridOverlay />
 
             <SafeAreaView style={{ flex: 1 }}>
                 {/* Executive Header */}

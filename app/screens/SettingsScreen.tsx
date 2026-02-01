@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
@@ -46,10 +47,7 @@ export default function SettingsScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient
-                colors={['#F8FAFC', '#F1F5F9']}
-                style={StyleSheet.absoluteFill}
-            />
+            <GridOverlay />
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity

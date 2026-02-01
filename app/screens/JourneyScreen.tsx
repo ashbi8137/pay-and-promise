@@ -14,10 +14,9 @@ import {
     Text,
     TouchableOpacity,
     View,
-    useColorScheme
 } from 'react-native';
 import Animated, { FadeInDown, FadeInRight } from 'react-native-reanimated';
-import { Colors } from '../../constants/theme';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
@@ -44,8 +43,6 @@ interface JourneyItem {
 
 export default function JourneyScreen() {
     const router = useRouter();
-    const colorScheme = useColorScheme() ?? 'light';
-    const theme = Colors[colorScheme];
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [history, setHistory] = useState<JourneyItem[]>([]);
@@ -189,57 +186,58 @@ export default function JourneyScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
+            <GridOverlay />
+
+            {/* Background elements removed for focus */}
 
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                        <Ionicons name="chevron-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Executive Journey</Text>
+                    <Text style={styles.headerTitle}>Journey Atlas</Text>
                     <View style={{ width: 44 }} />
                 </View>
 
-                <ScrollView
-                    contentContainerStyle={styles.scrollContent}
-                    showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
-                >
-                    {!loading && history.length > 0 && (
-                        <Animated.View entering={FadeInDown.duration(800)} style={styles.impactCardWrapper}>
-                            <LinearGradient
-                                colors={['#4F46E5', '#7C3AED']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.impactCard}
-                            >
-                                <Ionicons name="infinite" size={120} color="rgba(255,255,255,0.1)" style={styles.impactBgIcon} />
-                                <Text style={styles.impactLabel}>LIFETIME PERFORMANCE</Text>
-                                <View style={styles.impactGrid}>
-                                    <View style={styles.impactItem}>
-                                        <Text style={styles.impactVal}>{globalStats.totalPromises}</Text>
-                                        <Text style={styles.impactSub}>Promises</Text>
+                {loading ? (
+                    <View style={styles.loaderContainer}>
+                        <ActivityIndicator size="large" color="#4F46E5" />
+                        <Text style={styles.loadingText}>Synchronizing Ledger...</Text>
+                    </View>
+                ) : (
+                    <ScrollView
+                        contentContainerStyle={styles.scrollContent}
+                        showsVerticalScrollIndicator={false}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+                    >
+                        {history.length > 0 && (
+                            <Animated.View entering={FadeInDown.duration(800)} style={styles.impactCardWrapper}>
+                                <LinearGradient
+                                    colors={['#0F172A', '#1E293B']}
+                                    style={styles.impactCard}
+                                >
+                                    <Ionicons name="infinite" size={120} color="rgba(255,255,255,0.03)" style={styles.impactBgIcon} />
+                                    <Text style={styles.impactLabel}>LIFETIME PERFORMANCE</Text>
+                                    <View style={styles.impactGrid}>
+                                        <View style={styles.impactItem}>
+                                            <Text style={styles.impactVal}>{globalStats.totalPromises}</Text>
+                                            <Text style={styles.impactSub}>Promises</Text>
+                                        </View>
+                                        <View style={styles.impactDivider} />
+                                        <View style={styles.impactItem}>
+                                            <Text style={styles.impactVal}>₹{Math.abs(globalStats.totalNet).toFixed(0)}</Text>
+                                            <Text style={styles.impactSub}>{globalStats.totalNet >= 0 ? 'Surplus' : 'Deficit'}</Text>
+                                        </View>
+                                        <View style={styles.impactDivider} />
+                                        <View style={styles.impactItem}>
+                                            <Text style={styles.impactVal}>{globalStats.successRate}%</Text>
+                                            <Text style={styles.impactSub}>Integrity</Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.impactDivider} />
-                                    <View style={styles.impactItem}>
-                                        <Text style={styles.impactVal}>₹{Math.abs(globalStats.totalNet).toFixed(0)}</Text>
-                                        <Text style={styles.impactSub}>{globalStats.totalNet >= 0 ? 'Surplus' : 'Deficit'}</Text>
-                                    </View>
-                                    <View style={styles.impactDivider} />
-                                    <View style={styles.impactItem}>
-                                        <Text style={styles.impactVal}>{globalStats.successRate}%</Text>
-                                        <Text style={styles.impactSub}>Integrity</Text>
-                                    </View>
-                                </View>
-                            </LinearGradient>
-                        </Animated.View>
-                    )}
+                                </LinearGradient>
+                            </Animated.View>
+                        )}
 
-                    {loading ? (
-                        <View style={styles.loaderContainer}>
-                            <ActivityIndicator size="large" color="#4F46E5" />
-                        </View>
-                    ) : (
                         <View style={styles.timeline}>
                             {history.map((item, index) => {
                                 const totalRecordedDays = item.days_data.filter(d => d === 'done' || d === 'failed').length;
@@ -262,7 +260,17 @@ export default function JourneyScreen() {
                                             entering={FadeInRight.delay(index * 150).springify()}
                                             style={styles.cardContainer}
                                         >
-                                            <View style={styles.card}>
+                                            <TouchableOpacity
+                                                activeOpacity={0.9}
+                                                style={styles.card}
+                                                onPress={() => {
+                                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                                    router.push({
+                                                        pathname: '/screens/PromiseReportScreen',
+                                                        params: { promiseId: item.id }
+                                                    });
+                                                }}
+                                            >
                                                 <View style={styles.cardHeader}>
                                                     <View style={{ flex: 1 }}>
                                                         <Text style={styles.cardTitle}>{item.title}</Text>
@@ -309,56 +317,41 @@ export default function JourneyScreen() {
                                                         </Text>
                                                     </View>
                                                 </View>
-
-                                                {isFullyCompleted && (
-                                                    <TouchableOpacity
-                                                        activeOpacity={0.7}
-                                                        style={styles.viewReportBtn}
-                                                        onPress={() => {
-                                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                                            router.push({
-                                                                pathname: '/screens/PromiseReportScreen',
-                                                                params: { promiseId: item.id }
-                                                            });
-                                                        }}
-                                                    >
-                                                        <Text style={styles.viewReportText}>Analyze Final Report</Text>
-                                                        <Ionicons name="analytics" size={16} color="#4F46E5" />
-                                                    </TouchableOpacity>
-                                                )}
-                                            </View>
+                                            </TouchableOpacity>
                                         </Animated.View>
                                     </View>
                                 );
                             })}
-                            {history.length === 0 && (
-                                <View style={styles.emptyState}>
-                                    <View style={styles.emptyIconCircle}>
-                                        <Ionicons name="trail-sign-outline" size={40} color="#94A3B8" />
-                                    </View>
-                                    <Text style={styles.emptyText}>Your legacy begins with your first promise.</Text>
-                                    <TouchableOpacity
-                                        style={styles.createFirstBtn}
-                                        onPress={() => router.push('/(tabs)/create')}
-                                    >
-                                        <Text style={styles.createFirstText}>Forge New Promise</Text>
-                                    </TouchableOpacity>
-                                </View>
-                            )}
                         </View>
-                    )}
-                </ScrollView>
+                        {history.length === 0 && (
+                            <View style={styles.emptyState}>
+                                <View style={styles.emptyIconCircle}>
+                                    <Ionicons name="trail-sign-outline" size={40} color="#94A3B8" />
+                                </View>
+                                <Text style={styles.emptyText}>Your legacy begins with your first promise.</Text>
+                                <TouchableOpacity
+                                    style={styles.createFirstBtn}
+                                    onPress={() => router.push('/screens/CreatePromiseScreen')}
+                                >
+                                    <Text style={styles.createFirstText}>Forge New Promise</Text>
+                                </TouchableOpacity>
+                            </View>
+                        )}
+                    </ScrollView>
+                )}
             </SafeAreaView>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FFFFFF' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 16 },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 28, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 24 },
     backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', letterSpacing: -0.5 },
-    scrollContent: { padding: 20 },
+    headerTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A', letterSpacing: -1 },
+    scrollContent: { paddingHorizontal: 28, paddingBottom: 40 },
+    loaderContainer: { marginTop: 100, alignItems: 'center' },
+    loadingText: { marginTop: 16, fontSize: 14, fontWeight: '700', color: '#4F46E5' },
     impactCardWrapper: { marginBottom: 32, borderRadius: 28, overflow: 'hidden', elevation: 12, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 20 },
     impactCard: { padding: 24 },
     impactBgIcon: { position: 'absolute', bottom: -20, right: -20 },
@@ -368,40 +361,48 @@ const styles = StyleSheet.create({
     impactVal: { fontSize: 24, fontWeight: '900', color: '#FFF', marginBottom: 4 },
     impactSub: { fontSize: 11, color: 'rgba(255,255,255,0.7)', fontWeight: '700' },
     impactDivider: { width: 1, height: 32, backgroundColor: 'rgba(255,255,255,0.1)' },
-    loaderContainer: { marginTop: 100, alignItems: 'center' },
     timeline: { flex: 1 },
-    timelineItem: { flexDirection: 'row', marginBottom: 24 },
-    dateColumn: { width: 65, alignItems: 'flex-start' },
-    dateText: { fontSize: 10, fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8 },
-    lineTrack: { flex: 1, alignItems: 'center', width: 20 },
-    lineNode: { width: 12, height: 12, borderRadius: 6, zIndex: 2, borderWidth: 2, borderColor: '#FFFFFF' },
-    lineConnector: { position: 'absolute', top: 10, width: 2, bottom: -30, backgroundColor: '#F1F5F9', zIndex: 1 },
+    timelineItem: { flexDirection: 'row', marginBottom: 28 },
+    dateColumn: { width: 60, alignItems: 'flex-start' },
+    dateText: { fontSize: 10, fontWeight: '900', color: '#94A3B8', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 },
+    lineTrack: { flex: 1, alignItems: 'center', width: 24 },
+    lineNode: { width: 14, height: 14, borderRadius: 7, zIndex: 2, borderWidth: 3, borderColor: '#FFFFFF', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4 },
+    lineConnector: { position: 'absolute', top: 12, width: 2, bottom: -32, backgroundColor: 'rgba(0,0,0,0.05)', zIndex: 1 },
     cardContainer: { flex: 1 },
-    card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 20, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-    cardTitle: { fontSize: 17, fontWeight: '800', color: '#1E293B', letterSpacing: -0.5 },
-    cardSubTitle: { fontSize: 12, color: '#94A3B8', fontWeight: '600', marginTop: 2 },
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-    bgSuccess: { backgroundColor: '#F0FDF4' },
-    bgActive: { backgroundColor: '#EEF2FF' },
-    textSuccess: { color: '#10B981', fontSize: 10, fontWeight: '900' },
-    textActive: { color: '#4F46E5', fontSize: 10, fontWeight: '900' },
+    card: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 28,
+        padding: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        elevation: 8
+    },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    cardTitle: { fontSize: 19, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
+    cardSubTitle: { fontSize: 11, color: '#94A3B8', fontWeight: '700', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 },
+    statusBadge: { paddingHorizontal: 0, paddingVertical: 0, borderRadius: 0 },
+    bgSuccess: { backgroundColor: 'transparent' },
+    bgActive: { backgroundColor: 'transparent' },
+    textSuccess: { color: '#10B981', fontSize: 12, fontWeight: '900' },
+    textActive: { color: '#4F46E5', fontSize: 12, fontWeight: '900' },
     statusText: { letterSpacing: 1 },
-    sectionLabel: { fontSize: 10, fontWeight: '800', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
-    storyGraph: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 24 },
-    storyBlock: { width: 18, height: 18, borderRadius: 5 },
+    sectionLabel: { fontSize: 10, fontWeight: '900', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 14 },
+    storyGraph: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 28 },
+    storyBlock: { width: 20, height: 20, borderRadius: 6 },
     blockGreen: { backgroundColor: '#10B981' },
     blockRed: { backgroundColor: '#EF4444' },
-    blockGray: { backgroundColor: '#F1F5F9' },
-    statsGrid: { flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 16, marginBottom: 20 },
-    statBox: { flex: 1, alignItems: 'center' },
-    statLabel: { fontSize: 9, fontWeight: '800', color: '#94A3B8', marginBottom: 4 },
-    statValue: { fontSize: 16, fontWeight: '900' },
-    viewReportBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, borderRadius: 18, backgroundColor: '#EEF2FF', gap: 10 },
-    viewReportText: { fontSize: 14, fontWeight: '800', color: '#4F46E5' },
-    emptyState: { paddingTop: 80, alignItems: 'center', paddingHorizontal: 40 },
-    emptyIconCircle: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginBottom: 24, borderWidth: 1, borderColor: '#F1F5F9' },
-    emptyText: { fontSize: 15, color: '#64748B', fontWeight: '600', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-    createFirstBtn: { backgroundColor: '#1E293B', paddingVertical: 16, paddingHorizontal: 32, borderRadius: 20, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
-    createFirstText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' }
+    blockGray: { backgroundColor: 'rgba(0,0,0,0.05)' },
+    statsGrid: { flexDirection: 'row', alignItems: 'center', marginTop: 10, marginBottom: 10 },
+    statBox: { flex: 1, alignItems: 'flex-start' },
+    statLabel: { fontSize: 9, fontWeight: '800', color: '#94A3B8', marginBottom: 4, letterSpacing: 1 },
+    statValue: { fontSize: 18, fontWeight: '900' },
+    emptyState: { paddingTop: 60, alignItems: 'center', paddingHorizontal: 40 },
+    emptyIconCircle: { width: 88, height: 88, borderRadius: 44, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', marginBottom: 28, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.1, shadowRadius: 12 },
+    emptyText: { fontSize: 16, color: '#64748B', fontWeight: '600', textAlign: 'center', lineHeight: 24, marginBottom: 32 },
+    createFirstBtn: { backgroundColor: '#0F172A', paddingVertical: 18, paddingHorizontal: 36, borderRadius: 24, elevation: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.2, shadowRadius: 15 },
+    createFirstText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 }
 });

@@ -24,13 +24,21 @@ import Animated, {
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
+    withRepeat,
     withTiming
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// --- LUXURY COMPONENTS ---
+
+
+
+
 
 export default function LandingScreen() {
     const router = useRouter();
@@ -95,52 +103,90 @@ export default function LandingScreen() {
         return () => clearTimeout(timer);
     }, []);
 
+    // Button Pulse Animation
+    const buttonPulse = useSharedValue(1);
+    const haloRot = useSharedValue(0);
+
+    useEffect(() => {
+        if (step === 1) {
+            buttonPulse.value = withRepeat(
+                withTiming(1.08, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+                -1,
+                true
+            );
+            haloRot.value = withRepeat(
+                withTiming(360, { duration: 8000, easing: Easing.linear }),
+                -1,
+                false
+            );
+        }
+    }, [step]);
+
+    const animatedPortalStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ scale: buttonPulse.value }],
+        };
+    });
+
+    const animatedHaloStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ rotate: `${haloRot.value}deg` }],
+        };
+    });
+
     const slides = [
         {
             id: 1,
             title: "Executive Stakes",
+            highlight: "Executive",
             subtitle: "Commit financial assets to your personal milestones. Integrity is non-negotiable.",
             icon: "diamond-outline",
             color: "#4F46E5",
-            gradient: ['#4F46E5', '#3730A3']
         },
         {
             id: 2,
             title: "Peer Verification",
+            highlight: "Verification",
             subtitle: "Your progress is audited by the community. Real proof, real accountability.",
             icon: "shield-checkmark",
             color: "#7C3AED",
-            gradient: ['#7C3AED', '#5B21B6']
         },
         {
             id: 3,
             title: "Compounding Trust",
+            highlight: "Trust",
             subtitle: "Build your reputation on the ledger of honor. Success breeds discipline.",
             icon: "infinite",
             color: "#6366F1",
-            gradient: ['#6366F1', '#4338CA']
         }
     ];
 
     const SlideItem = ({ item, index }: { item: any, index: number }) => {
         const animatedStyle = useAnimatedStyle(() => {
             const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
-            const scale = interpolate(scrollX.value, inputRange, [0.85, 1, 0.85], Extrapolation.CLAMP);
+            const scale = interpolate(scrollX.value, inputRange, [0.88, 1, 0.88], Extrapolation.CLAMP);
             const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
             return { transform: [{ scale }], opacity };
         });
 
+        // Split title to highlight executive words
+        const titleParts = item.title.split(item.highlight);
+
         return (
-            <View style={{ width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 }}>
+            <View style={{ width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 }}>
                 <Animated.View style={[styles.slideCard, animatedStyle]}>
                     <View style={styles.glassEffect} />
-                    <LinearGradient colors={[`${item.color}20`, 'transparent']} style={StyleSheet.absoluteFill} />
+                    <LinearGradient colors={[`${item.color}15`, 'transparent']} style={StyleSheet.absoluteFill} />
 
-                    <View style={[styles.iconContainer, { backgroundColor: `${item.color}15` }]}>
-                        <Ionicons name={item.icon as any} size={48} color={item.color} />
+                    <View style={[styles.iconContainer, { backgroundColor: `${item.color}10` }]}>
+                        <Ionicons name={item.icon as any} size={54} color={item.color} />
                     </View>
 
-                    <Text style={styles.slideTitle}>{item.title}</Text>
+                    <Text style={styles.slideTitle}>
+                        {titleParts[0]}
+                        <Text style={{ color: item.color }}>{item.highlight}</Text>
+                        {titleParts[1]}
+                    </Text>
                     <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
 
                     <View style={[styles.accentLine, { backgroundColor: item.color }]} />
@@ -153,9 +199,9 @@ export default function LandingScreen() {
         <View style={styles.pagination}>
             {slides.map((_, index) => {
                 const dotStyle = useAnimatedStyle(() => {
-                    const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [8, 24, 8], Extrapolation.CLAMP);
-                    const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.3, 1, 0.3], Extrapolation.CLAMP);
-                    return { width, opacity };
+                    const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [8, 28, 8], Extrapolation.CLAMP);
+                    const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.2, 1, 0.2], Extrapolation.CLAMP);
+                    return { width, opacity, backgroundColor: '#4F46E5' };
                 });
                 return <Animated.View key={index} style={[styles.dot, dotStyle]} />;
             })}
@@ -185,19 +231,21 @@ export default function LandingScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="dark" />
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9', '#E2E8F0']} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['#F8FAFC', '#F1F5F9', '#EAEEF3']} style={StyleSheet.absoluteFill} />
 
-            <View style={styles.ambientGlow} />
+            <GridOverlay />
+
+            {/* Background glows removed for focus */}
 
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.content}>
-                    <Animated.View entering={FadeInDown.delay(200)} style={styles.header}>
+                    <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.header}>
                         <Text style={styles.headerTitle}>Pay & Promise</Text>
                         <View style={styles.headerDivider} />
                         <Text style={styles.headerTagline}>THE EXECUTIVE STANDARD</Text>
                     </Animated.View>
 
-                    <View style={styles.sliderContainer}>
+                    <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.sliderContainer}>
                         <Animated.ScrollView
                             horizontal
                             pagingEnabled
@@ -211,27 +259,31 @@ export default function LandingScreen() {
                             ))}
                         </Animated.ScrollView>
                         <Pagination />
-                    </View>
+                    </Animated.View>
 
-                    <Animated.View entering={FadeInDown.delay(600)} style={styles.footer}>
-                        <TouchableOpacity
-                            style={styles.ctaButton}
-                            onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                                router.replace('/screens/AuthScreen');
-                            }}
-                            activeOpacity={0.9}
-                        >
-                            <LinearGradient
-                                colors={['#1E293B', '#0F172A']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={styles.ctaGradient}
-                            >
-                                <Text style={styles.ctaText}>Enter Dashboard</Text>
-                                <Ionicons name="arrow-forward" size={20} color="#FFF" />
-                            </LinearGradient>
-                        </TouchableOpacity>
+                    <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.footer}>
+                        <View style={styles.portalWrapper}>
+                            <Animated.View style={[styles.portalHalo, animatedHaloStyle]} />
+                            <Animated.View style={animatedPortalStyle}>
+                                <TouchableOpacity
+                                    style={styles.portalAction}
+                                    onPress={() => {
+                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                                        router.replace('/screens/AuthScreen');
+                                    }}
+                                    activeOpacity={0.7}
+                                >
+                                    <LinearGradient
+                                        colors={['#4F46E5', '#312E81']}
+                                        style={styles.portalGradient}
+                                    >
+                                        <Ionicons name="arrow-forward" size={36} color="#FFF" />
+                                    </LinearGradient>
+                                    <View style={styles.portalInnerRing} />
+                                </TouchableOpacity>
+                            </Animated.View>
+                        </View>
+                        <Text style={styles.portalLabel}>INITIATE JOURNEY</Text>
                         <Text style={styles.footNote}>Join the 1% of disciplined achievers.</Text>
                     </Animated.View>
                 </View>
@@ -248,24 +300,93 @@ const styles = StyleSheet.create({
     splashLogo: { width: '100%', height: '100%' },
     splashBrand: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginTop: 32, letterSpacing: -1 },
     splashTagline: { fontSize: 16, color: '#64748B', marginTop: 8, fontWeight: '600' },
-    content: { flex: 1, justifyContent: 'space-between', paddingVertical: 40 },
-    header: { alignItems: 'center', marginTop: 20 },
-    headerTitle: { fontSize: 36, fontWeight: '900', color: '#1E293B', letterSpacing: -1.5 },
-    headerDivider: { width: 30, height: 4, backgroundColor: '#4F46E5', borderRadius: 2, marginVertical: 12 },
-    headerTagline: { fontSize: 10, fontWeight: '800', color: '#94A3B8', letterSpacing: 4 },
-    sliderContainer: { height: SCREEN_HEIGHT * 0.5, justifyContent: 'center' },
-    slideCard: { width: SCREEN_WIDTH - 80, height: 360, borderRadius: 32, backgroundColor: 'rgba(255,255,255,0.7)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)', padding: 32, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.05, shadowRadius: 20 },
-    glassEffect: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.4)', opacity: 0.5 },
-    iconContainer: { width: 100, height: 100, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 32 },
-    slideTitle: { fontSize: 26, fontWeight: '900', color: '#1E293B', marginBottom: 16, textAlign: 'center' },
-    slideSubtitle: { fontSize: 15, color: '#64748B', textAlign: 'center', lineHeight: 22, fontWeight: '500' },
-    accentLine: { width: 40, height: 3, borderRadius: 1.5, marginTop: 32, opacity: 0.3 },
-    pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', bottom: -10 },
-    dot: { height: 6, borderRadius: 3, backgroundColor: '#1E293B', marginHorizontal: 4 },
-    footer: { paddingHorizontal: 40, alignItems: 'center' },
-    ctaButton: { width: '100%', height: 64, borderRadius: 20, overflow: 'hidden', elevation: 12, shadowColor: '#1E293B', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.25, shadowRadius: 15 },
-    ctaGradient: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12 },
-    ctaText: { color: '#FFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-    footNote: { fontSize: 12, color: '#94A3B8', fontWeight: '700', marginTop: 24, letterSpacing: 0.5 },
-    ambientGlow: { position: 'absolute', top: SCREEN_HEIGHT * 0.2, right: -100, width: 300, height: 300, borderRadius: 150, backgroundColor: 'rgba(79, 70, 229, 0.08)', filter: 'blur(80px)' as any }
+
+    // --- LUXURY BACKGROUND ---
+    content: { flex: 1, justifyContent: 'space-between', paddingVertical: 30 },
+    header: { alignItems: 'center', marginTop: 10 },
+    headerTitle: { fontSize: 38, fontWeight: '900', color: '#0F172A', letterSpacing: -1.8 },
+    headerDivider: { width: 34, height: 5, backgroundColor: '#4F46E5', borderRadius: 3, marginVertical: 14 },
+    headerTagline: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 5 },
+
+    sliderContainer: { height: SCREEN_HEIGHT * 0.52, justifyContent: 'center' },
+    slideCard: {
+        width: SCREEN_WIDTH - 64,
+        height: 400,
+        borderRadius: 44,
+        backgroundColor: 'rgba(255,255,255,0.92)',
+        padding: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+        elevation: 12,
+        shadowColor: 'rgba(79, 70, 229, 0.15)',
+        shadowOffset: { width: 0, height: 24 },
+        shadowOpacity: 0.3,
+        shadowRadius: 36
+    },
+    glassEffect: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.4)', opacity: 0.7 },
+    iconContainer: { width: 120, height: 120, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 36 },
+    slideTitle: { fontSize: 30, fontWeight: '900', color: '#0F172A', marginBottom: 18, textAlign: 'center', letterSpacing: -0.8 },
+    slideSubtitle: { fontSize: 17, color: '#64748B', textAlign: 'center', lineHeight: 26, fontWeight: '500', paddingHorizontal: 10 },
+    accentLine: { width: 60, height: 5, borderRadius: 2.5, marginTop: 36, opacity: 0.2 },
+
+    pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 30 },
+    dot: { height: 7, borderRadius: 3.5, marginHorizontal: 5 },
+
+    footer: { paddingHorizontal: 40, alignItems: 'center', paddingBottom: 10 },
+    portalWrapper: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center' },
+    portalHalo: {
+        position: 'absolute',
+        width: 110,
+        height: 110,
+        borderRadius: 55,
+        borderWidth: 2,
+        borderColor: '#4F46E5',
+        borderStyle: 'dashed',
+        opacity: 0.2
+    },
+    portalAction: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 25,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 12 },
+        shadowRadius: 24,
+    },
+    portalGradient: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2
+    },
+    portalInnerRing: {
+        position: 'absolute',
+        width: 106,
+        height: 106,
+        borderRadius: 53,
+        borderWidth: 1.5,
+        borderColor: 'rgba(79, 70, 229, 0.2)',
+        zIndex: 1
+    },
+    portalLabel: {
+        fontSize: 11,
+        fontWeight: '900',
+        color: '#4F46E5',
+        marginTop: 18,
+        letterSpacing: 4,
+        opacity: 0.9,
+        textTransform: 'uppercase'
+    },
+    footNote: {
+        fontSize: 12,
+        color: '#94A3B8',
+        fontWeight: '700',
+        marginTop: 20,
+        letterSpacing: 0.6
+    },
 });

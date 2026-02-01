@@ -16,6 +16,7 @@ import {
     View
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
@@ -121,99 +122,102 @@ export default function PaymentsScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#1E293B" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Digital Wallet</Text>
-                <View style={{ width: 44 }} />
-            </View>
+        <View style={styles.container}>
+            <GridOverlay />
+            <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Digital Wallet</Text>
+                    <View style={{ width: 44 }} />
+                </View>
 
-            <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <Animated.View entering={FadeInUp} style={styles.walletCard}>
-                    <LinearGradient
-                        colors={['#1E293B', '#0F172A']}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={StyleSheet.absoluteFill}
-                    />
-                    <View style={styles.cardHeader}>
-                        <View style={styles.chip} />
-                        <Ionicons name="radio-outline" size={32} color="rgba(255,255,255,0.2)" />
-                    </View>
+                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                    <Animated.View entering={FadeInUp} style={styles.walletCard}>
+                        <LinearGradient
+                            colors={['#1E293B', '#0F172A']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={StyleSheet.absoluteFill}
+                        />
+                        <View style={styles.cardHeader}>
+                            <View style={styles.chip} />
+                            <Ionicons name="radio-outline" size={32} color="rgba(255,255,255,0.2)" />
+                        </View>
 
-                    <View style={styles.upiContainer}>
-                        <Text style={styles.cardLabel}>UPI ID / VPA</Text>
-                        <Text style={styles.upiValue}>{isEditing ? 'SETTING UP...' : getMaskedUpi(upiId)}</Text>
-                    </View>
+                        <View style={styles.upiContainer}>
+                            <Text style={styles.cardLabel}>UPI ID / VPA</Text>
+                            <Text style={styles.upiValue}>{isEditing ? 'SETTING UP...' : getMaskedUpi(upiId)}</Text>
+                        </View>
 
-                    <View style={styles.cardFooter}>
-                        <View>
-                            <Text style={styles.footerLabel}>STATUS</Text>
-                            <View style={styles.statusRow}>
-                                <View style={[styles.statusDot, { backgroundColor: upiId ? '#10B981' : '#F59E0B' }]} />
-                                <Text style={styles.statusText}>{upiId ? 'Verified' : 'Pending'}</Text>
+                        <View style={styles.cardFooter}>
+                            <View>
+                                <Text style={styles.footerLabel}>STATUS</Text>
+                                <View style={styles.statusRow}>
+                                    <View style={[styles.statusDot, { backgroundColor: upiId ? '#10B981' : '#F59E0B' }]} />
+                                    <Text style={styles.statusText}>{upiId ? 'Verified' : 'Pending'}</Text>
+                                </View>
+                            </View>
+                            <Ionicons name="shield-checkmark" size={24} color="rgba(255,255,255,0.3)" />
+                        </View>
+                    </Animated.View>
+
+                    <Animated.View entering={FadeInDown.delay(200)} style={styles.formSection}>
+                        <View style={styles.infoCard}>
+                            <Ionicons name="information-circle" size={24} color="#4F46E5" />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.infoTitle}>Peer-to-Peer Payments</Text>
+                                <Text style={styles.infoSub}>Your UPI ID is shared only with members of promises you join to enable direct settlements.</Text>
                             </View>
                         </View>
-                        <Ionicons name="shield-checkmark" size={24} color="rgba(255,255,255,0.3)" />
-                    </View>
-                </Animated.View>
 
-                <Animated.View entering={FadeInDown.delay(200)} style={styles.formSection}>
-                    <View style={styles.infoCard}>
-                        <Ionicons name="information-circle" size={24} color="#4F46E5" />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.infoTitle}>Peer-to-Peer Payments</Text>
-                            <Text style={styles.infoSub}>Your UPI ID is shared only with members of promises you join to enable direct settlements.</Text>
-                        </View>
-                    </View>
+                        {!isEditing ? (
+                            <TouchableOpacity style={styles.editCardBtn} onPress={() => setIsEditing(true)}>
+                                <Text style={styles.editCardBtnText}>Update Payment Identity</Text>
+                                <Ionicons name="pencil-outline" size={18} color="#4F46E5" />
+                            </TouchableOpacity>
+                        ) : (
+                            <View style={styles.editPanel}>
+                                <Text style={styles.inputLabel}>Enter UPI ID</Text>
+                                <View style={styles.inputWrapper}>
+                                    <Ionicons name="at" size={20} color="#94A3B8" style={styles.inputIcon} />
+                                    <TextInput
+                                        style={styles.input}
+                                        value={upiId}
+                                        onChangeText={(v) => setUpiId(v.toLowerCase())}
+                                        placeholder="yourname@bank"
+                                        placeholderTextColor="#94A3B8"
+                                        autoCapitalize="none"
+                                        autoCorrect={false}
+                                    />
+                                </View>
 
-                    {!isEditing ? (
-                        <TouchableOpacity style={styles.editCardBtn} onPress={() => setIsEditing(true)}>
-                            <Text style={styles.editCardBtnText}>Update Payment Identity</Text>
-                            <Ionicons name="pencil-outline" size={18} color="#4F46E5" />
-                        </TouchableOpacity>
-                    ) : (
-                        <View style={styles.editPanel}>
-                            <Text style={styles.inputLabel}>Enter UPI ID</Text>
-                            <View style={styles.inputWrapper}>
-                                <Ionicons name="at" size={20} color="#94A3B8" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={upiId}
-                                    onChangeText={(v) => setUpiId(v.toLowerCase())}
-                                    placeholder="yourname@bank"
-                                    placeholderTextColor="#94A3B8"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                />
-                            </View>
-
-                            <View style={styles.actionRow}>
-                                {!isFirstTime && (
-                                    <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsEditing(false)}>
-                                        <Text style={styles.cancelBtnText}>Discard</Text>
+                                <View style={styles.actionRow}>
+                                    {!isFirstTime && (
+                                        <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsEditing(false)}>
+                                            <Text style={styles.cancelBtnText}>Discard</Text>
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity
+                                        style={[styles.saveBtn, savingUpi && { opacity: 0.7 }]}
+                                        onPress={saveUpiId}
+                                        disabled={savingUpi}
+                                    >
+                                        {savingUpi ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Identity</Text>}
                                     </TouchableOpacity>
-                                )}
-                                <TouchableOpacity
-                                    style={[styles.saveBtn, savingUpi && { opacity: 0.7 }]}
-                                    onPress={saveUpiId}
-                                    disabled={savingUpi}
-                                >
-                                    {savingUpi ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Identity</Text>}
-                                </TouchableOpacity>
+                                </View>
                             </View>
-                        </View>
-                    )}
+                        )}
 
-                    <View style={styles.securityBadge}>
-                        <Ionicons name="lock-closed" size={12} color="#94A3B8" />
-                        <Text style={styles.securityText}>End-to-End Encrypted Verification</Text>
-                    </View>
-                </Animated.View>
-            </ScrollView>
-        </SafeAreaView>
+                        <View style={styles.securityBadge}>
+                            <Ionicons name="lock-closed" size={12} color="#94A3B8" />
+                            <Text style={styles.securityText}>End-to-End Encrypted Verification</Text>
+                        </View>
+                    </Animated.View>
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 

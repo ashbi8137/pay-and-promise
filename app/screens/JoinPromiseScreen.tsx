@@ -17,9 +17,9 @@ import {
     TouchableWithoutFeedback,
     View
 } from 'react-native';
-import { supabase } from '../../lib/supabase';
-
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
+import { supabase } from '../../lib/supabase';
 
 export default function JoinPromiseScreen() {
     const router = useRouter();
@@ -205,6 +205,7 @@ export default function JoinPromiseScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            <GridOverlay />
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={{ flex: 1 }}

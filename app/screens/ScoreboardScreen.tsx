@@ -12,6 +12,7 @@ import {
     useColorScheme
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 
 const { width } = Dimensions.get('window');
@@ -23,6 +24,7 @@ export default function ScoreboardScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.background }]}>
+            <GridOverlay />
             <LinearGradient
                 colors={['#4F46E5', '#7C3AED']}
                 style={styles.headerGradient}

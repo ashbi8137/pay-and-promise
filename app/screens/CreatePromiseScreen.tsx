@@ -24,6 +24,7 @@ import Animated, {
     withSpring,
     withTiming
 } from 'react-native-reanimated';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
@@ -190,16 +191,18 @@ export default function CreatePromiseScreen() {
             ) : (
                 <View style={styles.gridContainer}>
                     {[
-                        { id: 'gym', label: 'Hit the Gym', icon: 'barbell', color: '#4F46E5' },
-                        { id: 'code', label: 'Code Session', icon: 'code-slash', color: '#6366F1' },
-                        { id: 'read', label: 'Read Books', icon: 'book', color: '#8B5CF6' },
-                        { id: 'water', label: 'Drink Water', icon: 'water', color: '#7C3AED' },
-                        { id: 'wake', label: 'Wake Early', icon: 'alarm', color: '#4338CA' },
-                        { id: 'custom', label: 'Custom', icon: 'sparkles', color: '#6D28D9' },
+                        { id: 'gym', label: 'Gym', icon: 'barbell', color: '#4F46E5' },
+                        { id: 'code', label: 'Code', icon: 'code-slash', color: '#4F46E5' },
+                        { id: 'read', label: 'Read', icon: 'book', color: '#4F46E5' },
+                        { id: 'water', label: 'Hydrate', icon: 'water', color: '#4F46E5' },
+                        { id: 'wake', label: 'Wake', icon: 'alarm', color: '#4F46E5' },
+                        { id: 'meditate', label: 'Meditate', icon: 'leaf', color: '#4F46E5' },
+                        { id: 'walk', label: 'Walk', icon: 'walk', color: '#4F46E5' },
+                        { id: 'study', label: 'Study', icon: 'school', color: '#4F46E5' },
+                        { id: 'custom', label: 'Other', icon: 'sparkles', color: '#4F46E5' },
                     ].map((tpl) => (
                         <TouchableOpacity key={tpl.id} style={styles.templateCard} onPress={() => handleTemplateSelect(tpl.label, tpl.id)}>
-                            <LinearGradient colors={[`${tpl.color}15`, `${tpl.color}05`]} style={styles.tplGradient} />
-                            <View style={[styles.tplIconCircle, { backgroundColor: `${tpl.color}20` }]}>
+                            <View style={styles.tplIconCircle}>
                                 <Ionicons name={tpl.icon as any} size={28} color={tpl.color} />
                             </View>
                             <Text style={styles.tplLabel}>{tpl.label}</Text>
@@ -303,46 +306,89 @@ export default function CreatePromiseScreen() {
     );
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => step > 0 && step < 3 ? setStep(step - 1) : router.back()} style={styles.backBtn} disabled={step === 3}>
-                    <Ionicons name={step === 3 ? "close" : "chevron-back"} size={24} color="#1E293B" />
-                </TouchableOpacity>
-                <View style={styles.progressContainer}>
-                    <View style={styles.progressTrack} />
-                    <Animated.View style={[styles.progressFill, { width: `${(step + 1) * 33.3}%` }]} />
+        <View style={styles.container}>
+            <GridOverlay />
+
+            {/* Ambient Depth removed for focus */}
+
+            <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => step > 0 && step < 3 ? setStep(step - 1) : router.back()} style={styles.backBtn} disabled={step === 3}>
+                        <Ionicons name={step === 3 ? "close" : "chevron-back"} size={24} color="#0F172A" />
+                    </TouchableOpacity>
+                    <View style={styles.progressContainer}>
+                        <View style={styles.progressTrack} />
+                        <Animated.View style={[styles.progressFill, { width: `${(step + 1) * 33.3}%` }]} />
+                    </View>
                 </View>
-            </View>
-            <ScrollView contentContainerStyle={styles.scrollContent} scrollEnabled={step !== 1}>
-                {step === 0 && renderTemplateSelector()}
-                {step === 1 && renderStakeStep()}
-                {step === 2 && renderDetailsStep()}
-                {step === 3 && renderSuccessStep()}
-            </ScrollView>
-        </SafeAreaView>
+                <ScrollView contentContainerStyle={styles.scrollContent} scrollEnabled={step !== 1} showsVerticalScrollIndicator={false}>
+                    {step === 0 && renderTemplateSelector()}
+                    {step === 1 && renderStakeStep()}
+                    {step === 2 && renderDetailsStep()}
+                    {step === 3 && renderSuccessStep()}
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#FFFFFF' },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
     header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 20 },
     backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
     progressContainer: { flex: 1, marginLeft: 20, height: 4, borderRadius: 2, overflow: 'hidden' },
-    progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F1F5F9' },
-    progressFill: { height: '100%', backgroundColor: '#4F46E5' },
+    progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(79, 70, 229, 0.1)' },
+    progressFill: { height: '100%', backgroundColor: '#4F46E5', borderRadius: 2 },
     scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
     wizardContainer: { flex: 1, paddingTop: 20 },
     wizardSubtitle: { fontSize: 12, fontWeight: '800', color: '#4F46E5', letterSpacing: 1.5, marginBottom: 8 },
     wizardTitle: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginBottom: 32, letterSpacing: -1 },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    templateCard: { width: '48%', height: 160, borderRadius: 24, padding: 20, marginBottom: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9', backgroundColor: '#FFF' },
+    templateCard: {
+        width: '30%', // Three cards per row for a more compact look
+        alignItems: 'center',
+        marginBottom: 32,
+        padding: 10,
+    },
     tplGradient: { ...StyleSheet.absoluteFillObject },
-    tplIconCircle: { width: 52, height: 52, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-    tplLabel: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
+    tplIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+        backgroundColor: '#FFF',
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.2,
+        shadowRadius: 10,
+        elevation: 5,
+    },
+    tplLabel: {
+        fontSize: 13,
+        fontWeight: '700',
+        color: '#475569',
+        textAlign: 'center',
+        letterSpacing: -0.2,
+    },
     customInputContainer: { width: '100%', gap: 24 },
     customInput: { fontSize: 28, fontWeight: '800', color: '#1E293B', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingVertical: 12 },
-    nextBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#1E293B', paddingVertical: 18, borderRadius: 20, gap: 10, elevation: 8, shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 10 },
-    nextBtnText: { color: '#FFF', fontSize: 17, fontWeight: '800' },
+    nextBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#0F172A',
+        paddingVertical: 20,
+        borderRadius: 24,
+        gap: 12,
+        elevation: 12,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 15
+    },
+    nextBtnText: { color: '#FFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
     backLink: { alignSelf: 'center', marginTop: 12 },
     backLinkText: { fontSize: 14, color: '#64748B', fontWeight: '600' },
     // STAKE

@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
@@ -64,6 +65,7 @@ export default function HomeScreen() {
     useEffect(() => {
         checkTooltip();
         startPulse();
+
         // Start swinging animation
         rotation.value = withRepeat(
             withSequence(
@@ -438,7 +440,9 @@ export default function HomeScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.background }]}>
+        <View style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
+            <GridOverlay />
+
             <SafeAreaView style={{ flex: 1 }}>
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
@@ -447,31 +451,32 @@ export default function HomeScreen() {
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" colors={['#4F46E5']} />
                     }
                 >
+                    <Animated.View entering={FadeInDown.delay(100).springify()}>
+                        {/* TYPOGRAPHIC HERO HEADER */}
+                        <View style={styles.heroHeaderContainer}>
+                            <View style={styles.typographyBlock}>
+                                <Text style={styles.greetingLight}>{getGreeting().split(' ')[0]}</Text>
+                                <Text style={styles.greetingFocus}>{getGreeting().split(' ')[1] || 'DAY'}</Text>
+                                <Text style={styles.userNameHero}>{firstName || 'Agent'}.</Text>
+                            </View>
 
-                    {/* TYPOGRAPHIC HERO HEADER */}
-                    <View style={styles.heroHeaderContainer}>
-                        <View style={styles.typographyBlock}>
-                            <Text style={styles.greetingLight}>{getGreeting().split(' ')[0]}</Text>
-                            <Text style={styles.greetingFocus}>{getGreeting().split(' ')[1] || 'DAY'}</Text>
-                            <Text style={styles.userNameHero}>{firstName || 'Agent'}.</Text>
+                            {/* HANGING SWING DATE TAG */}
+                            <View style={styles.hangingContainer}>
+                                {/* The String */}
+                                <View style={styles.hangingThread} />
+                                {/* The Tag */}
+                                <Animated.View style={[styles.swingingTag, animatedSwingStyle]}>
+                                    <View style={styles.tagHole} />
+                                    <Text style={styles.tagDayNum}>
+                                        {new Date().getDate().toString().padStart(2, '0')}
+                                    </Text>
+                                    <Text style={styles.tagMonth}>
+                                        {new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+                                    </Text>
+                                </Animated.View>
+                            </View>
                         </View>
-
-                        {/* HANGING SWING DATE TAG */}
-                        <View style={styles.hangingContainer}>
-                            {/* The String */}
-                            <View style={styles.hangingThread} />
-                            {/* The Tag */}
-                            <Animated.View style={[styles.swingingTag, animatedSwingStyle]}>
-                                <View style={styles.tagHole} />
-                                <Text style={styles.tagDayNum}>
-                                    {new Date().getDate().toString().padStart(2, '0')}
-                                </Text>
-                                <Text style={styles.tagMonth}>
-                                    {new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
-                                </Text>
-                            </Animated.View>
-                        </View>
-                    </View>
+                    </Animated.View>
 
                     {/* Hero Action Card */}
                     <Animated.View entering={FadeInDown.delay(200).springify()}>
@@ -491,7 +496,7 @@ export default function HomeScreen() {
                                     </Text>
                                     <TouchableOpacity
                                         style={styles.heroButton}
-                                        onPress={() => activePromises.length > 0 ? router.push('/screens/ScoreboardScreen') : router.push('/(tabs)/create')}
+                                        onPress={() => activePromises.length > 0 ? router.push('/screens/ScoreboardScreen') : router.push('/screens/CreatePromiseScreen')}
                                         activeOpacity={0.8}
                                     >
                                         <Text style={styles.heroButtonText}>
@@ -621,34 +626,7 @@ export default function HomeScreen() {
 
 
             </SafeAreaView>
-
-            <View style={styles.fabContainer}>
-                <TouchableOpacity
-                    style={styles.fabMain}
-                    onPress={handleCreatePromise}
-                    activeOpacity={1}
-                >
-                    <Ionicons name="add" size={28} color="#1E3A8A" />
-                </TouchableOpacity>
-            </View>
-
-            {/* TOOLTIP OVERLAY */}
-            {
-                showTooltip && (
-                    <TouchableOpacity
-                        activeOpacity={1}
-                        style={styles.tooltipOverlay}
-                        onPress={dismissTooltip}
-                    >
-                        <View style={styles.tooltipBubble}>
-                            <Text style={styles.tooltipTitle}>Start Here!</Text>
-                            <Text style={styles.tooltipText}>Create your first promise to verify.</Text>
-                            <View style={styles.tooltipArrow} />
-                        </View>
-                    </TouchableOpacity>
-                )
-            }
-        </View >
+        </View>
     );
 }
 
@@ -731,17 +709,18 @@ const styles = StyleSheet.create({
         letterSpacing: -0.5,
     },
     greetingFocus: {
-        fontSize: 48, // HUGE
-        fontWeight: '900', // BLACK weight
+        fontSize: 52, // Bolder
+        fontWeight: '500',
         color: '#0F172A',
-        letterSpacing: -1,
+        letterSpacing: -2,
         textTransform: 'uppercase',
-        lineHeight: 56, // Tight line height
+        lineHeight: 60,
     },
     userNameHero: {
-        fontSize: 32,
+        fontSize: 34,
         fontWeight: '400',
-        color: '#4F46E5', // Brand Accent
+        color: '#4F46E5',
+        letterSpacing: -0.5,
     },
 
     // HERO CARD
@@ -822,19 +801,19 @@ const styles = StyleSheet.create({
     },
 
     card: {
-        borderRadius: 20, // Slightly more rounded
-        marginBottom: 16,
-        backgroundColor: '#FFFFFF',
+        borderRadius: 28, // More luxury curve
+        marginBottom: 20,
+        backgroundColor: 'rgba(255, 255, 255, 0.85)',
         flexDirection: 'row',
-        alignItems: 'center', // Align icon box and content
-        padding: 12, // Reduced outer padding
-        // Soft UI
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.04,
-        shadowRadius: 12,
-        elevation: 1,
-        borderWidth: 0,
+        alignItems: 'center',
+        padding: 16,
+        elevation: 10,
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.08,
+        shadowRadius: 16,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.6)',
     },
     cardIconBox: {
         width: 56,
@@ -1002,7 +981,6 @@ const styles = StyleSheet.create({
         fontWeight: '700',
     },
 
-    // Promise List Section Styles
     promiseListSection: {
         marginBottom: 16,
     },
@@ -1010,87 +988,5 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '700',
         letterSpacing: -0.5,
-    },
-    // FAB & Tooltip Styles (Luxury: Hollow/Gradient Look)
-    fabContainer: {
-        position: 'absolute',
-        bottom: 40,
-        alignSelf: 'center',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-    },
-    fabMain: {
-        width: 60, // Slightly smaller for better fit
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#FFFFFF',
-        justifyContent: 'center',
-        alignItems: 'center',
-        // Refined shadow (less extreme)
-        shadowColor: '#1E3A8A',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
-        elevation: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(30, 58, 138, 0.05)',
-    },
-    pulseRing: {
-        position: 'absolute',
-        width: 100,
-        height: 100,
-        borderRadius: 50,
-        backgroundColor: '#818CF8', // Indigo-400
-        opacity: 0.5,
-    },
-    tooltipOverlay: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0, // Cover entire screen
-        backgroundColor: 'rgba(0,0,0,0.3)', // Dim background
-        alignItems: 'center',
-        justifyContent: 'flex-end',
-        paddingBottom: 110, // Above FAB
-        zIndex: 60,
-    },
-    tooltipBubble: {
-        backgroundColor: 'white',
-        paddingHorizontal: 20,
-        paddingVertical: 12,
-        borderRadius: 16,
-        alignItems: 'center',
-        shadowColor: 'black',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        elevation: 6,
-        marginBottom: 8,
-    },
-    tooltipTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#1F2937',
-        marginBottom: 4,
-    },
-    tooltipText: {
-        fontSize: 14,
-        color: '#6B7280',
-        fontWeight: '500',
-    },
-    tooltipArrow: {
-        position: 'absolute',
-        bottom: -8,
-        width: 0,
-        height: 0,
-        backgroundColor: 'transparent',
-        borderStyle: 'solid',
-        borderLeftWidth: 8,
-        borderRightWidth: 8,
-        borderTopWidth: 8,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        borderTopColor: 'white',
     },
 });

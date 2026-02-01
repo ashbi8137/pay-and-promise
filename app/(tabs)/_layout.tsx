@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter } from 'expo-router';
 import { Dimensions, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { Colors } from '../../constants/theme';
@@ -6,88 +7,110 @@ import { Colors } from '../../constants/theme';
 const { width } = Dimensions.get('window');
 
 // Custom Background Component (Standard View to avoid native crashes)
-const TabBackground = () => {
+// Custom Background Component
+// Custom Background Component
+const TabBackground = ({ colorScheme }: { colorScheme: 'light' | 'dark' }) => {
+    const theme = Colors[colorScheme];
     return (
         <View style={{
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
-            bottom: 0,
-            backgroundColor: '#FFFFFF',
-            borderRadius: 24,
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
+            height: 72,
+            backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slightly more opaque for better legibility
+            borderRadius: 36,
+            borderWidth: 1,
+            borderColor: 'rgba(255, 255, 255, 0.5)',
+            shadowColor: '#4F46E5',
+            shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.1,
-            shadowRadius: 10,
-            elevation: 5,
+            shadowRadius: 15,
+            elevation: 10,
         }} />
     );
 };
 
 export default function TabLayout() {
     const colorScheme = useColorScheme() ?? 'light';
-    const router = useRouter(); // Access router
+    const router = useRouter();
     const theme = Colors[colorScheme];
 
     return (
         <Tabs
-            // Custom button handler for the 'create' tab
             screenOptions={{
                 headerShown: false,
                 tabBarStyle: {
                     position: 'absolute',
                     bottom: 24,
-                    left: 16,
-                    right: 16,
+                    left: 20,
+                    right: 20,
                     backgroundColor: 'transparent',
                     borderTopWidth: 0,
                     elevation: 0,
-                    height: 70, // Hardcoded standard height
+                    height: 72,
+                    paddingTop: 0,
                     paddingBottom: 0,
-                    alignItems: 'center',
-                    justifyContent: 'center',
                 },
-                tabBarBackground: () => (
-                    <TabBackground />
-                ),
+                tabBarBackground: () => <TabBackground colorScheme={colorScheme} />,
                 tabBarItemStyle: {
-                    height: 70,
+                    flex: 1,
                     justifyContent: 'center',
-                    paddingVertical: 12,
+                    alignItems: 'center',
                 },
-                tabBarActiveTintColor: theme.tint,
+                tabBarActiveTintColor: '#4F46E5',
                 tabBarInactiveTintColor: '#94A3B8',
                 tabBarShowLabel: false,
+                tabBarIconStyle: {
+                    width: 48,
+                    height: 48,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                },
             }}
         >
-            {/* LEFT TAB 1: HOME */}
             <Tabs.Screen
                 name="index"
                 options={{
                     title: 'Home',
-                    tabBarIcon: ({ size, color, focused }) => (
-                        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="grid-outline" size={24} color={color} style={{ fontWeight: focused ? 'bold' : 'normal' }} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <View style={{
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            backgroundColor: focused ? 'rgba(79, 70, 229, 0.1)' : 'transparent', // Pill background
+                        }}>
+                            <Ionicons
+                                name={focused ? "home-sharp" : "home-outline"}
+                                size={26}
+                                color={color}
+                            />
                         </View>
                     ),
                 }}
             />
 
-            {/* LEFT TAB 2: ACTIVITY (Swapped) */}
             <Tabs.Screen
                 name="activity"
                 options={{
                     title: 'Activity',
-                    tabBarIcon: ({ size, color, focused }) => (
-                        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="analytics-outline" size={24} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <View style={{
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            backgroundColor: focused ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+                        }}>
+                            <Ionicons name={focused ? "stats-chart" : "stats-chart-outline"} size={26} color={color} />
                         </View>
                     ),
                 }}
             />
 
-            {/* CENTER TAB: CREATE (CUSTOM BUTTON) */}
             <Tabs.Screen
                 name="create"
                 listeners={({ navigation }) => ({
@@ -103,29 +126,39 @@ export default function TabLayout() {
                             <TouchableOpacity
                                 {...otherProps}
                                 style={{
-                                    top: -24, // Slightly lower
+                                    top: -28,
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     zIndex: 10,
                                 }}
                                 onPress={() => router.push('/screens/CreatePromiseScreen')}
+                                activeOpacity={0.8}
                             >
                                 <View style={{
-                                    width: 60, // Smaller
-                                    height: 60,
-                                    borderRadius: 30,
-                                    backgroundColor: '#FFFFFF', // Hollow
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    elevation: 4,
-                                    shadowColor: '#1E3A8A', // Deep Blue
-                                    shadowOffset: { width: 0, height: 8 },
-                                    shadowOpacity: 0.1, // Softer shadow
-                                    shadowRadius: 16,
-                                    borderWidth: 1,
-                                    borderColor: 'rgba(30, 58, 138, 0.1)',
+                                    width: 68,
+                                    height: 68,
+                                    borderRadius: 34,
+                                    shadowColor: '#4F46E5',
+                                    shadowOffset: { width: 0, height: 12 },
+                                    shadowOpacity: 0.4,
+                                    shadowRadius: 18,
+                                    elevation: 15,
                                 }}>
-                                    <Ionicons name="add" size={32} color="#1E3A8A" />
+                                    <LinearGradient
+                                        colors={['#4F46E5', '#7C3AED']}
+                                        style={{
+                                            flex: 1,
+                                            borderRadius: 34,
+                                            justifyContent: 'center',
+                                            alignItems: 'center',
+                                            borderWidth: 2,
+                                            borderColor: 'rgba(255,255,255,0.3)',
+                                        }}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 1 }}
+                                    >
+                                        <Ionicons name="add" size={36} color="#FFFFFF" />
+                                    </LinearGradient>
                                 </View>
                             </TouchableOpacity>
                         );
@@ -133,27 +166,39 @@ export default function TabLayout() {
                 }}
             />
 
-            {/* RIGHT TAB 1: LEDGER */}
             <Tabs.Screen
                 name="ledger"
                 options={{
                     title: 'Ledger',
-                    tabBarIcon: ({ size, color, focused }) => (
-                        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="receipt-outline" size={24} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <View style={{
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            backgroundColor: focused ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+                        }}>
+                            <Ionicons name={focused ? "wallet" : "wallet-outline"} size={26} color={color} />
                         </View>
                     ),
                 }}
             />
 
-            {/* RIGHT TAB 2: PROFILE */}
             <Tabs.Screen
                 name="profile"
                 options={{
                     title: 'Profile',
-                    tabBarIcon: ({ size, color, focused }) => (
-                        <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-                            <Ionicons name="person-outline" size={24} color={color} />
+                    tabBarIcon: ({ color, focused }) => (
+                        <View style={{
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 48,
+                            height: 48,
+                            borderRadius: 24,
+                            backgroundColor: focused ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
+                        }}>
+                            <Ionicons name={focused ? "person" : "person-outline"} size={26} color={color} />
                         </View>
                     ),
                 }}

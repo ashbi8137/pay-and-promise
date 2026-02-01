@@ -15,6 +15,7 @@ import {
   View
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
@@ -132,11 +133,9 @@ export default function AuthScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Ambient Background Gradients */}
-      <View style={styles.ambientContainer}>
-        <View style={styles.ambientCircle1} />
-        <View style={styles.ambientCircle2} />
-      </View>
+      <GridOverlay />
+
+      {/* Decorative background glows removed for focus */}
 
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.content}>
@@ -156,10 +155,10 @@ export default function AuthScreen() {
               </View>
             </View>
 
-            <Text style={styles.welcomeText}>Welcome to</Text>
+            <Text style={styles.welcomeText}>Executive Access</Text>
             <Text style={styles.appName}>Pay & Promise</Text>
             <View style={styles.divider} />
-            <Text style={styles.tagline}>"Where discipline begins"</Text>
+            <Text style={styles.tagline}>"Precision in Discipline"</Text>
           </Animated.View>
 
           {/* Lower Section: Actions */}
@@ -230,28 +229,6 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  ambientContainer: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-  ambientCircle1: {
-    position: 'absolute',
-    top: -height * 0.1,
-    right: -width * 0.2,
-    width: width * 1.5,
-    height: width * 1.5,
-    borderRadius: width * 0.75,
-    backgroundColor: 'rgba(79, 70, 229, 0.05)',
-  },
-  ambientCircle2: {
-    position: 'absolute',
-    bottom: -height * 0.2,
-    left: -width * 0.4,
-    width: width * 1.2,
-    height: width * 1.2,
-    borderRadius: width * 0.6,
-    backgroundColor: 'rgba(124, 58, 237, 0.05)',
-  },
   safeArea: {
     flex: 1,
   },
@@ -272,11 +249,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 20,
+    elevation: 25,
     shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 15 },
+    shadowOpacity: 0.2,
+    shadowRadius: 25,
     marginBottom: 32,
   },
   logoInnerCircle: {
@@ -298,23 +275,24 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   appName: {
-    fontSize: 40,
+    fontSize: 42,
     fontWeight: '900',
-    color: '#1E293B',
-    letterSpacing: -1,
+    color: '#0F172A',
+    letterSpacing: -1.5,
   },
   divider: {
-    width: 40,
-    height: 4,
+    width: 44,
+    height: 5,
     backgroundColor: '#4F46E5',
-    borderRadius: 2,
-    marginVertical: 16,
+    borderRadius: 2.5,
+    marginVertical: 18,
   },
   tagline: {
-    fontSize: 16,
-    color: '#64748B',
-    fontWeight: '500',
-    fontStyle: 'italic',
+    fontSize: 15,
+    color: '#94A3B8',
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   actionContainer: {
     width: '100%',
@@ -346,14 +324,14 @@ const styles = StyleSheet.create({
   },
   googleButton: {
     width: '100%',
-    height: 64,
-    borderRadius: 20,
+    height: 68,
+    borderRadius: 22,
     overflow: 'hidden',
-    elevation: 8,
+    elevation: 12,
     shadowColor: '#4F46E5',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 15,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
   },
   buttonGradient: {
     flex: 1,

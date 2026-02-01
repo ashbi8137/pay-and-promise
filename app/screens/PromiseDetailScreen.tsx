@@ -20,6 +20,7 @@ import {
     useColorScheme
 } from 'react-native';
 import Animated, { FadeInDown, FadeInRight, FadeInUp } from 'react-native-reanimated';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
@@ -654,27 +655,30 @@ export default function PromiseDetailScreen() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="chevron-back" size={24} color="#1E293B" />
-                </TouchableOpacity>
-                <Text style={styles.headerTitleMain}>Promise Detail</Text>
-                <View style={{ width: 44 }} />
-            </View>
+        <View style={styles.container}>
+            <GridOverlay />
+            <SafeAreaView style={{ flex: 1 }}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitleMain}>Promise Detail</Text>
+                    <View style={{ width: 44 }} />
+                </View>
 
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
-            >
-                {renderHero()}
-                {renderCompletion()}
-                {renderJourneyMap()}
-                {renderDailyActions()}
-                <View style={{ height: 40 }} />
-            </ScrollView>
-        </SafeAreaView>
+                <ScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+                >
+                    {renderHero()}
+                    {renderCompletion()}
+                    {renderJourneyMap()}
+                    {renderDailyActions()}
+                    <View style={{ height: 40 }} />
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 }
 

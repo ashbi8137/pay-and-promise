@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { GridOverlay } from '../../components/LuxuryVisuals';
 
 export default function SupportScreen() {
     const router = useRouter();
@@ -14,7 +15,7 @@ export default function SupportScreen() {
 
     return (
         <View style={styles.container}>
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
+            <GridOverlay />
 
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>

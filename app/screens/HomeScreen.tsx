@@ -18,6 +18,7 @@ import {
 import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GridOverlay } from '../../components/LuxuryVisuals';
+import WalkthroughOverlay from '../../components/WalkthroughOverlay';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
@@ -455,9 +456,12 @@ export default function HomeScreen() {
                         {/* TYPOGRAPHIC HERO HEADER */}
                         <View style={styles.heroHeaderContainer}>
                             <View style={styles.typographyBlock}>
-                                <Text style={styles.greetingLight}>{getGreeting().split(' ')[0]}</Text>
-                                <Text style={styles.greetingFocus}>{getGreeting().split(' ')[1] || 'DAY'}</Text>
+                                <Text style={styles.greetingLight}>Welcome,</Text>
                                 <Text style={styles.userNameHero}>{firstName || 'Agent'}.</Text>
+                                <View style={styles.taglineContainer}>
+                                    <View style={styles.taglineAccent} />
+                                    <Text style={styles.taglineText}>YOUR WORD. YOUR LEGACY.</Text>
+                                </View>
                             </View>
 
                             {/* HANGING SWING DATE TAG */}
@@ -500,10 +504,13 @@ export default function HomeScreen() {
                                         <Text style={styles.heroButtonText}>
                                             Join Promise
                                         </Text>
+                                        <Ionicons name="arrow-forward" size={16} color="#4F46E5" style={{ marginLeft: 6 }} />
                                     </TouchableOpacity>
                                 </View>
-                                {/* Decorative Icon */}
-                                <Ionicons name="people" size={80} color="rgba(255,255,255,0.2)" style={{ position: 'absolute', right: -10, bottom: -10 }} />
+                                {/* Decorative Icon with glow effect */}
+                                <View style={{ position: 'absolute', right: -5, bottom: -5 }}>
+                                    <Ionicons name="people" size={90} color="rgba(255,255,255,0.35)" />
+                                </View>
                             </View>
                         </LinearGradient>
                     </Animated.View>
@@ -586,9 +593,6 @@ export default function HomeScreen() {
                                 activePromises.map(item => renderCard(item, false))
                             ) : (
                                 <View style={[styles.emptyStateContainer]}>
-                                    <View style={[styles.emptyStateIconContainer, { backgroundColor: '#F8FAFC' }]}>
-                                        <Ionicons name="sparkles-outline" size={32} color="#64748B" />
-                                    </View>
                                     <Text style={[styles.emptyStateTitleLuxury, { color: theme.text }]}>No active promises</Text>
                                     <Text style={[styles.emptyStateTextLuxury, { color: theme.icon }]}>
                                         Integrity is chosen, not given.
@@ -624,6 +628,9 @@ export default function HomeScreen() {
 
 
             </SafeAreaView>
+
+            {/* First-Time Walkthrough Overlay */}
+            <WalkthroughOverlay />
         </View>
     );
 }
@@ -701,10 +708,10 @@ const styles = StyleSheet.create({
         gap: -5,
     },
     greetingLight: {
-        fontSize: 32,
-        fontWeight: '300',
-        color: '#64748B',
-        letterSpacing: -0.5,
+        fontSize: 18,
+        fontWeight: '500',
+        color: '#94A3B8',
+        letterSpacing: 0.5,
     },
     greetingFocus: {
         fontSize: 52, // Bolder
@@ -715,10 +722,29 @@ const styles = StyleSheet.create({
         lineHeight: 60,
     },
     userNameHero: {
-        fontSize: 34,
-        fontWeight: '400',
+        fontSize: 48,
+        fontWeight: '800',
         color: '#4F46E5',
-        letterSpacing: -0.5,
+        letterSpacing: -1.5,
+    },
+    taglineContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 14,
+        gap: 10,
+    },
+    taglineAccent: {
+        width: 28,
+        height: 3,
+        backgroundColor: '#4F46E5',
+        borderRadius: 2,
+    },
+    taglineText: {
+        fontSize: 13,
+        fontWeight: '800',
+        color: '#64748B',
+        letterSpacing: 2.5,
+        textTransform: 'uppercase',
     },
 
     // HERO CARD
@@ -755,10 +781,12 @@ const styles = StyleSheet.create({
     },
     heroButton: {
         backgroundColor: '#FFFFFF',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
+        paddingHorizontal: 18,
+        paddingVertical: 12,
         borderRadius: 12,
         alignSelf: 'flex-start',
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     heroButtonText: {
         color: '#4F46E5',
@@ -889,23 +917,27 @@ const styles = StyleSheet.create({
 
     // EMPTY STATS (Luxury)
     emptyStateContainer: {
-        paddingVertical: 80,
+        paddingVertical: 60,
+        paddingHorizontal: 24,
         alignItems: 'center',
         justifyContent: 'center',
+        width: '100%',
     },
     emptyStateIconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 24,
-        opacity: 0.8,
+        marginBottom: 16,
+        backgroundColor: '#F1F5F9',
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
     },
     emptyStateTitleLuxury: {
-        fontSize: 16,
-        fontWeight: '600',
-        marginBottom: 8,
+        fontSize: 17,
+        fontWeight: '700',
+        marginBottom: 6,
         textAlign: 'center',
         color: '#1E293B',
     },
@@ -913,9 +945,9 @@ const styles = StyleSheet.create({
         fontSize: 13,
         textAlign: 'center',
         fontWeight: '500',
-        letterSpacing: 0.5,
-        opacity: 0.5,
-        textTransform: 'uppercase',
+        letterSpacing: 0.3,
+        color: '#94A3B8',
+        fontStyle: 'italic',
     },
     activeBadge: {
         backgroundColor: '#DCFCE7',

@@ -75,15 +75,8 @@ export default function RootLayout() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('Auth state changed:', event, session?.user?.id);
 
-      // Only navigate if we're not already processing auth
-      if (event === 'SIGNED_IN' && session && !isProcessingAuth) {
-        // Check if we're on AuthScreen only. LandingScreen handles its own navigation now.
-        const currentScreen = segments[1]; // screens/AuthScreen -> AuthScreen
-        if (currentScreen === 'AuthScreen') {
-          console.log('User signed in, navigating to Tabs');
-          router.replace('/(tabs)');
-        }
-      } else if (event === 'SIGNED_OUT') {
+      // Only navigate on SIGNED_OUT - SIGNED_IN is handled by AuthScreen directly
+      if (event === 'SIGNED_OUT') {
         const currentScreen = segments[1];
         // Only navigate to Landing if we are not already in the auth flow (AuthScreen or LandingScreen)
         // This prevents "ghost" redirects to Landing during the sign-in process
@@ -122,7 +115,6 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="index" />
-          <Stack.Screen name="screens/SplashScreen" />
           <Stack.Screen name="screens/AuthScreen" />
           {/* Kept for backward compat but Tabs are primary now */}
           <Stack.Screen name="screens/HomeScreen" />

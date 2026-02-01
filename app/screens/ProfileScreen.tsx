@@ -130,16 +130,16 @@ export default function ProfileScreen() {
                                 <View style={styles.footerStat}>
                                     <Text style={styles.footerLabel}>GAINS</Text>
                                     <View style={styles.valueRow}>
-                                        <Ionicons name="caret-up" size={12} color="#10B981" />
-                                        <Text style={[styles.footerValue, { color: '#1E293B' }]}>₹{financials.winnings.toLocaleString()}</Text>
+                                        <Ionicons name="trending-up" size={18} color="#10B981" />
+                                        <Text style={[styles.footerValue, { color: '#10B981' }]}>₹{financials.winnings.toLocaleString()}</Text>
                                     </View>
                                 </View>
                                 <View style={styles.vDivider} />
                                 <View style={styles.footerStat}>
                                     <Text style={styles.footerLabel}>EXITS</Text>
                                     <View style={styles.valueRow}>
-                                        <Ionicons name="caret-down" size={12} color="#EF4444" />
-                                        <Text style={[styles.footerValue, { color: '#1E293B' }]}>₹{financials.penalties.toLocaleString()}</Text>
+                                        <Ionicons name="trending-down" size={18} color="#EF4444" />
+                                        <Text style={[styles.footerValue, { color: '#EF4444' }]}>₹{financials.penalties.toLocaleString()}</Text>
                                     </View>
                                 </View>
                             </View>
@@ -209,17 +209,17 @@ const styles = StyleSheet.create({
     dashboardSection: { paddingHorizontal: 24, marginBottom: 20 },
     mainCard: { borderRadius: 28, paddingHorizontal: 28, paddingVertical: 24, minHeight: 160, justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 3 },
     cardInfo: { alignItems: 'center', marginBottom: 24 },
-    cardLabel: { fontSize: 8, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 4 },
+    cardLabel: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 6 },
     mainNetValue: { fontSize: 52, fontWeight: '900', letterSpacing: -2.5 },
     cardVisual: { position: 'absolute', right: -30, top: -20, opacity: 0.8 },
     meshPattern: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent', opacity: 0.1 },
     cardIcon: { zIndex: 1 },
-    cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F8FAFC' },
-    footerStat: { flex: 1, alignItems: 'center' },
-    footerLabel: { fontSize: 7, fontWeight: '900', color: '#CBD5E1', letterSpacing: 1, marginBottom: 2 },
-    valueRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-    footerValue: { fontSize: 16, fontWeight: '800', color: '#FFF' },
-    vDivider: { width: 1, height: 30, backgroundColor: '#F1F5F9' },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around', paddingTop: 20, paddingBottom: 8, borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+    footerStat: { flex: 1, alignItems: 'center', paddingVertical: 8 },
+    footerLabel: { fontSize: 11, fontWeight: '800', color: '#64748B', letterSpacing: 1.5, marginBottom: 6 },
+    valueRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    footerValue: { fontSize: 22, fontWeight: '900' },
+    vDivider: { width: 1, height: 40, backgroundColor: '#E2E8F0' },
 
     metricsContainer: { paddingHorizontal: 24, marginBottom: 32 },
     sectionTitle: { fontSize: 10, fontWeight: '900', color: '#94A3B8', letterSpacing: 2, marginBottom: 16 },

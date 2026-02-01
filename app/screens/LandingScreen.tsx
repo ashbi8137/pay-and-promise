@@ -70,7 +70,7 @@ export default function LandingScreen() {
     }, [isImageReady]);
 
     useEffect(() => {
-        const checkState = async () => {
+        const checkDeepLink = async () => {
             const initialUrl = await Linking.getInitialURL();
             const isDeepLinkDetected = initialUrl && (initialUrl.includes('access_token') || initialUrl.includes('#access_token'));
 
@@ -84,16 +84,12 @@ export default function LandingScreen() {
                 return;
             }
 
-            const { data, error } = await supabase.auth.getUser();
-            const hasUser = !!(data?.user && !error);
-            setIsAuthenticated(hasUser);
-
-            if (hasUser) {
-                router.replace('/(tabs)');
-            }
+            // LandingScreen is only shown to unauthenticated users (index.tsx handles auth check)
+            // Just show the landing content
+            setIsAuthenticated(false);
         };
 
-        checkState();
+        checkDeepLink();
 
         const timer = setTimeout(() => {
             setStep(1);

@@ -30,6 +30,7 @@ export default function AuthScreen() {
 
   // UX State
   const [loading, setLoading] = useState(false);
+  const [navigating, setNavigating] = useState(false);
 
   // Check for existing session on mount
   useEffect(() => {
@@ -107,6 +108,14 @@ export default function AuthScreen() {
                   full_name: googleName,
                   updated_at: new Date().toISOString(),
                 });
+
+                // Show full-screen loading overlay during navigation
+                setNavigating(true);
+
+                // Small delay to ensure overlay renders before navigation
+                setTimeout(() => {
+                  router.replace('/(tabs)');
+                }, 500);
               }
               return;
             }
@@ -212,6 +221,19 @@ export default function AuthScreen() {
 
         </View>
       </SafeAreaView>
+
+      {/* Full-screen loading overlay during navigation - covers any flash */}
+      {navigating && (
+        <View style={styles.navigationOverlay}>
+          <Image
+            source={require('../../assets/images/icon.png')}
+            style={{ width: 80, height: 80, marginBottom: 24 }}
+            resizeMode="contain"
+          />
+          <ActivityIndicator size="large" color="#4F46E5" />
+          <Text style={styles.navigationText}>Entering...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -384,5 +406,19 @@ const styles = StyleSheet.create({
     height: 3,
     borderRadius: 1.5,
     backgroundColor: '#CBD5E1',
-  }
+  },
+  navigationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  navigationText: {
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
 });

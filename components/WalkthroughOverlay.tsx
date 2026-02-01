@@ -31,7 +31,7 @@ const COACH_MARKS = [
         id: 'join',
         text: 'Join a promise using a code shared by friends.',
         // Join Promise card is around top third (~35% from top)
-        top: SCREEN_HEIGHT * 0.53,
+        top: SCREEN_HEIGHT * 0.57,
         horizontalAlign: 'center',
         arrowDirection: 'up',
         arrowOffset: -200,
@@ -40,7 +40,7 @@ const COACH_MARKS = [
         id: 'tabs',
         text: 'View your active promises and past history here.',
         // Active/History tabs are around mid screen (~50%)
-        top: SCREEN_HEIGHT * 0.63,
+        top: SCREEN_HEIGHT * 0.67,
         horizontalAlign: 'center',
         arrowDirection: 'up',
         arrowOffset: -200,

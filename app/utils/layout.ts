@@ -1,4 +1,4 @@
-import { Dimensions, PixelRatio } from 'react-native';
+import { Dimensions } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -11,7 +11,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export const scaleFont = (size: number) => {
     'worklet';
     const newSize = (SCREEN_WIDTH / 375) * size;
-    return Math.round(PixelRatio.roundToNearestPixel(newSize));
+    return Math.round(newSize);
 };
 
 export const SCREEN_DIMENSIONS = Dimensions.get('window');

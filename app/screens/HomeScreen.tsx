@@ -22,6 +22,7 @@ import WalkthroughOverlay from '../../components/WalkthroughOverlay';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { scaleFont } from '../utils/layout';
 
 // Data Interface matching Supabase Schema
 interface PromiseItem {
@@ -296,37 +297,6 @@ export default function HomeScreen() {
         router.push('/screens/CreatePromiseScreen');
     };
 
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 5) return 'Good evening'; // Late night is still evening extended
-        if (hour < 12) return 'Good morning';
-        if (hour < 17) return 'Good afternoon';
-        return 'Good evening';
-    };
-
-    const getDailyQuote = () => {
-        const quotes = [
-            "Start with one small, honest commitment today.",
-            "Consistency is the code to success.",
-            "Your word is your most valuable asset.",
-            "Small promises kept lead to big trust earned.",
-            "Focus on the step in front of you, not the whole staircase.",
-            "Discipline is doing what needs to be done, even if you don't want to.",
-            "Success is the sum of small efforts, repeated day in and day out.",
-            "The only bad workout is the one that didn't happen.",
-            "Don't wish for it. Work for it.",
-            "Action is the foundational key to all success."
-        ];
-        // Use day of year to rotate quotes
-        const today = new Date();
-        const start = new Date(today.getFullYear(), 0, 0);
-        const diff = (today.getTime() - start.getTime()) + ((start.getTimezoneOffset() - today.getTimezoneOffset()) * 60 * 1000);
-        const oneDay = 1000 * 60 * 60 * 24;
-        const dayOfYear = Math.floor(diff / oneDay);
-
-        return quotes[dayOfYear % quotes.length];
-    };
-
     const getGoalIcon = (description?: string, status?: string) => {
         if (status === 'failed') return 'alert-circle';
         if (status === 'completed') return 'checkmark-circle';
@@ -456,11 +426,11 @@ export default function HomeScreen() {
                         {/* TYPOGRAPHIC HERO HEADER */}
                         <View style={styles.heroHeaderContainer}>
                             <View style={styles.typographyBlock}>
-                                <Text style={styles.greetingLight}>Welcome,</Text>
-                                <Text style={styles.userNameHero}>{firstName || 'Agent'}.</Text>
+                                <Text style={styles.greetingLight} allowFontScaling={false}>Welcome,</Text>
+                                <Text style={styles.userNameHero} allowFontScaling={false}>{firstName || 'Agent'}</Text>
                                 <View style={styles.taglineContainer}>
                                     <View style={styles.taglineAccent} />
-                                    <Text style={styles.taglineText}>YOUR WORD. YOUR LEGACY.</Text>
+                                    <Text style={styles.taglineText} allowFontScaling={false}>YOUR WORD. YOUR LEGACY</Text>
                                 </View>
                             </View>
 
@@ -471,10 +441,10 @@ export default function HomeScreen() {
                                 {/* The Tag */}
                                 <Animated.View style={[styles.swingingTag, animatedSwingStyle]}>
                                     <View style={styles.tagHole} />
-                                    <Text style={styles.tagDayNum}>
+                                    <Text style={styles.tagDayNum} allowFontScaling={false}>
                                         {new Date().getDate().toString().padStart(2, '0')}
                                     </Text>
-                                    <Text style={styles.tagMonth}>
+                                    <Text style={styles.tagMonth} allowFontScaling={false}>
                                         {new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
                                     </Text>
                                 </Animated.View>
@@ -492,8 +462,8 @@ export default function HomeScreen() {
                         >
                             <View style={styles.heroContent}>
                                 <View style={styles.heroTextContainer}>
-                                    <Text style={styles.heroTitle}>Expand your circle!</Text>
-                                    <Text style={styles.heroSubtitle}>
+                                    <Text style={styles.heroTitle} allowFontScaling={false}>Expand your circle!</Text>
+                                    <Text style={styles.heroSubtitle} allowFontScaling={false}>
                                         Have a code? Join an existing promise and start building trust today.
                                     </Text>
                                     <TouchableOpacity
@@ -501,7 +471,7 @@ export default function HomeScreen() {
                                         onPress={() => router.push('/screens/JoinPromiseScreen')}
                                         activeOpacity={0.8}
                                     >
-                                        <Text style={styles.heroButtonText}>
+                                        <Text style={styles.heroButtonText} allowFontScaling={false}>
                                             Join Promise
                                         </Text>
                                         <Ionicons name="arrow-forward" size={16} color="#4F46E5" style={{ marginLeft: 6 }} />
@@ -641,14 +611,14 @@ const styles = StyleSheet.create({
         // backgroundColor handled dynamically
     },
     scrollContent: {
-        padding: 24,
-        paddingTop: Platform.OS === 'android' ? 80 : 60,
-        paddingBottom: 40,
+        padding: scaleFont(24),
+        paddingTop: Platform.OS === 'android' ? scaleFont(80) : scaleFont(60),
+        paddingBottom: scaleFont(40),
     },
     // HERO TYPOGRAPHY HEADER
     heroHeaderContainer: {
-        marginBottom: 32,
-        paddingTop: 10,
+        marginBottom: scaleFont(32),
+        paddingTop: scaleFont(10),
         flexDirection: 'row', // Side by side
         justifyContent: 'space-between',
         alignItems: 'flex-start',
@@ -656,107 +626,115 @@ const styles = StyleSheet.create({
     // SWING DATE TAG
     hangingContainer: {
         alignItems: 'center',
-        marginRight: 28, // Moved toward left (away from edge)
-        marginTop: -60, // Pull up significantly so rope starts off-screen
+        marginRight: scaleFont(28), // Moved toward left (away from edge)
+        marginTop: scaleFont(-60), // Pull up significantly so rope starts off-screen
     },
     hangingThread: {
-        width: 2,
-        height: 100, // Long rope
+        width: scaleFont(2),
+        height: scaleFont(100), // Long rope
         backgroundColor: '#CBD5E1', // Slightly darker thread for visibility
-        marginBottom: -8, // Overlap with tag
+        marginBottom: scaleFont(-8), // Overlap with tag
     },
     swingingTag: {
         backgroundColor: '#FFFFFF',
-        width: 68, // Bigger
-        paddingVertical: 14,
-        borderRadius: 14, // Slightly softer
+        width: scaleFont(68), // Bigger
+        paddingVertical: scaleFont(14),
+        borderRadius: scaleFont(14), // Slightly softer
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: '#CBD5E1',
         // Shadow for depth
         shadowColor: '#475569',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: scaleFont(8) },
         shadowOpacity: 0.15,
-        shadowRadius: 10,
-        elevation: 6,
+        shadowRadius: scaleFont(10),
+        elevation: scaleFont(6),
     },
     tagHole: {
-        width: 10, // Bigger hole
-        height: 10,
-        borderRadius: 5,
+        width: scaleFont(10), // Bigger hole
+        height: scaleFont(10),
+        borderRadius: scaleFont(5),
         backgroundColor: '#CBD5E1',
         position: 'absolute',
-        top: 8,
+        top: scaleFont(8),
     },
     tagDayNum: {
-        fontSize: 28, // Bigger number
+        fontSize: scaleFont(28), // Bigger number
         fontWeight: '800',
         color: '#1E293B',
-        marginTop: 8,
-        lineHeight: 28,
+        marginTop: scaleFont(8),
+        lineHeight: scaleFont(28),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     tagMonth: {
-        fontSize: 12, // Bigger month
+        fontSize: scaleFont(12), // Bigger month
         fontWeight: '700',
         color: '#64748B',
         textTransform: 'uppercase',
-        marginTop: 3,
-        letterSpacing: 1,
+        marginTop: scaleFont(3),
+        letterSpacing: scaleFont(1),
+        fontFamily: 'Outfit_700Bold',
     },
     typographyBlock: {
-        gap: -5,
+        gap: scaleFont(-5),
+        flex: 1,
+        marginRight: scaleFont(20), // Ensure text doesn't touch the hanging date card
     },
     greetingLight: {
-        fontSize: 18,
+        fontSize: scaleFont(18),
         fontWeight: '500',
         color: '#94A3B8',
-        letterSpacing: 0.5,
+        letterSpacing: scaleFont(0.5),
+        fontFamily: 'Outfit_300Light',
     },
     greetingFocus: {
-        fontSize: 52, // Bolder
+        fontSize: scaleFont(52), // Bolder
         fontWeight: '500',
         color: '#0F172A',
-        letterSpacing: -2,
+        letterSpacing: scaleFont(-2),
         textTransform: 'uppercase',
-        lineHeight: 60,
+        lineHeight: scaleFont(60),
+        fontFamily: 'Outfit_400Regular',
     },
     userNameHero: {
-        fontSize: 48,
+        fontSize: scaleFont(48),
         fontWeight: '800',
         color: '#4F46E5',
-        letterSpacing: -1.5,
+        letterSpacing: scaleFont(-1.5),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     taglineContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 14,
-        gap: 10,
+        marginTop: scaleFont(14),
+        gap: scaleFont(10),
     },
     taglineAccent: {
-        width: 28,
-        height: 3,
+        width: scaleFont(28),
+        height: scaleFont(3),
         backgroundColor: '#4F46E5',
-        borderRadius: 2,
+        borderRadius: scaleFont(2),
     },
     taglineText: {
-        fontSize: 13,
+        fontSize: scaleFont(9), // Smaller to create gap
         fontWeight: '800',
         color: '#64748B',
-        letterSpacing: 2.5,
+        letterSpacing: scaleFont(2),
         textTransform: 'uppercase',
+        fontFamily: 'Outfit_700Bold', // Taglines are usually bold
     },
 
     // HERO CARD
     heroCard: {
-        borderRadius: 24,
-        padding: 24,
-        marginBottom: 32,
+        borderRadius: scaleFont(24),
+        padding: scaleFont(24),
+        marginBottom: scaleFont(32),
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 10 },
+        shadowOffset: { width: 0, height: scaleFont(10) },
         shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 8,
+        shadowRadius: scaleFont(20),
+        elevation: scaleFont(8),
     },
     heroContent: {
         flexDirection: 'row',
@@ -765,25 +743,27 @@ const styles = StyleSheet.create({
     },
     heroTextContainer: {
         flex: 1,
-        marginRight: 16,
+        marginRight: scaleFont(16),
     },
     heroTitle: {
-        fontSize: 22,
+        fontSize: scaleFont(22),
         fontWeight: '800',
         color: '#FFFFFF',
-        marginBottom: 8,
+        marginBottom: scaleFont(8),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     heroSubtitle: {
-        fontSize: 14,
+        fontSize: scaleFont(14),
         color: 'rgba(255,255,255,0.9)',
-        marginBottom: 20,
-        lineHeight: 20,
+        marginBottom: scaleFont(20),
+        lineHeight: scaleFont(20),
+        fontFamily: 'Outfit_300Light',
     },
     heroButton: {
         backgroundColor: '#FFFFFF',
-        paddingHorizontal: 18,
-        paddingVertical: 12,
-        borderRadius: 12,
+        paddingHorizontal: scaleFont(18),
+        paddingVertical: scaleFont(12),
+        borderRadius: scaleFont(12),
         alignSelf: 'flex-start',
         flexDirection: 'row',
         alignItems: 'center',
@@ -791,112 +771,117 @@ const styles = StyleSheet.create({
     heroButtonText: {
         color: '#4F46E5',
         fontWeight: '700',
-        fontSize: 13,
+        fontSize: scaleFont(13),
+        fontFamily: 'Outfit_700Bold',
     },
 
     // MICRO STATS
     microStatsRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: scaleFont(32),
     },
     microStatsText: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         fontWeight: '500',
         opacity: 0.6,
-        letterSpacing: 0.5,
+        letterSpacing: scaleFont(0.5),
+        fontFamily: 'Outfit_400Regular',
     },
 
     // EDITORIAL TABS (Luxury)
     editorialTabs: {
         flexDirection: 'row',
         alignItems: 'baseline',
-        marginBottom: 28,
-        paddingHorizontal: 8,
+        marginBottom: scaleFont(28),
+        paddingHorizontal: scaleFont(8),
     },
     editorialTabTitle: {
-        fontSize: 24,
+        fontSize: scaleFont(24),
         fontWeight: '700', // Modern Bold
-        letterSpacing: -0.5,
+        letterSpacing: scaleFont(-0.5),
         color: '#1E293B',
+        fontFamily: 'Outfit_700Bold',
     },
     activeIndicator: {
-        height: 2, // Thinner
-        width: 32,
-        marginTop: 8,
+        height: scaleFont(2), // Thinner
+        width: scaleFont(32),
+        marginTop: scaleFont(8),
     },
 
     card: {
-        borderRadius: 28, // More luxury curve
-        marginBottom: 20,
+        borderRadius: scaleFont(28), // More luxury curve
+        marginBottom: scaleFont(20),
         backgroundColor: 'rgba(255, 255, 255, 0.85)',
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        elevation: 10,
+        padding: scaleFont(16),
+        elevation: scaleFont(10),
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 12 },
+        shadowOffset: { width: 0, height: scaleFont(12) },
         shadowOpacity: 0.08,
-        shadowRadius: 16,
+        shadowRadius: scaleFont(16),
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.6)',
     },
     cardIconBox: {
-        width: 56,
-        height: 56,
-        borderRadius: 16, // Soft square
+        width: scaleFont(56),
+        height: scaleFont(56),
+        borderRadius: scaleFont(16), // Soft square
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: 12, // Space between icon and content
+        marginRight: scaleFont(12), // Space between icon and content
     },
     cardContent: {
         flex: 1,
-        paddingVertical: 4,
+        paddingVertical: scaleFont(4),
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 6,
+        marginBottom: scaleFont(6),
     },
     cardTitle: {
-        fontSize: 16,
+        fontSize: scaleFont(16),
         fontWeight: '600',
         flex: 1,
-        marginRight: 12,
-        fontFamily: Platform.OS === 'ios' ? 'System' : 'Roboto',
+        marginRight: scaleFont(12),
+        fontFamily: 'Outfit_700Bold', // Enforce Outfit
         color: '#1E293B',
     },
     cardFooter: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12, // Modern gap spacing
+        gap: scaleFont(12), // Modern gap spacing
     },
     daysTag: {
         backgroundColor: '#F1F5F9',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
+        paddingHorizontal: scaleFont(8),
+        paddingVertical: scaleFont(2),
+        borderRadius: scaleFont(6),
     },
     daysTagText: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '600',
         color: '#64748B',
+        fontFamily: 'Outfit_400Regular',
     },
     cardMeta: {
-        fontSize: 12,
+        fontSize: scaleFont(12),
         fontWeight: '500',
         color: '#94A3B8',
+        fontFamily: 'Outfit_300Light',
     },
     metaItem: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     dotSeparator: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
-        marginHorizontal: 8,
+        width: scaleFont(4),
+        height: scaleFont(4),
+        borderRadius: scaleFont(2),
+        marginHorizontal: scaleFont(8),
     },
 
     // TRUST FOOTER
@@ -904,73 +889,77 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 48,
-        gap: 8,
+        marginTop: scaleFont(48),
+        gap: scaleFont(8),
         opacity: 0.4,
     },
     trustText: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '500',
-        letterSpacing: 1,
+        letterSpacing: scaleFont(1),
         textTransform: 'uppercase',
+        fontFamily: 'Outfit_400Regular',
     },
 
     // EMPTY STATS (Luxury)
     emptyStateContainer: {
-        paddingVertical: 60,
-        paddingHorizontal: 24,
+        paddingVertical: scaleFont(60),
+        paddingHorizontal: scaleFont(24),
         alignItems: 'center',
         justifyContent: 'center',
         width: '100%',
     },
     emptyStateIconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: scaleFont(64),
+        height: scaleFont(64),
+        borderRadius: scaleFont(32),
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 16,
+        marginBottom: scaleFont(16),
         backgroundColor: '#F1F5F9',
         borderWidth: 1,
         borderColor: '#E2E8F0',
     },
     emptyStateTitleLuxury: {
-        fontSize: 17,
+        fontSize: scaleFont(17),
         fontWeight: '700',
-        marginBottom: 6,
+        marginBottom: scaleFont(6),
         textAlign: 'center',
         color: '#1E293B',
+        fontFamily: 'Outfit_700Bold',
     },
     emptyStateTextLuxury: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         textAlign: 'center',
         fontWeight: '500',
-        letterSpacing: 0.3,
+        letterSpacing: scaleFont(0.3),
         color: '#94A3B8',
         fontStyle: 'italic',
+        fontFamily: 'Outfit_300Light',
     },
     activeBadge: {
         backgroundColor: '#DCFCE7',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        marginLeft: 8,
+        paddingHorizontal: scaleFont(8),
+        paddingVertical: scaleFont(2),
+        borderRadius: scaleFont(6),
+        marginLeft: scaleFont(8),
     },
     activeBadgeText: {
         color: '#166534',
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
     progressBarContainer: {
-        height: 10,
-        borderRadius: 5,
+        height: scaleFont(10),
+        borderRadius: scaleFont(5),
         overflow: 'hidden',
-        marginTop: 12,
+        marginTop: scaleFont(12),
     },
     progressBarFill: {
         height: '100%',
         backgroundColor: '#22C55E',
-        borderRadius: 5,
+        borderRadius: scaleFont(5),
     },
     completedCard: {
         opacity: 0.7,
@@ -979,44 +968,48 @@ const styles = StyleSheet.create({
         textDecorationLine: 'line-through',
     },
     completedBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
+        paddingHorizontal: scaleFont(8),
+        paddingVertical: scaleFont(2),
+        borderRadius: scaleFont(8),
     },
     completedBadgeText: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
     failedBadge: {
         backgroundColor: '#FEF2F2',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
+        paddingHorizontal: scaleFont(8),
+        paddingVertical: scaleFont(2),
+        borderRadius: scaleFont(8),
     },
     failedBadgeText: {
         color: '#EF4444',
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
     waitingBadge: {
         backgroundColor: '#FEF9C3',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 6,
-        marginLeft: 8,
+        paddingHorizontal: scaleFont(8),
+        paddingVertical: scaleFont(2),
+        borderRadius: scaleFont(6),
+        marginLeft: scaleFont(8),
     },
     waitingBadgeText: {
         color: '#B45309',
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
 
     promiseListSection: {
-        marginBottom: 16,
+        marginBottom: scaleFont(16),
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: scaleFont(18),
         fontWeight: '700',
-        letterSpacing: -0.5,
+        letterSpacing: scaleFont(-0.5),
+        fontFamily: 'Outfit_700Bold',
     },
 });

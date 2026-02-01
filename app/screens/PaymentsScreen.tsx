@@ -19,6 +19,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { scaleFont } from '../utils/layout';
 
 const { width } = Dimensions.get('window');
 
@@ -224,39 +225,39 @@ export default function PaymentsScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFFFFF' },
     centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 20 },
-    backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-    headerTitle: { fontSize: 16, fontWeight: '700', color: '#1E293B' },
-    content: { padding: 24 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: scaleFont(20), paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10), paddingBottom: scaleFont(20) },
+    backButton: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(12), backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    headerTitle: { fontSize: scaleFont(16), fontWeight: '700', color: '#1E293B', fontFamily: 'Outfit_700Bold' },
+    content: { padding: scaleFont(24) },
     // WALLET CARD
-    walletCard: { height: 200, borderRadius: 28, overflow: 'hidden', padding: 24, justifyContent: 'space-between', elevation: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 15 },
+    walletCard: { height: scaleFont(200), borderRadius: scaleFont(28), overflow: 'hidden', padding: scaleFont(24), justifyContent: 'space-between', elevation: scaleFont(12), shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(10) }, shadowOpacity: 0.3, shadowRadius: scaleFont(15) },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    chip: { width: 48, height: 36, backgroundColor: '#F1F5F9', borderRadius: 8, opacity: 0.8 },
-    upiContainer: { gap: 4 },
-    cardLabel: { fontSize: 10, fontWeight: '800', color: 'rgba(255,255,255,0.4)', letterSpacing: 1.5, textTransform: 'uppercase' },
-    upiValue: { fontSize: 24, fontWeight: '700', color: '#FFF', letterSpacing: 1, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
+    chip: { width: scaleFont(48), height: scaleFont(36), backgroundColor: '#F1F5F9', borderRadius: scaleFont(8), opacity: 0.8 },
+    upiContainer: { gap: scaleFont(4) },
+    cardLabel: { fontSize: scaleFont(10), fontWeight: '800', color: 'rgba(255,255,255,0.4)', letterSpacing: scaleFont(1.5), textTransform: 'uppercase', fontFamily: 'Outfit_800ExtraBold' },
+    upiValue: { fontSize: scaleFont(24), fontWeight: '700', color: '#FFF', letterSpacing: scaleFont(1), fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
     cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-    footerLabel: { fontSize: 9, fontWeight: '900', color: 'rgba(255,255,255,0.4)', letterSpacing: 1, marginBottom: 4 },
-    statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    statusDot: { width: 8, height: 8, borderRadius: 4 },
-    statusText: { fontSize: 12, fontWeight: '600', color: '#FFF' },
+    footerLabel: { fontSize: scaleFont(9), fontWeight: '900', color: 'rgba(255,255,255,0.4)', letterSpacing: scaleFont(1), marginBottom: scaleFont(4), fontFamily: 'Outfit_800ExtraBold' },
+    statusRow: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(6) },
+    statusDot: { width: scaleFont(8), height: scaleFont(8), borderRadius: scaleFont(4) },
+    statusText: { fontSize: scaleFont(12), fontWeight: '600', color: '#FFF', fontFamily: 'Outfit_700Bold' },
     // FORM
-    formSection: { marginTop: 40, gap: 24 },
-    infoCard: { flexDirection: 'row', backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, gap: 16, borderWidth: 1, borderColor: '#F1F5F9' },
-    infoTitle: { fontSize: 15, fontWeight: '800', color: '#1E293B', marginBottom: 4 },
-    infoSub: { fontSize: 13, color: '#64748B', lineHeight: 18 },
-    editCardBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2FF', paddingVertical: 18, borderRadius: 20, gap: 10, borderWidth: 1, borderColor: '#C7D2FE' },
-    editCardBtnText: { color: '#4F46E5', fontSize: 15, fontWeight: '800' },
-    editPanel: { gap: 16 },
-    inputLabel: { fontSize: 12, fontWeight: '800', color: '#94A3B8', letterSpacing: 1, textTransform: 'uppercase' },
-    inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 16 },
-    inputIcon: { marginRight: 12 },
-    input: { flex: 1, paddingVertical: 16, fontSize: 16, fontWeight: '700', color: '#1E293B' },
-    actionRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
-    cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, backgroundColor: '#F1F5F9' },
-    cancelBtnText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
-    saveBtn: { flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: 16, borderRadius: 16, backgroundColor: '#4F46E5' },
-    saveBtnText: { fontSize: 14, fontWeight: '800', color: '#FFF' },
-    securityBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.6 },
-    securityText: { fontSize: 11, fontWeight: '700', color: '#94A3B8' }
+    formSection: { marginTop: scaleFont(40), gap: scaleFont(24) },
+    infoCard: { flexDirection: 'row', backgroundColor: '#F8FAFC', padding: scaleFont(20), borderRadius: scaleFont(24), gap: scaleFont(16), borderWidth: 1, borderColor: '#F1F5F9' },
+    infoTitle: { fontSize: scaleFont(15), fontWeight: '800', color: '#1E293B', marginBottom: scaleFont(4), fontFamily: 'Outfit_800ExtraBold' },
+    infoSub: { fontSize: scaleFont(13), color: '#64748B', lineHeight: scaleFont(18), fontFamily: 'Outfit_400Regular' },
+    editCardBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2FF', paddingVertical: scaleFont(18), borderRadius: scaleFont(20), gap: scaleFont(10), borderWidth: 1, borderColor: '#C7D2FE' },
+    editCardBtnText: { color: '#4F46E5', fontSize: scaleFont(15), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' },
+    editPanel: { gap: scaleFont(16) },
+    inputLabel: { fontSize: scaleFont(12), fontWeight: '800', color: '#94A3B8', letterSpacing: scaleFont(1), textTransform: 'uppercase', fontFamily: 'Outfit_800ExtraBold' },
+    inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: scaleFont(16), borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: scaleFont(16) },
+    inputIcon: { marginRight: scaleFont(12) },
+    input: { flex: 1, paddingVertical: scaleFont(16), fontSize: scaleFont(16), fontWeight: '700', color: '#1E293B', fontFamily: 'Outfit_700Bold' },
+    actionRow: { flexDirection: 'row', gap: scaleFont(12), marginTop: scaleFont(8) },
+    cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: scaleFont(16), borderRadius: scaleFont(16), backgroundColor: '#F1F5F9' },
+    cancelBtnText: { fontSize: scaleFont(14), fontWeight: '700', color: '#64748B', fontFamily: 'Outfit_700Bold' },
+    saveBtn: { flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: scaleFont(16), borderRadius: scaleFont(16), backgroundColor: '#4F46E5' },
+    saveBtnText: { fontSize: scaleFont(14), fontWeight: '800', color: '#FFF', fontFamily: 'Outfit_800ExtraBold' },
+    securityBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scaleFont(6), opacity: 0.6 },
+    securityText: { fontSize: scaleFont(11), fontWeight: '700', color: '#94A3B8', fontFamily: 'Outfit_700Bold' }
 });

@@ -28,9 +28,11 @@ import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
+import { scaleFont } from '../utils/layout';
+
 const { width } = Dimensions.get('window');
-const SLIDER_WIDTH = width - 48;
-const KNOB_SIZE = 44;
+const SLIDER_WIDTH = width - scaleFont(48);
+const KNOB_SIZE = scaleFont(44);
 const MAX_STAKE = 2000;
 
 export default function CreatePromiseScreen() {
@@ -189,7 +191,7 @@ export default function CreatePromiseScreen() {
                         translateX.value = withSpring((500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE));
                     }}>
                         <Text style={styles.nextBtnText}>Set Stake</Text>
-                        <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                        <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => setCategory(null)} style={styles.backLink}>
                         <Text style={styles.backLinkText}>Choose Template</Text>
@@ -210,7 +212,7 @@ export default function CreatePromiseScreen() {
                     ].map((tpl) => (
                         <TouchableOpacity key={tpl.id} style={styles.templateCard} onPress={() => handleTemplateSelect(tpl.label, tpl.id)}>
                             <View style={styles.tplIconCircle}>
-                                <Ionicons name={tpl.icon as any} size={28} color={tpl.color} />
+                                <Ionicons name={tpl.icon as any} size={scaleFont(28)} color={tpl.color} />
                             </View>
                             <Text style={styles.tplLabel}>{tpl.label}</Text>
                         </TouchableOpacity>
@@ -257,7 +259,7 @@ export default function CreatePromiseScreen() {
             </View>
             <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
                 <Text style={styles.nextBtnText}>Define Terms</Text>
-                <Ionicons name="arrow-forward" size={20} color="#FFF" />
+                <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
             </TouchableOpacity>
         </Animated.View>
     );
@@ -281,11 +283,11 @@ export default function CreatePromiseScreen() {
                 <Text style={styles.boxLabel}>PARTICIPANTS</Text>
                 <View style={styles.counter}>
                     <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.max(2, parseInt(numPeople) - 1).toString())}>
-                        <Ionicons name="remove" size={20} color="#1E293B" />
+                        <Ionicons name="remove" size={scaleFont(20)} color="#1E293B" />
                     </TouchableOpacity>
                     <Text style={styles.counterVal}>{numPeople}</Text>
                     <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.min(10, parseInt(numPeople) + 1).toString())}>
-                        <Ionicons name="add" size={20} color="#1E293B" />
+                        <Ionicons name="add" size={scaleFont(20)} color="#1E293B" />
                     </TouchableOpacity>
                 </View>
                 <Text style={styles.counterHint}>Min 2 • Max 10</Text>
@@ -294,7 +296,7 @@ export default function CreatePromiseScreen() {
                 {loading ? <ActivityIndicator color="#FFF" /> : (
                     <>
                         <Text style={styles.nextBtnText}>Launch Promise</Text>
-                        <Ionicons name="rocket" size={20} color="#FFF" />
+                        <Ionicons name="rocket" size={scaleFont(20)} color="#FFF" />
                     </>
                 )}
             </TouchableOpacity>
@@ -305,7 +307,7 @@ export default function CreatePromiseScreen() {
         <View style={styles.successContainer}>
             <Animated.View style={[styles.successIconBox, successIconStyle]}>
                 <LinearGradient colors={['#10B981', '#059669']} style={StyleSheet.absoluteFill} />
-                <Ionicons name="checkmark" size={60} color="#FFF" />
+                <Ionicons name="checkmark" size={scaleFont(60)} color="#FFF" />
             </Animated.View>
             <Text style={styles.successTitle}>You're Bound</Text>
             <Text style={styles.successSub}>Commitment is now live on the chain.</Text>
@@ -316,7 +318,7 @@ export default function CreatePromiseScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     showAlert({ title: 'Copied', message: 'Invite code copied!', type: 'success' });
                 }}>
-                    <Ionicons name="copy-outline" size={18} color="#4F46E5" />
+                    <Ionicons name="copy-outline" size={scaleFont(18)} color="#4F46E5" />
                     <Text style={styles.copyBtnText}>Copy Code</Text>
                 </TouchableOpacity>
             </View>
@@ -335,7 +337,7 @@ export default function CreatePromiseScreen() {
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => step > 0 && step < 3 ? setStep(step - 1) : router.back()} style={styles.backBtn} disabled={step === 3}>
-                        <Ionicons name={step === 3 ? "close" : "chevron-back"} size={24} color="#0F172A" />
+                        <Ionicons name={step === 3 ? "close" : "chevron-back"} size={scaleFont(24)} color="#0F172A" />
                     </TouchableOpacity>
                     <View style={styles.progressContainer}>
                         <View style={styles.progressTrack} />
@@ -355,84 +357,85 @@ export default function CreatePromiseScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 20 },
-    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-    progressContainer: { flex: 1, marginLeft: 20, height: 4, borderRadius: 2, overflow: 'hidden' },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: scaleFont(20), paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10), paddingBottom: scaleFont(20) },
+    backBtn: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(12), backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
+    progressContainer: { flex: 1, marginLeft: scaleFont(20), height: scaleFont(4), borderRadius: scaleFont(2), overflow: 'hidden' },
     progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(79, 70, 229, 0.1)' },
-    progressFill: { height: '100%', backgroundColor: '#4F46E5', borderRadius: 2 },
-    scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 40 },
-    wizardContainer: { flex: 1, paddingTop: 20 },
-    wizardSubtitle: { fontSize: 12, fontWeight: '800', color: '#4F46E5', letterSpacing: 1.5, marginBottom: 8 },
-    wizardTitle: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginBottom: 32, letterSpacing: -1 },
+    progressFill: { height: '100%', backgroundColor: '#4F46E5', borderRadius: scaleFont(2) },
+    scrollContent: { flexGrow: 1, paddingHorizontal: scaleFont(24), paddingBottom: scaleFont(40) },
+    wizardContainer: { flex: 1, paddingTop: scaleFont(20) },
+    wizardSubtitle: { fontSize: scaleFont(12), fontWeight: '800', color: '#4F46E5', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
+    wizardTitle: { fontSize: scaleFont(32), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(32), letterSpacing: scaleFont(-1), fontFamily: 'Outfit_800ExtraBold' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     templateCard: {
         width: '30%', // Three cards per row for a more compact look
         alignItems: 'center',
-        marginBottom: 32,
-        padding: 10,
+        marginBottom: scaleFont(32),
+        padding: scaleFont(10),
     },
     tplGradient: { ...StyleSheet.absoluteFillObject },
     tplIconCircle: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: scaleFont(64),
+        height: scaleFont(64),
+        borderRadius: scaleFont(32),
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 12,
+        marginBottom: scaleFont(12),
         backgroundColor: '#FFF',
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 6 },
+        shadowOffset: { width: 0, height: scaleFont(6) },
         shadowOpacity: 0.2,
-        shadowRadius: 10,
-        elevation: 5,
+        shadowRadius: scaleFont(10),
+        elevation: scaleFont(5),
     },
     tplLabel: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         fontWeight: '700',
         color: '#475569',
         textAlign: 'center',
-        letterSpacing: -0.2,
+        letterSpacing: scaleFont(-0.2),
+        fontFamily: 'Outfit_700Bold',
     },
-    customInputContainer: { width: '100%', gap: 24 },
-    customInput: { fontSize: 28, fontWeight: '800', color: '#1E293B', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingVertical: 12 },
+    customInputContainer: { width: '100%', gap: scaleFont(24) },
+    customInput: { fontSize: scaleFont(28), fontWeight: '800', color: '#1E293B', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingVertical: scaleFont(12), fontFamily: 'Outfit_800ExtraBold' },
     nextBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#0F172A',
-        paddingVertical: 20,
-        borderRadius: 24,
-        gap: 12,
-        elevation: 12,
+        paddingVertical: scaleFont(20),
+        borderRadius: scaleFont(24),
+        gap: scaleFont(12),
+        elevation: scaleFont(12),
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: scaleFont(8) },
         shadowOpacity: 0.3,
-        shadowRadius: 15
+        shadowRadius: scaleFont(15)
     },
-    nextBtnText: { color: '#FFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
-    backLink: { alignSelf: 'center', marginTop: 12 },
-    backLinkText: { fontSize: 14, color: '#64748B', fontWeight: '600' },
+    nextBtnText: { color: '#FFF', fontSize: scaleFont(18), fontWeight: '800', letterSpacing: scaleFont(0.5), fontFamily: 'Outfit_800ExtraBold' },
+    backLink: { alignSelf: 'center', marginTop: scaleFont(12) },
+    backLinkText: { fontSize: scaleFont(14), color: '#64748B', fontWeight: '600', fontFamily: 'Outfit_400Regular' },
     // STAKE
-    stakeDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: 40 },
-    currency: { fontSize: 32, fontWeight: '700', color: '#94A3B8', marginRight: 4, marginTop: 12 },
-    stakeValue: { fontSize: 80, fontWeight: '900', color: '#1E293B', letterSpacing: -2 },
-    sliderContainer: { height: 44, justifyContent: 'center', width: '100%' },
-    sliderTrack: { height: 8, backgroundColor: '#F1F5F9', borderRadius: 4, width: '100%' },
-    sliderTrackActive: { height: 8, backgroundColor: '#4F46E5', borderRadius: 4, position: 'absolute' },
-    sliderKnob: { width: KNOB_SIZE, height: KNOB_SIZE, borderRadius: KNOB_SIZE / 2, backgroundColor: '#FFF', position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, borderWidth: 1, borderColor: '#F1F5F9' },
-    knobInner: { width: 14, height: 14, borderRadius: 7, backgroundColor: '#4F46E5' },
-    sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, marginBottom: 40 },
-    sliderLabel: { fontSize: 12, fontWeight: '700', color: '#94A3B8' },
+    stakeDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: scaleFont(40) },
+    currency: { fontSize: scaleFont(32), fontWeight: '700', color: '#94A3B8', marginRight: scaleFont(4), marginTop: scaleFont(12), fontFamily: 'Outfit_700Bold' },
+    stakeValue: { fontSize: scaleFont(80), fontWeight: '900', color: '#1E293B', letterSpacing: scaleFont(-2), fontFamily: 'Outfit_800ExtraBold' },
+    sliderContainer: { height: scaleFont(44), justifyContent: 'center', width: '100%' },
+    sliderTrack: { height: scaleFont(8), backgroundColor: '#F1F5F9', borderRadius: scaleFont(4), width: '100%' },
+    sliderTrackActive: { height: scaleFont(8), backgroundColor: '#4F46E5', borderRadius: scaleFont(4), position: 'absolute' },
+    sliderKnob: { width: KNOB_SIZE, height: KNOB_SIZE, borderRadius: KNOB_SIZE / 2, backgroundColor: '#FFF', position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.3, shadowRadius: scaleFont(8), borderWidth: 1, borderColor: '#F1F5F9' },
+    knobInner: { width: scaleFont(14), height: scaleFont(14), borderRadius: scaleFont(7), backgroundColor: '#4F46E5' },
+    sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: scaleFont(12), marginBottom: scaleFont(40) },
+    sliderLabel: { fontSize: scaleFont(12), fontWeight: '700', color: '#94A3B8', fontFamily: 'Outfit_700Bold' },
     // QUICK SELECT
-    quickSelectRow: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 40 },
+    quickSelectRow: { flexDirection: 'row', justifyContent: 'center', gap: scaleFont(12), marginBottom: scaleFont(40) },
     quickCard: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderRadius: 16,
+        paddingHorizontal: scaleFont(16),
+        paddingVertical: scaleFont(12),
+        borderRadius: scaleFont(16),
         backgroundColor: '#F1F5F9',
         borderWidth: 1,
         borderColor: 'transparent',
-        minWidth: 70,
+        minWidth: scaleFont(70),
         alignItems: 'center'
     },
     quickCardActive: {
@@ -440,36 +443,37 @@ const styles = StyleSheet.create({
         borderColor: '#4F46E5',
     },
     quickText: {
-        fontSize: 14,
+        fontSize: scaleFont(14),
         fontWeight: '800',
         color: '#64748B',
+        fontFamily: 'Outfit_700Bold'
     },
     quickTextActive: {
         color: '#4F46E5',
     },
     // DETAILS
-    detailBox: { marginBottom: 32 },
-    boxLabel: { fontSize: 11, fontWeight: '800', color: '#94A3B8', letterSpacing: 1.5, marginBottom: 16 },
-    chipRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-    chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
+    detailBox: { marginBottom: scaleFont(32) },
+    boxLabel: { fontSize: scaleFont(11), fontWeight: '800', color: '#94A3B8', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(16), fontFamily: 'Outfit_800ExtraBold' },
+    chipRow: { flexDirection: 'row', gap: scaleFont(10), marginBottom: scaleFont(16) },
+    chip: { paddingHorizontal: scaleFont(16), paddingVertical: scaleFont(10), borderRadius: scaleFont(14), backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
     chipActive: { backgroundColor: '#EEF2FF', borderColor: '#4F46E5' },
-    chipText: { fontSize: 14, fontWeight: '700', color: '#64748B' },
+    chipText: { fontSize: scaleFont(14), fontWeight: '700', color: '#64748B', fontFamily: 'Outfit_700Bold' },
     chipTextActive: { color: '#4F46E5' },
-    daysInput: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 16, fontSize: 16, fontWeight: '600', color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0' },
-    counter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: 20, padding: 12, borderWidth: 1, borderColor: '#E2E8F0' },
-    counterAction: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: 2 },
-    counterVal: { fontSize: 24, fontWeight: '900', color: '#1E293B' },
-    counterHint: { fontSize: 12, color: '#94A3B8', textAlign: 'center', marginTop: 10, fontWeight: '600' },
+    daysInput: { backgroundColor: '#F8FAFC', borderRadius: scaleFont(16), padding: scaleFont(16), fontSize: scaleFont(16), fontWeight: '600', color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0', fontFamily: 'Outfit_400Regular' },
+    counter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: scaleFont(20), padding: scaleFont(12), borderWidth: 1, borderColor: '#E2E8F0' },
+    counterAction: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(14), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: scaleFont(2) },
+    counterVal: { fontSize: scaleFont(24), fontWeight: '900', color: '#1E293B', fontFamily: 'Outfit_800ExtraBold' },
+    counterHint: { fontSize: scaleFont(12), color: '#94A3B8', textAlign: 'center', marginTop: scaleFont(10), fontWeight: '600', fontFamily: 'Outfit_400Regular' },
     // SUCCESS
-    successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: 40 },
-    successIconBox: { width: 100, height: 100, borderRadius: 32, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: 24, elevation: 10, shadowColor: '#10B981', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 15 },
-    successTitle: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginBottom: 8 },
-    successSub: { fontSize: 16, color: '#64748B', marginBottom: 40, textAlign: 'center' },
-    codeCard: { width: '100%', backgroundColor: '#F8FAFC', borderRadius: 28, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 40 },
-    codeLabel: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 2, marginBottom: 12 },
-    codeValue: { fontSize: 48, fontWeight: '900', color: '#1E293B', letterSpacing: 4, marginBottom: 24 },
-    copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EEF2FF', paddingHorizontal: 20, paddingVertical: 12, borderRadius: 14 },
-    copyBtnText: { color: '#4F46E5', fontWeight: '800', fontSize: 14 },
-    doneBtn: { width: '100%', backgroundColor: '#1E293B', paddingVertical: 18, borderRadius: 20, alignItems: 'center' },
-    doneBtnText: { color: '#FFF', fontSize: 17, fontWeight: '800' }
+    successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: scaleFont(40) },
+    successIconBox: { width: scaleFont(100), height: scaleFont(100), borderRadius: scaleFont(32), alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: scaleFont(24), elevation: scaleFont(10), shadowColor: '#10B981', shadowOffset: { width: 0, height: scaleFont(10) }, shadowOpacity: 0.3, shadowRadius: scaleFont(15) },
+    successTitle: { fontSize: scaleFont(32), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
+    successSub: { fontSize: scaleFont(16), color: '#64748B', marginBottom: scaleFont(40), textAlign: 'center', fontFamily: 'Outfit_400Regular' },
+    codeCard: { width: '100%', backgroundColor: '#F8FAFC', borderRadius: scaleFont(28), padding: scaleFont(32), alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: scaleFont(40) },
+    codeLabel: { fontSize: scaleFont(11), fontWeight: '900', color: '#94A3B8', letterSpacing: scaleFont(2), marginBottom: scaleFont(12), fontFamily: 'Outfit_800ExtraBold' },
+    codeValue: { fontSize: scaleFont(48), fontWeight: '900', color: '#1E293B', letterSpacing: scaleFont(4), marginBottom: scaleFont(24), fontFamily: 'Outfit_800ExtraBold' },
+    copyBtn: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(8), backgroundColor: '#EEF2FF', paddingHorizontal: scaleFont(20), paddingVertical: scaleFont(12), borderRadius: scaleFont(14) },
+    copyBtnText: { color: '#4F46E5', fontWeight: '800', fontSize: scaleFont(14), fontFamily: 'Outfit_800ExtraBold' },
+    doneBtn: { width: '100%', backgroundColor: '#1E293B', paddingVertical: scaleFont(18), borderRadius: scaleFont(20), alignItems: 'center' },
+    doneBtnText: { color: '#FFF', fontSize: scaleFont(17), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' }
 });

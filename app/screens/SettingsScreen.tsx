@@ -6,6 +6,7 @@ import { Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity,
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { scaleFont } from '../utils/layout';
 
 export default function SettingsScreen() {
     const router = useRouter();
@@ -57,10 +58,10 @@ export default function SettingsScreen() {
                         }}
                         style={styles.backButton}
                     >
-                        <Ionicons name="chevron-back" size={24} color="#0F172A" />
+                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#0F172A" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Settings</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -70,58 +71,58 @@ export default function SettingsScreen() {
                     <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/PaymentsScreen')}>
                         <View style={styles.rowLeft}>
                             <View style={[styles.iconContainer, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="card" size={22} color="#4F46E5" />
+                                <Ionicons name="card" size={scaleFont(22)} color="#4F46E5" />
                             </View>
                             <View>
                                 <Text style={styles.rowLabel}>Payments</Text>
                                 <Text style={styles.rowSubLabel}>Manage methods and transactions</Text>
                             </View>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                        <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" />
                     </TouchableOpacity>
 
                     {/* Privacy & Security */}
                     <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/PrivacySecurityScreen')}>
                         <View style={styles.rowLeft}>
                             <View style={[styles.iconContainer, { backgroundColor: '#F0FDF4' }]}>
-                                <Ionicons name="shield-checkmark" size={22} color="#16A34A" />
+                                <Ionicons name="shield-checkmark" size={scaleFont(22)} color="#16A34A" />
                             </View>
                             <View>
                                 <Text style={styles.rowLabel}>Privacy & Security</Text>
                                 <Text style={styles.rowSubLabel}>Security and data preferences</Text>
                             </View>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                        <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" />
                     </TouchableOpacity>
 
-                    <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Support</Text>
+                    <Text style={[styles.sectionTitle, { marginTop: scaleFont(24) }]}>Support</Text>
 
                     {/* Help & Support */}
                     <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/SupportScreen')}>
                         <View style={styles.rowLeft}>
                             <View style={[styles.iconContainer, { backgroundColor: '#FFF7ED' }]}>
-                                <Ionicons name="help-circle" size={22} color="#F97316" />
+                                <Ionicons name="help-circle" size={scaleFont(22)} color="#F97316" />
                             </View>
                             <View>
                                 <Text style={styles.rowLabel}>Help & Support</Text>
                                 <Text style={styles.rowSubLabel}>FAQs and direct assistance</Text>
                             </View>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                        <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" />
                     </TouchableOpacity>
 
                     {/* About Pay & Promise */}
                     <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/AboutScreen')}>
                         <View style={styles.rowLeft}>
                             <View style={[styles.iconContainer, { backgroundColor: '#F8FAFC' }]}>
-                                <Ionicons name="information-circle" size={22} color="#64748B" />
+                                <Ionicons name="information-circle" size={scaleFont(22)} color="#64748B" />
                             </View>
                             <View>
                                 <Text style={styles.rowLabel}>About</Text>
                                 <Text style={styles.rowSubLabel}>Versions and team info</Text>
                             </View>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+                        <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" />
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
@@ -129,7 +130,7 @@ export default function SettingsScreen() {
                             colors={['#FFFFFF', '#F8FAFC']}
                             style={styles.logoutGradient}
                         >
-                            <Ionicons name="log-out-outline" size={22} color="#EF4444" />
+                            <Ionicons name="log-out-outline" size={scaleFont(22)} color="#EF4444" />
                             <Text style={styles.logoutBtnText}>Sign Out Account</Text>
                         </LinearGradient>
                     </TouchableOpacity>
@@ -153,121 +154,128 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'android' ? 40 : 10,
-        paddingBottom: 20,
+        paddingHorizontal: scaleFont(20),
+        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingBottom: scaleFont(20),
     },
     backButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: scaleFont(44),
+        height: scaleFont(44),
+        borderRadius: scaleFont(12),
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: '#F1F5F9',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: scaleFont(2) },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowRadius: scaleFont(4),
+        elevation: scaleFont(2),
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: scaleFont(18),
         fontWeight: '800',
         color: '#0F172A',
-        letterSpacing: -0.5,
+        letterSpacing: scaleFont(-0.5),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     content: {
-        padding: 20,
+        padding: scaleFont(20),
     },
     sectionTitle: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         fontWeight: '700',
         color: '#94A3B8',
         textTransform: 'uppercase',
-        letterSpacing: 1.5,
-        marginBottom: 16,
-        marginLeft: 4,
+        letterSpacing: scaleFont(1.5),
+        marginBottom: scaleFont(16),
+        marginLeft: scaleFont(4),
+        fontFamily: 'Outfit_700Bold',
     },
     row: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
         backgroundColor: '#FFFFFF',
-        padding: 16,
-        borderRadius: 20,
-        marginBottom: 12,
+        padding: scaleFont(16),
+        borderRadius: scaleFont(20),
+        marginBottom: scaleFont(12),
         borderWidth: 1,
         borderColor: '#F1F5F9',
         shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: scaleFont(4) },
         shadowOpacity: 0.04,
-        shadowRadius: 10,
-        elevation: 1,
+        shadowRadius: scaleFont(10),
+        elevation: scaleFont(1),
     },
     rowLeft: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     iconContainer: {
-        width: 48,
-        height: 48,
-        borderRadius: 14,
+        width: scaleFont(48),
+        height: scaleFont(48),
+        borderRadius: scaleFont(14),
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+        marginRight: scaleFont(16),
     },
     rowLabel: {
-        fontSize: 16,
+        fontSize: scaleFont(16),
         fontWeight: '700',
         color: '#1E293B',
+        fontFamily: 'Outfit_700Bold',
     },
     rowSubLabel: {
-        fontSize: 12,
+        fontSize: scaleFont(12),
         color: '#94A3B8',
-        marginTop: 2,
+        marginTop: scaleFont(2),
+        fontFamily: 'Outfit_400Regular',
     },
     logoutBtn: {
-        marginTop: 40,
-        borderRadius: 20,
+        marginTop: scaleFont(40),
+        borderRadius: scaleFont(20),
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: '#FEE2E2',
         shadowColor: '#EF4444',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: scaleFont(4) },
         shadowOpacity: 0.05,
-        shadowRadius: 12,
-        elevation: 2,
+        shadowRadius: scaleFont(12),
+        elevation: scaleFont(2),
     },
     logoutGradient: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 18,
-        gap: 10,
+        paddingVertical: scaleFont(18),
+        gap: scaleFont(10),
     } as any,
     logoutBtnText: {
-        fontSize: 16,
+        fontSize: scaleFont(16),
         fontWeight: '700',
         color: '#EF4444',
-        marginLeft: 8,
+        marginLeft: scaleFont(8),
+        fontFamily: 'Outfit_700Bold',
     },
     footer: {
-        marginTop: 40,
+        marginTop: scaleFont(40),
         alignItems: 'center',
-        paddingBottom: 20,
+        paddingBottom: scaleFont(20),
     },
     footerText: {
-        fontSize: 12,
+        fontSize: scaleFont(12),
         fontWeight: '700',
         color: '#94A3B8',
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: scaleFont(1),
+        fontFamily: 'Outfit_700Bold',
     },
     footerSubText: {
-        fontSize: 12,
+        fontSize: scaleFont(12),
         color: '#CBD5E1',
-        marginTop: 4,
+        marginTop: scaleFont(4),
+        fontFamily: 'Outfit_400Regular',
     },
-}) as any;
+});

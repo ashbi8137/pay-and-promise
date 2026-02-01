@@ -31,6 +31,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
+import { scaleFont } from '../utils/layout';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -133,57 +134,99 @@ export default function LandingScreen() {
     const slides = [
         {
             id: 1,
-            title: "Executive Stakes",
-            highlight: "Executive",
-            subtitle: "Commit financial assets to your personal milestones. Integrity is non-negotiable.",
-            icon: "diamond-outline",
+            title: "Stake Your Goal",
+            highlight: "Stake",
+            subtitle: "Put real money on your goals so you actually show up.",
+            icon: "wallet-outline",
             color: "#4F46E5",
         },
         {
             id: 2,
-            title: "Peer Verification",
-            highlight: "Verification",
-            subtitle: "Your progress is audited by the community. Real proof, real accountability.",
-            icon: "shield-checkmark",
+            title: "Friends Verify",
+            highlight: "Verify",
+            subtitle: "Your progress is confirmed by others.",
+            icon: "people-circle-outline",
             color: "#7C3AED",
         },
         {
             id: 3,
-            title: "Compounding Trust",
+            title: "Build Trust",
             highlight: "Trust",
-            subtitle: "Build your reputation on the ledger of honor. Success breeds discipline.",
-            icon: "infinite",
+            subtitle: "Stay consistent, build trust, and grow stronger every day.",
+            icon: "star-outline",
             color: "#6366F1",
         }
     ];
 
     const SlideItem = ({ item, index }: { item: any, index: number }) => {
         const animatedStyle = useAnimatedStyle(() => {
-            const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
-            const scale = interpolate(scrollX.value, inputRange, [0.88, 1, 0.88], Extrapolation.CLAMP);
-            const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
-            return { transform: [{ scale }], opacity };
+            const inputRange = [
+                (index - 1) * SCREEN_WIDTH,
+                index * SCREEN_WIDTH,
+                (index + 1) * SCREEN_WIDTH
+            ];
+
+            // Unique "Depth Stack" Animation
+            const scale = interpolate(
+                scrollX.value,
+                inputRange,
+                [0.8, 1, 0.8],
+                Extrapolation.CLAMP
+            );
+
+            const opacity = interpolate(
+                scrollX.value,
+                inputRange,
+                [0.5, 1, 0.5],
+                Extrapolation.CLAMP
+            );
+
+            const rotateY = interpolate(
+                scrollX.value,
+                inputRange,
+                [45, 0, -45], // degrees
+                Extrapolation.CLAMP
+            );
+
+            const translateX = interpolate(
+                scrollX.value,
+                inputRange,
+                [-scaleFont(100), 0, scaleFont(100)], // overlap effect scaled
+                Extrapolation.CLAMP
+            );
+
+            return {
+                transform: [
+                    { perspective: 1000 },
+                    { scale },
+                    { rotateY: `${rotateY}deg` },
+                    { translateX }
+                ],
+                opacity
+            };
         });
 
         // Split title to highlight executive words
         const titleParts = item.title.split(item.highlight);
 
         return (
-            <View style={{ width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30 }}>
+            <View style={{ width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center', paddingHorizontal: scaleFont(30) }}>
                 <Animated.View style={[styles.slideCard, animatedStyle]}>
                     <View style={styles.glassEffect} />
                     <LinearGradient colors={[`${item.color}15`, 'transparent']} style={StyleSheet.absoluteFill} />
 
+                    {/* Reduced Icon Container Size */}
                     <View style={[styles.iconContainer, { backgroundColor: `${item.color}10` }]}>
-                        <Ionicons name={item.icon as any} size={54} color={item.color} />
+                        {/* Reduced Icon Size from 54 to 42 */}
+                        <Ionicons name={item.icon as any} size={scaleFont(42)} color={item.color} />
                     </View>
 
-                    <Text style={styles.slideTitle}>
+                    <Text style={styles.slideTitle} allowFontScaling={false}>
                         {titleParts[0]}
                         <Text style={{ color: item.color }}>{item.highlight}</Text>
                         {titleParts[1]}
                     </Text>
-                    <Text style={styles.slideSubtitle}>{item.subtitle}</Text>
+                    <Text style={styles.slideSubtitle} allowFontScaling={false}>{item.subtitle}</Text>
 
                     <View style={[styles.accentLine, { backgroundColor: item.color }]} />
                 </Animated.View>
@@ -195,7 +238,7 @@ export default function LandingScreen() {
         <View style={styles.pagination}>
             {slides.map((_, index) => {
                 const dotStyle = useAnimatedStyle(() => {
-                    const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [8, 28, 8], Extrapolation.CLAMP);
+                    const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [scaleFont(8), scaleFont(28), scaleFont(8)], Extrapolation.CLAMP);
                     const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.2, 1, 0.2], Extrapolation.CLAMP);
                     return { width, opacity, backgroundColor: '#4F46E5' };
                 });
@@ -217,8 +260,8 @@ export default function LandingScreen() {
                             onLoadEnd={() => setIsImageReady(true)}
                         />
                     </View>
-                    <Text style={styles.splashBrand}>Pay & Promise</Text>
-                    <Text style={styles.splashTagline}>Where discipline begins</Text>
+                    <Text style={styles.splashBrand} allowFontScaling={false}>Pay & Promise</Text>
+                    <Text style={styles.splashTagline} allowFontScaling={false}>Where discipline begins</Text>
                 </Animated.View>
             </View>
         );
@@ -231,15 +274,9 @@ export default function LandingScreen() {
 
             <GridOverlay />
 
-            {/* Background glows removed for focus */}
-
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.content}>
-                    <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.header}>
-                        <Text style={styles.headerTitle}>Pay & Promise</Text>
-                        <View style={styles.headerDivider} />
-                        <Text style={styles.headerTagline}>THE EXECUTIVE STANDARD</Text>
-                    </Animated.View>
+                    {/* Header Removed as requested */}
 
                     <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.sliderContainer}>
                         <Animated.ScrollView
@@ -249,6 +286,7 @@ export default function LandingScreen() {
                             onScroll={scrollHandler}
                             scrollEventThrottle={16}
                             contentContainerStyle={{ alignItems: 'center' }}
+                            decelerationRate="fast"
                         >
                             {slides.map((item, index) => (
                                 <SlideItem key={item.id} item={item} index={index} />
@@ -273,14 +311,14 @@ export default function LandingScreen() {
                                         colors={['#4F46E5', '#312E81']}
                                         style={styles.portalGradient}
                                     >
-                                        <Ionicons name="arrow-forward" size={36} color="#FFF" />
+                                        <Ionicons name="arrow-forward" size={scaleFont(36)} color="#FFF" />
                                     </LinearGradient>
                                     <View style={styles.portalInnerRing} />
                                 </TouchableOpacity>
                             </Animated.View>
                         </View>
-                        <Text style={styles.portalLabel}>INITIATE JOURNEY</Text>
-                        <Text style={styles.footNote}>Join the 1% of disciplined achievers.</Text>
+                        <Text style={styles.portalLabel} allowFontScaling={false}>INITIATE JOURNEY</Text>
+                        <Text style={styles.footNote} allowFontScaling={false}>Join the 1% of disciplined achievers.</Text>
                     </Animated.View>
                 </View>
             </SafeAreaView>
@@ -288,101 +326,180 @@ export default function LandingScreen() {
     );
 }
 
+// ... existing imports
+
+// ... (rest of the file content until scaleFont definition)
+
+// Removed local scaleFont definition
+
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
+
+    // Splash Styles
     splashContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     logoWrapper: { alignItems: 'center' },
-    logoRing: { width: 140, height: 140, borderRadius: 70, backgroundColor: '#FFF', padding: 20, elevation: 20, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: 15 }, shadowOpacity: 0.1, shadowRadius: 25, justifyContent: 'center', alignItems: 'center' },
+    logoRing: {
+        width: scaleFont(140),
+        height: scaleFont(140),
+        borderRadius: scaleFont(70),
+        backgroundColor: '#FFF',
+        padding: scaleFont(20),
+        elevation: scaleFont(20),
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: scaleFont(15) },
+        shadowOpacity: 0.1,
+        shadowRadius: scaleFont(25),
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
     splashLogo: { width: '100%', height: '100%' },
-    splashBrand: { fontSize: 32, fontWeight: '900', color: '#1E293B', marginTop: 32, letterSpacing: -1 },
-    splashTagline: { fontSize: 16, color: '#64748B', marginTop: 8, fontWeight: '600' },
+    splashBrand: {
+        fontSize: scaleFont(32),
+        fontWeight: '900',
+        color: '#1E293B',
+        marginTop: scaleFont(32),
+        letterSpacing: scaleFont(-1),
+        fontFamily: 'Outfit_800ExtraBold'
+    },
+    splashTagline: {
+        fontSize: scaleFont(16),
+        color: '#64748B',
+        marginTop: scaleFont(8),
+        fontWeight: '600',
+        fontFamily: 'Outfit_400Regular' // Changed to Regular as requested for common text
+    },
 
-    // --- LUXURY BACKGROUND ---
-    content: { flex: 1, justifyContent: 'space-between', paddingVertical: 30 },
-    header: { alignItems: 'center', marginTop: 10 },
-    headerTitle: { fontSize: 38, fontWeight: '900', color: '#0F172A', letterSpacing: -1.8 },
-    headerDivider: { width: 34, height: 5, backgroundColor: '#4F46E5', borderRadius: 3, marginVertical: 14 },
-    headerTagline: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 5 },
+    // --- MAIN CONTENT ---
+    content: { flex: 1, justifyContent: 'space-evenly', paddingBottom: '5%' },
 
-    sliderContainer: { height: SCREEN_HEIGHT * 0.52, justifyContent: 'center' },
+    sliderContainer: { height: '60%', justifyContent: 'center' },
     slideCard: {
-        width: SCREEN_WIDTH - 64,
-        height: 400,
-        borderRadius: 44,
+        width: SCREEN_WIDTH * 0.85,
+        height: '85%',
+        borderRadius: scaleFont(44),
         backgroundColor: 'rgba(255,255,255,0.92)',
-        padding: 40,
+        padding: '8%',
         alignItems: 'center',
         justifyContent: 'center',
         overflow: 'hidden',
-        elevation: 12,
+        elevation: scaleFont(12),
         shadowColor: 'rgba(79, 70, 229, 0.15)',
-        shadowOffset: { width: 0, height: 24 },
+        shadowOffset: { width: 0, height: scaleFont(24) },
         shadowOpacity: 0.3,
-        shadowRadius: 36
+        shadowRadius: scaleFont(36)
     },
     glassEffect: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.4)', opacity: 0.7 },
-    iconContainer: { width: 120, height: 120, borderRadius: 40, alignItems: 'center', justifyContent: 'center', marginBottom: 36 },
-    slideTitle: { fontSize: 30, fontWeight: '900', color: '#0F172A', marginBottom: 18, textAlign: 'center', letterSpacing: -0.8 },
-    slideSubtitle: { fontSize: 17, color: '#64748B', textAlign: 'center', lineHeight: 26, fontWeight: '500', paddingHorizontal: 10 },
-    accentLine: { width: 60, height: 5, borderRadius: 2.5, marginTop: 36, opacity: 0.2 },
 
-    pagination: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 30 },
-    dot: { height: 7, borderRadius: 3.5, marginHorizontal: 5 },
+    iconContainer: {
+        width: scaleFont(80),
+        height: scaleFont(80),
+        borderRadius: scaleFont(28),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: '8%'
+    },
+    slideTitle: {
+        fontSize: scaleFont(32),
+        color: '#0F172A',
+        marginBottom: scaleFont(12),
+        textAlign: 'center',
+        letterSpacing: scaleFont(-1),
+        fontFamily: 'Outfit_800ExtraBold'
+    },
+    slideSubtitle: {
+        fontSize: scaleFont(17),
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: scaleFont(26),
+        fontWeight: '500',
+        paddingHorizontal: scaleFont(10),
+        fontFamily: 'Outfit_300Light' // Changed to Light/Thin as requested
+    },
 
-    footer: { paddingHorizontal: 40, alignItems: 'center', paddingBottom: 10 },
-    portalWrapper: { width: 120, height: 120, justifyContent: 'center', alignItems: 'center' },
+    accentLine: {
+        width: scaleFont(60),
+        height: scaleFont(5),
+        borderRadius: scaleFont(2.5),
+        marginTop: '10%',
+        opacity: 0.2
+    },
+
+    pagination: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: scaleFont(20)
+    },
+    dot: {
+        height: scaleFont(7),
+        borderRadius: scaleFont(3.5),
+        marginHorizontal: scaleFont(5)
+    },
+
+    footer: {
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        paddingBottom: '5%'
+    },
+    portalWrapper: {
+        width: scaleFont(120),
+        height: scaleFont(120),
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
     portalHalo: {
         position: 'absolute',
-        width: 110,
-        height: 110,
-        borderRadius: 55,
-        borderWidth: 2,
+        width: scaleFont(110),
+        height: scaleFont(110),
+        borderRadius: scaleFont(55),
+        borderWidth: scaleFont(2),
         borderColor: '#4F46E5',
         borderStyle: 'dashed',
         opacity: 0.2
     },
     portalAction: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
+        width: scaleFont(90),
+        height: scaleFont(90),
+        borderRadius: scaleFont(45),
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: 25,
+        elevation: scaleFont(25),
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 12 },
-        shadowRadius: 24,
+        shadowOffset: { width: 0, height: scaleFont(12) },
+        shadowRadius: scaleFont(24),
     },
     portalGradient: {
-        width: 90,
-        height: 90,
-        borderRadius: 45,
+        width: scaleFont(90),
+        height: scaleFont(90),
+        borderRadius: scaleFont(45),
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 2
     },
     portalInnerRing: {
         position: 'absolute',
-        width: 106,
-        height: 106,
-        borderRadius: 53,
-        borderWidth: 1.5,
+        width: scaleFont(106),
+        height: scaleFont(106),
+        borderRadius: scaleFont(53),
+        borderWidth: scaleFont(1.5),
         borderColor: 'rgba(79, 70, 229, 0.2)',
         zIndex: 1
     },
     portalLabel: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         fontWeight: '900',
         color: '#4F46E5',
-        marginTop: 18,
-        letterSpacing: 4,
+        marginTop: scaleFont(18),
+        letterSpacing: scaleFont(4),
         opacity: 0.9,
         textTransform: 'uppercase'
     },
     footNote: {
-        fontSize: 12,
+        fontSize: scaleFont(12),
         color: '#94A3B8',
         fontWeight: '700',
-        marginTop: 20,
-        letterSpacing: 0.6
+        marginTop: scaleFont(20),
+        letterSpacing: scaleFont(0.6),
+        fontFamily: 'Outfit_300Light' // Changed to Light
     },
 });

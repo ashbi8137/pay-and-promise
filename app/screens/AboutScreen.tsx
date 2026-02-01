@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Image, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GridOverlay } from '../../components/LuxuryVisuals';
+import { scaleFont } from '../utils/layout';
 
 export default function AboutScreen() {
     const router = useRouter();
@@ -29,10 +30,10 @@ export default function AboutScreen() {
                         }}
                         style={styles.backButton}
                     >
-                        <Ionicons name="chevron-back" size={24} color="#0F172A" />
+                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#0F172A" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>About</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -76,13 +77,13 @@ export default function AboutScreen() {
                     {/* Contact Section */}
                     <TouchableOpacity style={styles.contactRow} onPress={handleEmail}>
                         <View style={styles.contactIconCircle}>
-                            <Ionicons name="mail" size={20} color="#4F46E5" />
+                            <Ionicons name="mail" size={scaleFont(20)} color="#4F46E5" />
                         </View>
                         <View>
                             <Text style={styles.contactLabel}>Global Support</Text>
                             <Text style={styles.contactValue}>payandpromise@gmail.com</Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" style={{ marginLeft: 'auto' }} />
+                        <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>
 
                     {/* Legal Row */}
@@ -97,7 +98,7 @@ export default function AboutScreen() {
                     </View>
 
                     <View style={styles.footer}>
-                        <Ionicons name="shield-checkmark" size={14} color="#94A3B8" />
+                        <Ionicons name="shield-checkmark" size={scaleFont(14)} color="#94A3B8" />
                         <Text style={styles.copyright}>© 2026 Pay & Promise Protocol</Text>
                     </View>
 
@@ -116,96 +117,100 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'android' ? 40 : 10,
-        paddingBottom: 20,
+        paddingHorizontal: scaleFont(20),
+        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingBottom: scaleFont(20),
     },
     backButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: scaleFont(44),
+        height: scaleFont(44),
+        borderRadius: scaleFont(12),
         backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
         borderWidth: 1,
         borderColor: '#F1F5F9',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
+        shadowOffset: { width: 0, height: scaleFont(2) },
         shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
+        shadowRadius: scaleFont(4),
+        elevation: scaleFont(2),
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: scaleFont(18),
         fontWeight: '800',
         color: '#0F172A',
-        letterSpacing: -0.5,
+        letterSpacing: scaleFont(-0.5),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     content: {
-        padding: 20,
+        padding: scaleFont(20),
         alignItems: 'center',
     },
     brandSection: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: scaleFont(32),
     },
     logoContainer: {
-        width: 110,
-        height: 110,
+        width: scaleFont(110),
+        height: scaleFont(110),
         backgroundColor: '#FFFFFF',
-        borderRadius: 28,
+        borderRadius: scaleFont(28),
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: scaleFont(20),
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 10 },
+        shadowOffset: { width: 0, height: scaleFont(10) },
         shadowOpacity: 0.1,
-        shadowRadius: 20,
-        elevation: 6,
+        shadowRadius: scaleFont(20),
+        elevation: scaleFont(6),
         borderWidth: 1,
         borderColor: '#F1F5F9',
     },
     logo: {
-        width: 110,
-        height: 110,
-        borderRadius: 28,
+        width: scaleFont(110),
+        height: scaleFont(110),
+        borderRadius: scaleFont(28),
     },
     appName: {
-        fontSize: 26,
+        fontSize: scaleFont(26),
         fontWeight: '900',
         color: '#0F172A',
-        letterSpacing: -0.5,
-        marginBottom: 8,
+        letterSpacing: scaleFont(-0.5),
+        marginBottom: scaleFont(8),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     version: {
-        fontSize: 14,
+        fontSize: scaleFont(14),
         color: '#6366F1',
         fontWeight: '700',
         textTransform: 'uppercase',
-        letterSpacing: 2,
+        letterSpacing: scaleFont(2),
+        fontFamily: 'Outfit_700Bold',
     },
     devCard: {
         backgroundColor: '#FFFFFF',
         width: '100%',
-        padding: 24,
-        borderRadius: 24,
-        marginBottom: 24,
+        padding: scaleFont(24),
+        borderRadius: scaleFont(24),
+        marginBottom: scaleFont(24),
         borderWidth: 1,
         borderColor: '#F1F5F9',
         shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: scaleFont(4) },
         shadowOpacity: 0.04,
-        shadowRadius: 12,
-        elevation: 1,
+        shadowRadius: scaleFont(12),
+        elevation: scaleFont(1),
     },
     devLabel: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         color: '#94A3B8',
         fontWeight: '800',
         textTransform: 'uppercase',
-        marginBottom: 20,
+        marginBottom: scaleFont(20),
         textAlign: 'center',
-        letterSpacing: 1.5,
+        letterSpacing: scaleFont(1.5),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     teamMember: {
         alignItems: 'center',
@@ -213,80 +218,85 @@ const styles = StyleSheet.create({
     teamDivider: {
         height: 1,
         backgroundColor: '#F1F5F9',
-        marginVertical: 18,
+        marginVertical: scaleFont(18),
         width: '40%',
         alignSelf: 'center',
     },
     devName: {
-        fontSize: 18,
+        fontSize: scaleFont(18),
         fontWeight: '700',
         color: '#1E293B',
-        marginBottom: 4,
+        marginBottom: scaleFont(4),
+        fontFamily: 'Outfit_700Bold',
     },
     devRole: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         color: '#64748B',
         fontWeight: '500',
+        fontFamily: 'Outfit_400Regular',
     },
     contactRow: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        padding: 18,
-        borderRadius: 20,
+        padding: scaleFont(18),
+        borderRadius: scaleFont(20),
         width: '100%',
         borderWidth: 1,
         borderColor: '#F1F5F9',
         shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: scaleFont(4) },
         shadowOpacity: 0.03,
-        shadowRadius: 10,
-        elevation: 1,
-        marginBottom: 24,
+        shadowRadius: scaleFont(10),
+        elevation: scaleFont(1),
+        marginBottom: scaleFont(24),
     },
     contactIconCircle: {
-        width: 44,
-        height: 44,
-        borderRadius: 12,
+        width: scaleFont(44),
+        height: scaleFont(44),
+        borderRadius: scaleFont(12),
         backgroundColor: '#EEF2FF',
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+        marginRight: scaleFont(16),
     },
     contactLabel: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         color: '#64748B',
         fontWeight: '700',
         textTransform: 'uppercase',
-        marginBottom: 4,
-        letterSpacing: 0.5,
+        marginBottom: scaleFont(4),
+        letterSpacing: scaleFont(0.5),
+        fontFamily: 'Outfit_700Bold',
     },
     contactValue: {
-        fontSize: 15,
+        fontSize: scaleFont(15),
         color: '#1E293B',
         fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
     legalRow: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 40,
+        marginBottom: scaleFont(40),
     },
     legalButton: {
-        paddingVertical: 8,
-        paddingHorizontal: 16,
+        paddingVertical: scaleFont(8),
+        paddingHorizontal: scaleFont(16),
     },
     legalButtonText: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         color: '#94A3B8',
         fontWeight: '700',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: scaleFont(0.5),
+        fontFamily: 'Outfit_700Bold',
     },
     dot: {
-        width: 4,
-        height: 4,
-        borderRadius: 2,
+        width: scaleFont(4),
+        height: scaleFont(4),
+        borderRadius: scaleFont(2),
         backgroundColor: '#CBD5E1',
     },
     footer: {
@@ -295,11 +305,12 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     copyright: {
-        fontSize: 11,
+        fontSize: scaleFont(11),
         color: '#94A3B8',
         fontWeight: '600',
-        marginLeft: 6,
+        marginLeft: scaleFont(6),
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: scaleFont(1),
+        fontFamily: 'Outfit_700Bold',
     },
-}) as any;
+});

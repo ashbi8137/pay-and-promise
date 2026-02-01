@@ -1,3 +1,5 @@
+import { Outfit_300Light, Outfit_400Regular, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
+import { useFonts } from 'expo-font';
 import * as Linking from 'expo-linking';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -16,6 +18,21 @@ export default function RootLayout() {
   const router = useRouter();
   const segments = useSegments();
   const [isProcessingAuth, setIsProcessingAuth] = useState(false);
+
+  const [fontsLoaded] = useFonts({
+    Outfit_300Light,
+    Outfit_400Regular,
+    Outfit_700Bold,
+    Outfit_800ExtraBold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
+
+
 
   // Handle OAuth callback deep links
   useEffect(() => {
@@ -108,6 +125,10 @@ export default function RootLayout() {
 
     return () => clearTimeout(timer);
   }, []);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

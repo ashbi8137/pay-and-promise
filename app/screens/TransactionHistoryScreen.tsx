@@ -11,12 +11,13 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { supabase } from '../../lib/supabase';
+import { scaleFont } from '../utils/layout';
 
 const { width } = Dimensions.get('window');
 
@@ -104,10 +105,10 @@ export default function TransactionHistoryScreen() {
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#1E293B" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Ledger Logs</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 {loading ? (
@@ -125,7 +126,7 @@ export default function TransactionHistoryScreen() {
                         {history.length === 0 ? (
                             <View style={styles.emptyState}>
                                 <View style={styles.emptyIconCircle}>
-                                    <Ionicons name="receipt-outline" size={32} color="#94A3B8" />
+                                    <Ionicons name="receipt-outline" size={scaleFont(32)} color="#94A3B8" />
                                 </View>
                                 <Text style={styles.emptyText}>No financial records captured yet.</Text>
                             </View>
@@ -140,7 +141,7 @@ export default function TransactionHistoryScreen() {
                                         <View style={[styles.typeBadge, { backgroundColor: item.type === 'winnings' ? '#ECFDF5' : '#FEF2F2' }]}>
                                             <Ionicons
                                                 name={item.type === 'winnings' ? 'trending-up' : 'trending-down'}
-                                                size={12}
+                                                size={scaleFont(12)}
                                                 color={item.type === 'winnings' ? '#10B981' : '#EF4444'}
                                             />
                                             <Text style={[styles.typeText, { color: item.type === 'winnings' ? '#10B981' : '#EF4444' }]}>
@@ -176,21 +177,53 @@ export default function TransactionHistoryScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#FFFFFF' },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? 40 : 10, paddingBottom: 16 },
-    backButton: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', letterSpacing: -0.5 },
-    scrollContent: { padding: 20, paddingBottom: 40 },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: scaleFont(20),
+        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingBottom: scaleFont(16)
+    },
+    backButton: {
+        width: scaleFont(44),
+        height: scaleFont(44),
+        borderRadius: scaleFont(12),
+        backgroundColor: '#F1F5F9',
+        alignItems: 'center',
+        justifyContent: 'center'
+    },
+    headerTitle: {
+        fontSize: scaleFont(18),
+        fontWeight: '800',
+        color: '#1E293B',
+        letterSpacing: scaleFont(-0.5),
+        fontFamily: 'Outfit_800ExtraBold'
+    },
+    scrollContent: { padding: scaleFont(20), paddingBottom: scaleFont(40) },
     centerContent: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    historyCard: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 4, elevation: 1 },
-    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-    typeBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-    typeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
-    dateText: { fontSize: 11, fontWeight: '700', color: '#94A3B8' },
-    cardMain: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
-    description: { fontSize: 15, fontWeight: '700', color: '#1E293B', marginBottom: 4, lineHeight: 20 },
-    promiseRef: { fontSize: 12, color: '#6366F1', fontWeight: '600' },
-    amount: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
-    emptyState: { paddingVertical: 100, alignItems: 'center' },
-    emptyIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-    emptyText: { fontSize: 14, color: '#94A3B8', fontWeight: '600' }
+    historyCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: scaleFont(20),
+        padding: scaleFont(16),
+        marginBottom: scaleFont(12),
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scaleFont(2) },
+        shadowOpacity: 0.03,
+        shadowRadius: scaleFont(4),
+        elevation: scaleFont(1)
+    },
+    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: scaleFont(12) },
+    typeBadge: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(4), paddingHorizontal: scaleFont(8), paddingVertical: scaleFont(4), borderRadius: scaleFont(8) },
+    typeText: { fontSize: scaleFont(10), fontWeight: '900', letterSpacing: scaleFont(0.5), fontFamily: 'Outfit_800ExtraBold' },
+    dateText: { fontSize: scaleFont(11), fontWeight: '700', color: '#94A3B8', fontFamily: 'Outfit_700Bold' },
+    cardMain: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: scaleFont(12) },
+    description: { fontSize: scaleFont(15), fontWeight: '700', color: '#1E293B', marginBottom: scaleFont(4), lineHeight: scaleFont(20), fontFamily: 'Outfit_700Bold' },
+    promiseRef: { fontSize: scaleFont(12), color: '#6366F1', fontWeight: '600', fontFamily: 'Outfit_700Bold' },
+    amount: { fontSize: scaleFont(18), fontWeight: '900', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
+    emptyState: { paddingVertical: scaleFont(100), alignItems: 'center' },
+    emptyIconCircle: { width: scaleFont(64), height: scaleFont(64), borderRadius: scaleFont(32), backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginBottom: scaleFont(16) },
+    emptyText: { fontSize: scaleFont(14), color: '#94A3B8', fontWeight: '600', fontFamily: 'Outfit_700Bold' }
 });

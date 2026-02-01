@@ -20,6 +20,7 @@ import {
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { scaleFont } from '../utils/layout';
 
 export default function JoinPromiseScreen() {
     const router = useRouter();
@@ -219,14 +220,17 @@ export default function JoinPromiseScreen() {
                             </TouchableOpacity>
                         </View>
 
-                        <Text style={styles.title}>Join a Promise</Text>
-                        <Text style={styles.subtitle}>Scan a QR code or enter invite code.</Text>
+                        <View style={styles.heroBlock}>
+                            <Text style={styles.heroEyebrow} allowFontScaling={false}>EXPAND YOUR CIRCLE</Text>
+                            <Text style={styles.heroTitle} allowFontScaling={false}>Join Promise</Text>
+                            <View style={styles.heroDivider} />
+                            <Text style={styles.heroSubtitle} allowFontScaling={false}>
+                                Enter your invite code below
+                            </Text>
+                        </View>
 
                         <View style={styles.form}>
-                            <View style={styles.trustHeader}>
-                                <Ionicons name="shield-checkmark-outline" size={16} color="#4338ca" />
-                                <Text style={styles.trustHeaderText}>You’ll see all details before confirming.</Text>
-                            </View>
+
 
 
                             {/* QR READER IMPLEMENTATION */}
@@ -245,12 +249,12 @@ export default function JoinPromiseScreen() {
                                 <View style={styles.line} />
                             </View> */}
 
-                            <Text style={styles.label}>Invite Code</Text>
                             <TextInput
                                 style={styles.input}
                                 placeholder="Enter code"
                                 placeholderTextColor="#94A3B8"
                                 value={code}
+                                allowFontScaling={false}
                                 onChangeText={(text) => {
                                     // Auto uppercase and remove spaces
                                     const cleaned = text.toUpperCase().replace(/\s/g, '');
@@ -270,35 +274,24 @@ export default function JoinPromiseScreen() {
                             >
                                 {(code.length === 6 && !loading) ? (
                                     <LinearGradient
-                                        colors={['#4F46E5', '#4338ca']}
+                                        colors={['#4F46E5', '#7C3AED']} // Matching HomeScreen Hero Gradient
                                         start={{ x: 0, y: 0 }}
                                         end={{ x: 1, y: 1 }}
                                         style={styles.joinButton}
                                     >
-                                        <Text style={styles.joinButtonText}>Review & Join</Text>
+                                        <Text style={styles.joinButtonText} allowFontScaling={false}>Review & Join</Text>
                                     </LinearGradient>
                                 ) : (
                                     <View style={[styles.joinButton, styles.disabledButton]}>
                                         {loading ? (
                                             <ActivityIndicator color="#94A3B8" />
                                         ) : (
-                                            <Text style={styles.joinButtonTextDisabled}>Join Promise</Text>
+                                            <Text style={styles.joinButtonTextDisabled} allowFontScaling={false}>Join Promise</Text>
                                         )}
                                     </View>
                                 )}
                             </TouchableOpacity>
 
-                            <Text style={styles.nextStepHint}>You’ll review the promise details before joining.</Text>
-                        </View>
-
-                        {/* Motivational Footer */}
-                        <View style={styles.footerContainer}>
-                            {/* <View style={styles.iconGroup}>
-                                <Ionicons name="people-circle" size={40} color="#CBD5E1" style={{ marginRight: -12 }} />
-                                <Ionicons name="people-circle" size={40} color="#94A3B8" style={{ zIndex: 1 }} />
-                                <Ionicons name="people-circle" size={40} color="#CBD5E1" style={{ marginLeft: -12 }} />
-                            </View> */}
-                            <Text style={styles.footerText}>Join your friends and stay accountable together.</Text>
                         </View>
                     </View>
                 </TouchableWithoutFeedback>
@@ -315,20 +308,7 @@ export default function JoinPromiseScreen() {
                             barcodeTypes: ["qr"],
                         }}
                     >
-                        <View style={styles.cameraOverlay}>
-                            <View style={styles.cameraHeader}>
-                                <TouchableOpacity onPress={() => setIsScanning(false)} style={styles.closeButton}>
-                                    <Ionicons name="close" size={28} color="#FFF" />
-                                </TouchableOpacity>
-                                <Text style={styles.cameraTitle}>Scan an Invite QR</Text>
-                                <View style={{ width: 28 }} />
-                            </View>
 
-                            <View style={styles.scanFrameContainer}>
-                                <View style={styles.scanFrame} />
-                                <Text style={styles.scanFrameText}>Align QR code within the frame</Text>
-                            </View>
-                        </View>
                     </CameraView>
                 </View>
             </Modal>
@@ -343,144 +323,129 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: 24,
-        paddingTop: Platform.OS === 'android' ? 80 : 60,
+        padding: scaleFont(24),
+        paddingTop: Platform.OS === 'android' ? scaleFont(80) : scaleFont(60),
     },
     header: {
-        marginBottom: 32,
+        marginBottom: scaleFont(40),
         alignItems: 'flex-start',
     },
     backButton: {
-        width: 44,
-        height: 44,
+        width: scaleFont(40),
+        height: scaleFont(40),
         backgroundColor: '#FFFFFF',
-        borderRadius: 14,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
+        borderRadius: scaleFont(12),
+        borderWidth: scaleFont(1), // Strictly responsive
+        borderColor: '#E2E8F0',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#64748B',
-        shadowOffset: { width: 0, height: 4 },
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scaleFont(2) },
         shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
+        shadowRadius: scaleFont(4),
+        elevation: scaleFont(2),
     },
-    title: {
-        fontSize: 36,
-        fontWeight: '900',
-        color: '#0F172A',
-        marginBottom: 8,
-        letterSpacing: -1,
+    heroBlock: {
+        marginBottom: scaleFont(40),
+        alignItems: 'center',
     },
-    subtitle: {
-        fontSize: 18,
+    heroEyebrow: {
+        fontSize: scaleFont(12),
+        fontWeight: '700',
         color: '#64748B',
-        marginBottom: 40,
-        fontWeight: '500',
-        lineHeight: 28,
+        letterSpacing: scaleFont(2),
+        textTransform: 'uppercase',
+        marginBottom: scaleFont(8),
+        fontFamily: 'Outfit_700Bold',
+    },
+    heroTitle: {
+        fontSize: scaleFont(36),
+        fontWeight: '800',
+        color: '#0F172A', // Theme Text
+        marginBottom: scaleFont(16),
+        letterSpacing: scaleFont(-1),
+        fontFamily: 'Outfit_800ExtraBold',
+        textAlign: 'center',
+    },
+    heroDivider: {
+        width: scaleFont(40),
+        height: scaleFont(4),
+        backgroundColor: '#4F46E5', // Brand Accent
+        borderRadius: scaleFont(2),
+        marginBottom: scaleFont(16),
+    },
+    heroSubtitle: {
+        fontSize: scaleFont(16),
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: scaleFont(24),
+        fontFamily: 'Outfit_400Regular',
+        maxWidth: '80%',
     },
     form: {
-        backgroundColor: '#FFFFFF',
-        padding: 32,
-        borderRadius: 32,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.6)',
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 20 },
-        shadowOpacity: 0.1,
-        shadowRadius: 30,
-        elevation: 8,
-    },
-    trustHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 24,
-        backgroundColor: '#EEF2FF',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderRadius: 16,
-        gap: 8,
-        borderWidth: 1,
-        borderColor: 'rgba(79, 70, 229, 0.1)',
-    },
-    trustHeaderText: {
-        fontSize: 13,
-        color: '#4F46E5',
-        fontWeight: '700',
+        // Removed heavy card look for a cleaner, open feel
     },
     label: {
-        fontSize: 12,
-        fontWeight: '800',
-        color: '#94A3B8',
-        marginBottom: 12,
+        fontSize: scaleFont(13),
+        fontWeight: '700',
+        color: '#475569',
+        marginBottom: scaleFont(12),
         textTransform: 'uppercase',
-        letterSpacing: 1,
+        letterSpacing: scaleFont(1.5),
+        fontFamily: 'Outfit_700Bold',
+        marginLeft: scaleFont(4),
     },
     input: {
-        backgroundColor: '#F8FAFC',
-        borderWidth: 1,
+        backgroundColor: '#FFFFFF', // Fallback
+        borderWidth: scaleFont(1),
         borderColor: '#E2E8F0',
-        borderRadius: 20,
-        paddingVertical: 24,
-        paddingHorizontal: 20,
-        fontSize: 28,
-        fontWeight: '800',
-        color: '#1E293B',
+        borderRadius: scaleFont(16),
+        paddingVertical: scaleFont(18),
+        paddingHorizontal: scaleFont(20),
+        fontSize: scaleFont(24),
+        fontWeight: '700',
+        color: '#0F172A', // Theme Text Color
         textAlign: 'center',
-        letterSpacing: 8,
-        marginBottom: 8,
+        letterSpacing: scaleFont(4),
+        marginBottom: scaleFont(32),
+        fontFamily: 'Outfit_700Bold',
+        shadowColor: '#4F46E5',
+        shadowOffset: { width: 0, height: scaleFont(4) },
+        shadowOpacity: 0.05,
+        shadowRadius: scaleFont(10),
+        elevation: scaleFont(2),
     },
     joinButton: {
-        height: 64,
-        borderRadius: 20,
+        height: scaleFont(52),
+        borderRadius: scaleFont(16),
         alignItems: 'center',
         justifyContent: 'center',
-        marginTop: 32,
         width: '100%',
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.25,
-        shadowRadius: 20,
-        elevation: 8,
+        shadowOffset: { width: 0, height: scaleFont(4) },
+        shadowOpacity: 0.2,
+        shadowRadius: scaleFont(12),
+        elevation: scaleFont(4),
     },
     disabledButton: {
         backgroundColor: '#F1F5F9',
-        borderWidth: 1,
+        borderWidth: scaleFont(1), // Strictly responsive
         borderColor: '#E2E8F0',
         shadowOpacity: 0,
         elevation: 0,
     },
     joinButtonText: {
         color: '#FFFFFF',
-        fontSize: 18,
-        fontWeight: '800',
-        letterSpacing: 0.5,
+        fontSize: scaleFont(16),
+        fontWeight: '700',
+        letterSpacing: scaleFont(0.5),
+        fontFamily: 'Outfit_700Bold',
     },
     joinButtonTextDisabled: {
         color: '#94A3B8',
-        fontSize: 18,
-        fontWeight: '800',
-    },
-    nextStepHint: {
-        textAlign: 'center',
-        fontSize: 13,
-        color: '#94A3B8',
-        marginTop: 20,
-        fontWeight: '500',
-    },
-    // Footer
-    footerContainer: {
-        marginTop: 40,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: 20,
-    },
-    footerText: {
-        fontSize: 15,
-        color: '#64748B',
-        fontWeight: '600',
-        textAlign: 'center',
-        lineHeight: 24,
+        fontSize: scaleFont(16),
+        fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
     // Camera Styles
     cameraContainer: {
@@ -496,41 +461,80 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 20,
-        paddingTop: Platform.OS === 'ios' ? 60 : 40,
+        padding: scaleFont(20),
+        paddingTop: Platform.OS === 'ios' ? scaleFont(60) : scaleFont(40),
     },
     closeButton: {
-        width: 44,
-        height: 44,
+        width: scaleFont(44),
+        height: scaleFont(44),
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: 22,
+        borderRadius: scaleFont(22),
         backgroundColor: 'rgba(255,255,255,0.2)',
     },
     cameraTitle: {
         color: '#FFF',
-        fontSize: 18,
+        fontSize: scaleFont(18),
         fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
     },
     scanFrameContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 100,
+        marginBottom: scaleFont(100),
     },
     scanFrame: {
-        width: 280,
-        height: 280,
-        borderWidth: 2,
+        width: scaleFont(280),
+        height: scaleFont(280),
+        borderWidth: scaleFont(2),
         borderColor: '#FFF',
-        borderRadius: 30,
+        borderRadius: scaleFont(30),
         backgroundColor: 'transparent',
     },
     scanFrameText: {
         color: '#FFF',
-        marginTop: 24,
-        fontSize: 16,
+        marginTop: scaleFont(24),
+        fontSize: scaleFont(16),
         fontWeight: '600',
         opacity: 0.9,
+        fontFamily: 'Outfit_400Regular',
+    },
+    // Feature Row
+    featureRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: scaleFont(60), // Push to bottom area
+        gap: scaleFont(16),
+    },
+    featureItem: {
+        alignItems: 'center',
+        gap: scaleFont(8),
+    },
+    featureIconBox: {
+        width: scaleFont(44),
+        height: scaleFont(44),
+        borderRadius: scaleFont(14),
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scaleFont(2) },
+        shadowOpacity: 0.03,
+        shadowRadius: scaleFont(4),
+        elevation: scaleFont(1),
+    },
+    featureLabel: {
+        fontSize: scaleFont(10),
+        fontWeight: '700',
+        color: '#94A3B8',
+        letterSpacing: scaleFont(1),
+        fontFamily: 'Outfit_700Bold',
+    },
+    featureDivider: {
+        width: 1,
+        height: scaleFont(24),
+        backgroundColor: '#E2E8F0',
+        marginHorizontal: scaleFont(8),
     }
 });

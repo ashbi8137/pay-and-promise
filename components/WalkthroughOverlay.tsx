@@ -10,6 +10,7 @@ import {
     View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { scaleFont } from '../app/utils/layout';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -23,7 +24,7 @@ const COACH_MARKS = [
         id: 'create',
         text: 'Start here to create your first promise.',
         // + button is center, elevated above navbar
-        bottom: 130,
+        bottom: scaleFont(130),
         horizontalAlign: 'center',
         arrowDirection: 'down',
     },
@@ -34,7 +35,7 @@ const COACH_MARKS = [
         top: SCREEN_HEIGHT * 0.57,
         horizontalAlign: 'center',
         arrowDirection: 'up',
-        arrowOffset: -200,
+        arrowOffset: scaleFont(-200),
     },
     {
         id: 'tabs',
@@ -43,34 +44,34 @@ const COACH_MARKS = [
         top: SCREEN_HEIGHT * 0.67,
         horizontalAlign: 'center',
         arrowDirection: 'up',
-        arrowOffset: -200,
+        arrowOffset: scaleFont(-200),
     },
     {
         id: 'activity',
         text: 'Track your promise progress here.',
         // Activity icon is 2nd from left in navbar
-        bottom: 110,
-        left: 20,
+        bottom: scaleFont(110),
+        left: scaleFont(20),
         arrowDirection: 'down',
-        arrowOffset: -30, // Offset arrow to point at icon
+        arrowOffset: scaleFont(-30), // Offset arrow to point at icon
     },
     {
         id: 'ledger',
         text: 'Check payments and settlements here.',
         // Ledger icon is 2nd from right in navbar
-        bottom: 110,
-        right: 20,
+        bottom: scaleFont(110),
+        right: scaleFont(20),
         arrowDirection: 'down',
-        arrowOffset: 70, // Offset arrow left
+        arrowOffset: scaleFont(70), // Offset arrow left
     },
     {
         id: 'profile',
         text: 'Manage your profile and settings here.',
         // Profile icon is rightmost
-        bottom: 110,
-        right: 10,
+        bottom: scaleFont(110),
+        right: scaleFont(10),
         arrowDirection: 'down',
-        arrowOffset: 200,
+        arrowOffset: scaleFont(200),
     },
 ];
 
@@ -226,28 +227,28 @@ const styles = StyleSheet.create({
     },
     coachMark: {
         alignItems: 'center',
-        maxWidth: SCREEN_WIDTH - 48,
+        maxWidth: SCREEN_WIDTH - scaleFont(48),
     },
     textCard: {
         backgroundColor: '#FFFFFF',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderRadius: 16,
+        paddingHorizontal: scaleFont(20),
+        paddingVertical: scaleFont(16),
+        borderRadius: scaleFont(16),
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: 8 },
+        shadowOffset: { width: 0, height: scaleFont(8) },
         shadowOpacity: 0.15,
-        shadowRadius: 16,
-        elevation: 12,
-        borderWidth: 1,
+        shadowRadius: scaleFont(16),
+        elevation: scaleFont(12),
+        borderWidth: 1, // keeping 1 for crispness, or scaleFont(1)
         borderColor: 'rgba(79, 70, 229, 0.1)',
     },
     coachText: {
-        fontSize: 15,
+        fontSize: scaleFont(15),
         fontWeight: '600',
         color: '#1E293B',
         textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 12,
+        lineHeight: scaleFont(22),
+        marginBottom: scaleFont(12),
     },
     footer: {
         flexDirection: 'row',
@@ -259,14 +260,14 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     dot: {
-        width: 6,
-        height: 6,
-        borderRadius: 3,
+        width: scaleFont(6),
+        height: scaleFont(6),
+        borderRadius: scaleFont(3),
         backgroundColor: '#E2E8F0',
     },
     dotActive: {
         backgroundColor: '#4F46E5',
-        width: 16,
+        width: scaleFont(16),
     },
     dotCompleted: {
         backgroundColor: '#A5B4FC',
@@ -274,23 +275,23 @@ const styles = StyleSheet.create({
     gotItBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
-        paddingVertical: 6,
-        paddingHorizontal: 12,
+        gap: scaleFont(4),
+        paddingVertical: scaleFont(6),
+        paddingHorizontal: scaleFont(12),
         backgroundColor: '#EEF2FF',
-        borderRadius: 20,
+        borderRadius: scaleFont(20),
     },
     gotItText: {
-        fontSize: 13,
+        fontSize: scaleFont(13),
         fontWeight: '700',
         color: '#4F46E5',
     },
     arrowUp: {
         width: 0,
         height: 0,
-        borderLeftWidth: 10,
-        borderRightWidth: 10,
-        borderBottomWidth: 12,
+        borderLeftWidth: scaleFont(10),
+        borderRightWidth: scaleFont(10),
+        borderBottomWidth: scaleFont(12),
         borderLeftColor: 'transparent',
         borderRightColor: 'transparent',
         borderBottomColor: '#FFFFFF',
@@ -299,9 +300,9 @@ const styles = StyleSheet.create({
     arrowDown: {
         width: 0,
         height: 0,
-        borderLeftWidth: 10,
-        borderRightWidth: 10,
-        borderTopWidth: 12,
+        borderLeftWidth: scaleFont(10),
+        borderRightWidth: scaleFont(10),
+        borderTopWidth: scaleFont(12),
         borderLeftColor: 'transparent',
         borderRightColor: 'transparent',
         borderTopColor: '#FFFFFF',

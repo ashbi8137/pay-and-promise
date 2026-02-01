@@ -197,7 +197,7 @@ export default function JourneyScreen() {
                         <Ionicons name="chevron-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Journey Atlas</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 {loading ? (
@@ -368,7 +368,7 @@ const styles = StyleSheet.create({
     dateText: { fontSize: scaleFont(10), fontWeight: '900', color: '#94A3B8', textTransform: 'uppercase', marginBottom: scaleFont(8), letterSpacing: scaleFont(0.5), fontFamily: 'Outfit_800ExtraBold' },
     lineTrack: { flex: 1, alignItems: 'center', width: scaleFont(24) },
     lineNode: { width: scaleFont(14), height: scaleFont(14), borderRadius: scaleFont(7), zIndex: 2, borderWidth: 3, borderColor: '#FFFFFF', elevation: scaleFont(4), shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(2) }, shadowOpacity: 0.1, shadowRadius: scaleFont(4) },
-    lineConnector: { position: 'absolute', top: scaleFont(12), width: 2, bottom: scaleFont(-32), backgroundColor: 'rgba(0,0,0,0.05)', zIndex: 1 },
+    lineConnector: { position: 'absolute', top: scaleFont(12), width: scaleFont(2), bottom: scaleFont(-32), backgroundColor: 'rgba(0,0,0,0.05)', zIndex: 1 },
     cardContainer: { flex: 1 },
     card: {
         backgroundColor: '#FFFFFF',

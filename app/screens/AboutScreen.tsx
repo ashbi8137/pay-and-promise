@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     teamDivider: {
-        height: 1,
+        height: scaleFont(1),
         backgroundColor: '#F1F5F9',
         marginVertical: scaleFont(18),
         width: '40%',

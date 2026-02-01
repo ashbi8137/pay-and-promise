@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_700Bold',
     },
     featureDivider: {
-        width: 1,
+        width: scaleFont(1),
         height: scaleFont(24),
         backgroundColor: '#E2E8F0',
         marginHorizontal: scaleFont(8),

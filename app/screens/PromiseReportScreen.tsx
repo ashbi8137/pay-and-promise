@@ -502,7 +502,7 @@ export default function PromiseReportScreen() {
                         <Ionicons name="arrow-back" size={24} color="#1E293B" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Executive Report</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 <ScrollView
@@ -903,7 +903,7 @@ const styles = StyleSheet.create({
     },
     titleLine: {
         flex: 1,
-        height: 1,
+        height: scaleFont(1),
         backgroundColor: '#E2E8F0',
     },
     emptySettlement: {

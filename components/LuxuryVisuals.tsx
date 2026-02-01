@@ -1,4 +1,5 @@
 import { Dimensions, DimensionValue, StyleSheet, View } from 'react-native';
+import { scaleFont } from '../app/utils/layout';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -41,9 +42,9 @@ export const AmbientGlow = ({ size, color, top, left, right, bottom, opacity = 0
 
 export const NebulaGlow = ({ color = "#4F46E5", top, left, right, bottom, scale = 1 }: { color?: string, top?: DimensionValue, left?: DimensionValue, right?: DimensionValue, bottom?: DimensionValue, scale?: number }) => (
     <View style={[styles.nebulaContainer, { top, left, right, bottom, transform: [{ scale }] }]} pointerEvents="none">
-        <View style={[styles.nebulaOrb, { width: 400, height: 400, borderRadius: 200, backgroundColor: color, opacity: 0.08, top: -50, left: -50 }]} />
-        <View style={[styles.nebulaOrb, { width: 300, height: 300, borderRadius: 150, backgroundColor: color, opacity: 0.05, bottom: -30, right: -20 }]} />
-        <View style={[styles.nebulaOrb, { width: 200, height: 200, borderRadius: 100, backgroundColor: "#7C3AED", opacity: 0.04, top: 100, right: 40 }]} />
+        <View style={[styles.nebulaOrb, { width: scaleFont(400), height: scaleFont(400), borderRadius: scaleFont(200), backgroundColor: color, opacity: 0.08, top: scaleFont(-50), left: scaleFont(-50) }]} />
+        <View style={[styles.nebulaOrb, { width: scaleFont(300), height: scaleFont(300), borderRadius: scaleFont(150), backgroundColor: color, opacity: 0.05, bottom: scaleFont(-30), right: scaleFont(-20) }]} />
+        <View style={[styles.nebulaOrb, { width: scaleFont(200), height: scaleFont(200), borderRadius: scaleFont(100), backgroundColor: "#7C3AED", opacity: 0.04, top: scaleFont(100), right: scaleFont(40) }]} />
     </View>
 );
 
@@ -55,7 +56,7 @@ const styles = StyleSheet.create({
     },
     abstractLine: {
         position: 'absolute',
-        height: 1,
+        height: scaleFont(1),
         backgroundColor: 'rgba(79, 70, 229, 0.05)',
     },
     glowBase: {
@@ -64,8 +65,8 @@ const styles = StyleSheet.create({
     },
     nebulaContainer: {
         position: 'absolute',
-        width: 500,
-        height: 500,
+        width: scaleFont(500),
+        height: scaleFont(500),
         zIndex: 0,
     },
     nebulaOrb: {

@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
     footerLabel: { fontSize: scaleFont(11), fontWeight: '800', color: '#64748B', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(6), fontFamily: 'Outfit_800ExtraBold' },
     valueRow: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(6) },
     footerValue: { fontSize: scaleFont(22), fontWeight: '900', fontFamily: 'Outfit_800ExtraBold' },
-    vDivider: { width: 1, height: scaleFont(40), backgroundColor: '#E2E8F0' },
+    vDivider: { width: scaleFont(1), height: scaleFont(40), backgroundColor: '#E2E8F0' },
 
     metricsContainer: { paddingHorizontal: scaleFont(24), marginBottom: scaleFont(32) },
     sectionTitle: { fontSize: scaleFont(10), fontWeight: '900', color: '#94A3B8', letterSpacing: scaleFont(2), marginBottom: scaleFont(16), fontFamily: 'Outfit_800ExtraBold' },
@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
     shortcutLeft: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(12) },
     shortIconBg: { width: scaleFont(40), height: scaleFont(40), borderRadius: scaleFont(12), backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center' },
     shortLabel: { fontSize: scaleFont(15), fontWeight: '700', color: '#1E293B', fontFamily: 'Outfit_700Bold' },
-    hDivider: { height: 1, backgroundColor: '#F8FAFC', marginHorizontal: scaleFont(16) },
+    hDivider: { height: scaleFont(1), backgroundColor: '#F8FAFC', marginHorizontal: scaleFont(16) },
 
     footerInfo: { alignItems: 'center', marginVertical: scaleFont(20), opacity: 0.3 },
     versionTxt: { fontSize: scaleFont(9), fontWeight: '900', color: '#64748B', letterSpacing: scaleFont(1.5), fontFamily: 'Outfit_800ExtraBold' }

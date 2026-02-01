@@ -228,7 +228,7 @@ export default function AuthScreen() {
         <View style={styles.navigationOverlay}>
           <Image
             source={require('../../assets/images/icon.png')}
-            style={{ width: 80, height: 80, marginBottom: 24 }}
+            style={{ width: scaleFont(80), height: scaleFont(80), marginBottom: scaleFont(24) }}
             resizeMode="contain"
           />
           <ActivityIndicator size="large" color="#4F46E5" />

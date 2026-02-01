@@ -131,7 +131,7 @@ export default function PaymentsScreen() {
                         <Ionicons name="chevron-back" size={24} color="#1E293B" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Digital Wallet</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -165,13 +165,7 @@ export default function PaymentsScreen() {
                     </Animated.View>
 
                     <Animated.View entering={FadeInDown.delay(200)} style={styles.formSection}>
-                        <View style={styles.infoCard}>
-                            <Ionicons name="information-circle" size={24} color="#4F46E5" />
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.infoTitle}>Peer-to-Peer Payments</Text>
-                                <Text style={styles.infoSub}>Your UPI ID is shared only with members of promises you join to enable direct settlements.</Text>
-                            </View>
-                        </View>
+
 
                         {!isEditing ? (
                             <TouchableOpacity style={styles.editCardBtn} onPress={() => setIsEditing(true)}>
@@ -210,6 +204,14 @@ export default function PaymentsScreen() {
                                 </View>
                             </View>
                         )}
+
+                        <View style={styles.infoCard}>
+                            <Ionicons name="information-circle" size={24} color="#4F46E5" />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.infoTitle}>Peer-to-Peer Payments</Text>
+                                <Text style={styles.infoSub}>Your UPI ID is shared only with members of promises you join to enable direct settlements.</Text>
+                            </View>
+                        </View>
 
                         <View style={styles.securityBadge}>
                             <Ionicons name="lock-closed" size={12} color="#94A3B8" />

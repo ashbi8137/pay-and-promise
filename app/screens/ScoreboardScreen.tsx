@@ -41,7 +41,7 @@ export default function ScoreboardScreen() {
                             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
                         </TouchableOpacity>
                         <Text style={styles.headerTitle}>Scoreboard</Text>
-                        <View style={{ width: 40 }} />
+                        <View style={{ width: scaleFont(40) }} />
                     </View>
                 </SafeAreaView>
             </LinearGradient>

@@ -573,7 +573,7 @@ export default function PromiseDetailScreen() {
                                     <View style={{ marginTop: 16 }}>
                                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12 }}>
                                             <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                                            <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: 13, flex: 1 }}>
+                                            <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: scaleFont(13), flex: 1 }}>
                                                 Submission Rejected.
                                             </Text>
                                         </View>
@@ -717,7 +717,7 @@ export default function PromiseDetailScreen() {
                         <Ionicons name="chevron-back" size={24} color="#1E293B" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitleMain}>Promise Detail</Text>
-                    <View style={{ width: 44 }} />
+                    <View style={{ width: scaleFont(44) }} />
                 </View>
 
                 <ScrollView
@@ -729,7 +729,7 @@ export default function PromiseDetailScreen() {
                     {renderCompletion()}
                     {renderJourneyMap()}
                     {renderDailyActions()}
-                    <View style={{ height: 40 }} />
+                    <View style={{ height: scaleFont(40) }} />
                 </ScrollView>
             </SafeAreaView>
         </View>

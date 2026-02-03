@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -328,7 +328,10 @@ export default function HomeScreen() {
             case 'read': return 'book';
             case 'water': return 'water';
             case 'wake': return 'alarm';
-            case 'custom': return 'sparkles';
+            case 'run': return 'run';
+            case 'walk': return 'walk';
+            case 'study': return 'school';
+            case 'custom': return 'layers';
             default: return 'prism';
         }
     };
@@ -384,12 +387,21 @@ export default function HomeScreen() {
                                     (item.status === 'completed' ? '#F1F5F9' : `${getGoalColor(item.description)}15`)
                             }
                         ]}>
-                            <Ionicons
-                                name={getGoalIcon(item.description, item.status) as any}
-                                size={24}
-                                color={item.status === 'failed' ? '#EF4444' :
-                                    (item.status === 'completed' ? '#94A3B8' : getGoalColor(item.description))}
-                            />
+                            {item.description === 'run' ? (
+                                <MaterialCommunityIcons
+                                    name={getGoalIcon(item.description, item.status) as any}
+                                    size={24}
+                                    color={item.status === 'failed' ? '#EF4444' :
+                                        (item.status === 'completed' ? '#94A3B8' : getGoalColor(item.description))}
+                                />
+                            ) : (
+                                <Ionicons
+                                    name={getGoalIcon(item.description, item.status) as any}
+                                    size={24}
+                                    color={item.status === 'failed' ? '#EF4444' :
+                                        (item.status === 'completed' ? '#94A3B8' : getGoalColor(item.description))}
+                                />
+                            )}
                         </View>
 
                         <View style={styles.cardContent}>
@@ -639,7 +651,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: scaleFont(24),
-        paddingTop: Platform.OS === 'android' ? scaleFont(80) : scaleFont(60),
+        paddingTop: Platform.OS === 'android' ? scaleFont(30) : scaleFont(10), // Reduced to remove vacant space
         paddingBottom: scaleFont(120), // Increased from 40 to clear bottom tabs
     },
     // HERO TYPOGRAPHY HEADER

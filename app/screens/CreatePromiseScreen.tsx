@@ -1,4 +1,4 @@
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -211,14 +211,18 @@ export default function CreatePromiseScreen() {
                         { id: 'read', label: 'Read', icon: 'book', color: '#5B2DAD' },
                         { id: 'water', label: 'Hydrate', icon: 'water', color: '#5B2DAD' },
                         { id: 'wake', label: 'Wake', icon: 'alarm', color: '#5B2DAD' },
-                        { id: 'meditate', label: 'Meditate', icon: 'leaf', color: '#5B2DAD' },
+                        { id: 'run', label: 'Run', icon: 'run', color: '#5B2DAD', iconSet: 'MaterialCommunityIcons' },
                         { id: 'walk', label: 'Walk', icon: 'walk', color: '#5B2DAD' },
                         { id: 'study', label: 'Study', icon: 'school', color: '#5B2DAD' },
-                        { id: 'custom', label: 'Other', icon: 'sparkles', color: '#5B2DAD' },
+                        { id: 'custom', label: 'Other', icon: 'layers', color: '#5B2DAD' },
                     ].map((tpl) => (
                         <TouchableOpacity key={tpl.id} style={styles.templateCard} onPress={() => handleTemplateSelect(tpl.label, tpl.id)}>
                             <View style={styles.tplIconCircle}>
-                                <Ionicons name={tpl.icon as any} size={scaleFont(28)} color={tpl.color} />
+                                {tpl.iconSet === 'MaterialCommunityIcons' ? (
+                                    <MaterialCommunityIcons name={tpl.icon as any} size={scaleFont(28)} color={tpl.color} />
+                                ) : (
+                                    <Ionicons name={tpl.icon as any} size={scaleFont(28)} color={tpl.color} />
+                                )}
                             </View>
                             <Text style={styles.tplLabel}>{tpl.label}</Text>
                         </TouchableOpacity>

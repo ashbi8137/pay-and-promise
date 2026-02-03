@@ -4,7 +4,7 @@
     "slug": "pay-and-promise",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon_transparent.png",
+    "icon": "./assets/images/splash.png",
     "scheme": "payandpromise",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -25,12 +25,12 @@
       ],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/images/icon_transparent.png"
+        "foregroundImage": "./assets/images/splash.png"
       }
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/icon_transparent.png"
+      "favicon": "./assets/images/splash.png"
     },
     "plugins": [
       "expo-router",
@@ -38,9 +38,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/icon_transparent.png",
-          "imageWidth": 200,
+          "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#5B2DAD"
         }
       ],
       [

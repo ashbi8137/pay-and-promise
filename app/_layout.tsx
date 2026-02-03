@@ -1,4 +1,5 @@
 import { Outfit_300Light, Outfit_400Regular, Outfit_700Bold, Outfit_800ExtraBold } from '@expo-google-fonts/outfit';
+import { PlayfairDisplay_700Bold, PlayfairDisplay_900Black } from '@expo-google-fonts/playfair-display';
 import { useFonts } from 'expo-font';
 import * as Linking from 'expo-linking';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -24,6 +25,8 @@ export default function RootLayout() {
     Outfit_400Regular,
     Outfit_700Bold,
     Outfit_800ExtraBold,
+    PlayfairDisplay_700Bold,
+    PlayfairDisplay_900Black,
   });
 
   useEffect(() => {

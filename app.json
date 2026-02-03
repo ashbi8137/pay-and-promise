@@ -4,7 +4,7 @@
     "slug": "pay-and-promise",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon_transparent.png",
     "scheme": "payandpromise",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -25,19 +25,19 @@
       ],
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
-        "foregroundImage": "./assets/images/icon.png"
+        "foregroundImage": "./assets/images/icon_transparent.png"
       }
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/icon_transparent.png"
     },
     "plugins": [
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash.png",
+          "image": "./assets/images/icon_transparent.png",
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
@@ -50,7 +50,8 @@
             "kotlinVersion": "2.1.20"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

@@ -41,7 +41,7 @@ export default function AboutScreen() {
                     <View style={styles.brandSection}>
                         <View style={styles.logoContainer}>
                             <Image
-                                source={require('../../assets/images/icon.png')}
+                                source={require('../../assets/images/icon_transparent.png')}
                                 style={styles.logo}
                                 resizeMode="contain"
                             />
@@ -77,7 +77,7 @@ export default function AboutScreen() {
                     {/* Contact Section */}
                     <TouchableOpacity style={styles.contactRow} onPress={handleEmail}>
                         <View style={styles.contactIconCircle}>
-                            <Ionicons name="mail" size={scaleFont(20)} color="#4F46E5" />
+                            <Ionicons name="mail" size={scaleFont(20)} color="#5B2DAD" />
                         </View>
                         <View>
                             <Text style={styles.contactLabel}>Global Support</Text>
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: scaleFont(20),
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(10) },
         shadowOpacity: 0.1,
         shadowRadius: scaleFont(20),

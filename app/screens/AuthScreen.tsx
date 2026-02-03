@@ -158,17 +158,16 @@ export default function AuthScreen() {
             entering={FadeInDown.duration(1000).springify()}
             style={styles.brandingContainer}
           >
-            <View style={styles.logoOuterCircle}>
-              <View style={styles.logoInnerCircle}>
-                <Image
-                  source={require('../../assets/images/icon.png')}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-            </View>
 
-            <Text style={styles.appName}>Pay & Promise</Text>
+            <Image
+              source={require('../../assets/images/icon_transparent.png')}
+              style={{ width: scaleFont(120), height: scaleFont(120), marginTop: scaleFont(40), marginBottom: scaleFont(-5) }}
+              resizeMode="contain"
+            />
+
+            <Text style={styles.appName}>
+              <Text style={{ color: '#5B2DAD' }}>Pay</Text> <Text style={{ color: '#1E293B' }}>& Promise</Text>
+            </Text>
             <View style={styles.taglineWrapper}>
               <View style={styles.taglineLine} />
               <Text style={styles.tagline}>Where Discipline Begins</Text>
@@ -184,10 +183,10 @@ export default function AuthScreen() {
             <View style={styles.accessCard}>
               <View style={styles.accessHeader}>
                 <View style={styles.securityIndicator} />
-                <Text style={styles.authTitle}>PROTOCOL ACCESS</Text>
+                <Text style={styles.authTitle}>Welcome</Text>
               </View>
               <Text style={styles.authDescription}>
-                Authenticate your identity to continue to the executive dashboard.
+                Sign in to manage your promises and track your progress.
               </Text>
 
               <TouchableOpacity
@@ -197,7 +196,7 @@ export default function AuthScreen() {
                 activeOpacity={0.9}
               >
                 <LinearGradient
-                  colors={['#4F46E5', '#6366F1']}
+                  colors={['#5A4BDA', '#7B4FE9']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.buttonGradient}
@@ -230,11 +229,11 @@ export default function AuthScreen() {
       {navigating && (
         <View style={styles.navigationOverlay}>
           <Image
-            source={require('../../assets/images/icon.png')}
+            source={require('../../assets/images/icon_transparent.png')}
             style={{ width: scaleFont(80), height: scaleFont(80), marginBottom: scaleFont(24) }}
             resizeMode="contain"
           />
-          <ActivityIndicator size="large" color="#4F46E5" />
+          <ActivityIndicator size="large" color="#5B2DAD" />
           <Text style={styles.navigationText}>Entering...</Text>
         </View>
       )}
@@ -258,7 +257,7 @@ const styles = StyleSheet.create({
   },
   brandingContainer: {
     alignItems: 'center',
-    marginTop: height * 0.05,
+    marginTop: height * 0.15,
   },
   logoOuterCircle: {
     width: scaleFont(120),
@@ -269,7 +268,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(226, 232, 240, 0.8)',
-    shadowColor: '#4F46E5',
+    shadowColor: '#5B2DAD',
     shadowOffset: { width: 0, height: scaleFont(10) },
     shadowOpacity: 0.1,
     shadowRadius: scaleFont(15),
@@ -277,9 +276,9 @@ const styles = StyleSheet.create({
     marginBottom: scaleFont(40),
   },
   logoInnerCircle: {
-    width: scaleFont(100),
-    height: scaleFont(100),
-    borderRadius: scaleFont(50),
+    width: scaleFont(116),
+    height: scaleFont(116),
+    borderRadius: scaleFont(58),
     overflow: 'hidden',
   },
   logo: {
@@ -296,16 +295,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular',
   },
   appName: {
-    fontSize: scaleFont(42),
-    fontWeight: '900',
+
+
     color: '#0F172A',
-    letterSpacing: scaleFont(-2),
     fontFamily: 'Outfit_800ExtraBold',
+    letterSpacing: scaleFont(-2),
+    fontSize: scaleFont(44),
   },
   taglineWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: scaleFont(12),
+    marginTop: scaleFont(4),
     gap: scaleFont(12),
   },
   taglineLine: {
@@ -331,7 +331,7 @@ const styles = StyleSheet.create({
     padding: scaleFont(32),
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.05)',
-    shadowColor: '#4F46E5',
+    shadowColor: '#5B2DAD',
     shadowOffset: { width: 0, height: scaleFont(20) },
     shadowOpacity: 0.1,
     shadowRadius: scaleFont(30),

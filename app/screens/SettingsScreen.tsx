@@ -71,7 +71,7 @@ export default function SettingsScreen() {
                     <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/PaymentsScreen')}>
                         <View style={styles.rowLeft}>
                             <View style={[styles.iconContainer, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="card" size={scaleFont(22)} color="#4F46E5" />
+                                <Ionicons name="card" size={scaleFont(22)} color="#5B2DAD" />
                             </View>
                             <View>
                                 <Text style={styles.rowLabel}>Payments</Text>
@@ -137,7 +137,6 @@ export default function SettingsScreen() {
 
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>Pay & Promise v1.0.0</Text>
-                        <Text style={styles.footerSubText}>Thank you for being part of our protocol.</Text>
                     </View>
                 </ScrollView>
             </SafeAreaView>

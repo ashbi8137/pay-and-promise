@@ -45,7 +45,7 @@ export default function SupportScreen() {
                     <View style={styles.optionsGrid}>
                         <TouchableOpacity style={styles.optionCard} onPress={() => handleContact('Support Request')}>
                             <View style={[styles.iconBox, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="mail" size={scaleFont(24)} color="#4F46E5" />
+                                <Ionicons name="mail" size={scaleFont(24)} color="#5B2DAD" />
                             </View>
                             <View style={styles.optionContent}>
                                 <Text style={styles.optionTitle}>Priority Support</Text>
@@ -90,7 +90,7 @@ export default function SupportScreen() {
 
                     <View style={styles.footerNoteContainer}>
                         <LinearGradient colors={['#FFFFFF', '#F8FAFC']} style={styles.footerNoteCard}>
-                            <Ionicons name="time-outline" size={scaleFont(18)} color="#4F46E5" />
+                            <Ionicons name="time-outline" size={scaleFont(18)} color="#5B2DAD" />
                             <Text style={styles.footerNoteText}>Standard response time: &lt; 24 Hours</Text>
                         </LinearGradient>
                     </View>

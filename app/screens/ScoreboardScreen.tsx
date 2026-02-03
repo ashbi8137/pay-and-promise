@@ -27,7 +27,7 @@ export default function ScoreboardScreen() {
         <View style={[styles.container, { backgroundColor: theme.background }]}>
             <GridOverlay />
             <LinearGradient
-                colors={['#4F46E5', '#7C3AED']}
+                colors={['#5B2DAD', '#7C3AED']}
                 style={styles.headerGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
@@ -56,7 +56,7 @@ export default function ScoreboardScreen() {
                         style={styles.cardGradient}
                     >
                         <View style={styles.iconContainer}>
-                            <Ionicons name="trophy" size={60} color="#4F46E5" />
+                            <Ionicons name="trophy" size={60} color="#5B2DAD" />
                         </View>
 
                         <Text style={styles.comingSoonTitle}>Coming Soon</Text>
@@ -71,15 +71,15 @@ export default function ScoreboardScreen() {
 
                         <View style={styles.featureList}>
                             <View style={styles.featureItem}>
-                                <Ionicons name="stats-chart" size={20} color="#4F46E5" />
+                                <Ionicons name="stats-chart" size={20} color="#5B2DAD" />
                                 <Text style={styles.featureText}>Global Rankings</Text>
                             </View>
                             <View style={styles.featureItem}>
-                                <Ionicons name="people" size={20} color="#4F46E5" />
+                                <Ionicons name="people" size={20} color="#5B2DAD" />
                                 <Text style={styles.featureText}>Friend Competitions</Text>
                             </View>
                             <View style={styles.featureItem}>
-                                <Ionicons name="ribbon" size={20} color="#4F46E5" />
+                                <Ionicons name="ribbon" size={20} color="#5B2DAD" />
                                 <Text style={styles.featureText}>Integrity Badges</Text>
                             </View>
                         </View>
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
         borderRadius: scaleFont(32),
         overflow: 'hidden',
         elevation: scaleFont(10),
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(10) },
         shadowOpacity: 0.1,
         shadowRadius: scaleFont(20),
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_800ExtraBold',
     },
     badge: {
-        backgroundColor: '#4F46E5',
+        backgroundColor: '#5B2DAD',
         paddingHorizontal: scaleFont(16),
         paddingVertical: scaleFont(6),
         borderRadius: scaleFont(20),

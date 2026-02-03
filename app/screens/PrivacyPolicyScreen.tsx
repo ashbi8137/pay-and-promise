@@ -37,7 +37,7 @@ export default function PrivacyPolicyScreen() {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <View style={[styles.sectionIcon, { backgroundColor: '#EEF2FF' }]}>
-                                    <Ionicons name="shield-checkmark" size={scaleFont(18)} color="#4F46E5" />
+                                    <Ionicons name="shield-checkmark" size={scaleFont(18)} color="#5B2DAD" />
                                 </View>
                                 <Text style={styles.sectionTitle}>1. Data Collection</Text>
                             </View>

@@ -206,15 +206,15 @@ export default function CreatePromiseScreen() {
             ) : (
                 <View style={styles.gridContainer}>
                     {[
-                        { id: 'gym', label: 'Gym', icon: 'barbell', color: '#4F46E5' },
-                        { id: 'code', label: 'Code', icon: 'code-slash', color: '#4F46E5' },
-                        { id: 'read', label: 'Read', icon: 'book', color: '#4F46E5' },
-                        { id: 'water', label: 'Hydrate', icon: 'water', color: '#4F46E5' },
-                        { id: 'wake', label: 'Wake', icon: 'alarm', color: '#4F46E5' },
-                        { id: 'meditate', label: 'Meditate', icon: 'leaf', color: '#4F46E5' },
-                        { id: 'walk', label: 'Walk', icon: 'walk', color: '#4F46E5' },
-                        { id: 'study', label: 'Study', icon: 'school', color: '#4F46E5' },
-                        { id: 'custom', label: 'Other', icon: 'sparkles', color: '#4F46E5' },
+                        { id: 'gym', label: 'Gym', icon: 'barbell', color: '#5B2DAD' },
+                        { id: 'code', label: 'Code', icon: 'code-slash', color: '#5B2DAD' },
+                        { id: 'read', label: 'Read', icon: 'book', color: '#5B2DAD' },
+                        { id: 'water', label: 'Hydrate', icon: 'water', color: '#5B2DAD' },
+                        { id: 'wake', label: 'Wake', icon: 'alarm', color: '#5B2DAD' },
+                        { id: 'meditate', label: 'Meditate', icon: 'leaf', color: '#5B2DAD' },
+                        { id: 'walk', label: 'Walk', icon: 'walk', color: '#5B2DAD' },
+                        { id: 'study', label: 'Study', icon: 'school', color: '#5B2DAD' },
+                        { id: 'custom', label: 'Other', icon: 'sparkles', color: '#5B2DAD' },
                     ].map((tpl) => (
                         <TouchableOpacity key={tpl.id} style={styles.templateCard} onPress={() => handleTemplateSelect(tpl.label, tpl.id)}>
                             <View style={styles.tplIconCircle}>
@@ -298,7 +298,7 @@ export default function CreatePromiseScreen() {
                 </View>
                 <Text style={styles.counterHint}>Min 2 • Max 10</Text>
             </View>
-            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: '#4F46E5' }]} onPress={handleCreatePromiseReal} disabled={loading}>
+            <TouchableOpacity style={[styles.nextBtn, { backgroundColor: '#5B2DAD' }]} onPress={handleCreatePromiseReal} disabled={loading}>
                 {loading ? <ActivityIndicator color="#FFF" /> : (
                     <>
                         <Text style={styles.nextBtnText}>Launch Promise</Text>
@@ -324,7 +324,7 @@ export default function CreatePromiseScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     showAlert({ title: 'Copied', message: 'Invite code copied!', type: 'success' });
                 }}>
-                    <Ionicons name="copy-outline" size={scaleFont(18)} color="#4F46E5" />
+                    <Ionicons name="copy-outline" size={scaleFont(18)} color="#5B2DAD" />
                     <Text style={styles.copyBtnText}>Copy Code</Text>
                 </TouchableOpacity>
             </View>
@@ -367,10 +367,10 @@ const styles = StyleSheet.create({
     backBtn: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(12), backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
     progressContainer: { flex: 1, marginLeft: scaleFont(20), height: scaleFont(4), borderRadius: scaleFont(2), overflow: 'hidden' },
     progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(79, 70, 229, 0.1)' },
-    progressFill: { height: '100%', backgroundColor: '#4F46E5', borderRadius: scaleFont(2) },
+    progressFill: { height: '100%', backgroundColor: '#5B2DAD', borderRadius: scaleFont(2) },
     scrollContent: { flexGrow: 1, paddingHorizontal: scaleFont(24), paddingBottom: scaleFont(40) },
     wizardContainer: { flex: 1, paddingTop: scaleFont(20) },
-    wizardSubtitle: { fontSize: scaleFont(12), fontWeight: '800', color: '#4F46E5', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
+    wizardSubtitle: { fontSize: scaleFont(12), fontWeight: '800', color: '#5B2DAD', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
     wizardTitle: { fontSize: scaleFont(32), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(32), letterSpacing: scaleFont(-1), fontFamily: 'Outfit_800ExtraBold' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     templateCard: {
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginBottom: scaleFont(12),
         backgroundColor: '#FFF',
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(6) },
         shadowOpacity: 0.2,
         shadowRadius: scaleFont(10),
@@ -427,9 +427,9 @@ const styles = StyleSheet.create({
     stakeValue: { fontSize: scaleFont(80), fontWeight: '900', color: '#1E293B', letterSpacing: scaleFont(-2), fontFamily: 'Outfit_800ExtraBold' },
     sliderContainer: { height: scaleFont(44), justifyContent: 'center', width: '100%' },
     sliderTrack: { height: scaleFont(8), backgroundColor: '#F1F5F9', borderRadius: scaleFont(4), width: '100%' },
-    sliderTrackActive: { height: scaleFont(8), backgroundColor: '#4F46E5', borderRadius: scaleFont(4), position: 'absolute' },
-    sliderKnob: { width: KNOB_SIZE, height: KNOB_SIZE, borderRadius: KNOB_SIZE / 2, backgroundColor: '#FFF', position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#4F46E5', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.3, shadowRadius: scaleFont(8), borderWidth: 1, borderColor: '#F1F5F9' },
-    knobInner: { width: scaleFont(14), height: scaleFont(14), borderRadius: scaleFont(7), backgroundColor: '#4F46E5' },
+    sliderTrackActive: { height: scaleFont(8), backgroundColor: '#5B2DAD', borderRadius: scaleFont(4), position: 'absolute' },
+    sliderKnob: { width: KNOB_SIZE, height: KNOB_SIZE, borderRadius: KNOB_SIZE / 2, backgroundColor: '#FFF', position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.3, shadowRadius: scaleFont(8), borderWidth: 1, borderColor: '#F1F5F9' },
+    knobInner: { width: scaleFont(14), height: scaleFont(14), borderRadius: scaleFont(7), backgroundColor: '#5B2DAD' },
     sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: scaleFont(12), marginBottom: scaleFont(40) },
     sliderLabel: { fontSize: scaleFont(12), fontWeight: '700', color: '#94A3B8', fontFamily: 'Outfit_700Bold' },
     // QUICK SELECT
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     },
     quickCardActive: {
         backgroundColor: '#EEF2FF',
-        borderColor: '#4F46E5',
+        borderColor: '#5B2DAD',
     },
     quickText: {
         fontSize: scaleFont(14),
@@ -455,16 +455,16 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_700Bold'
     },
     quickTextActive: {
-        color: '#4F46E5',
+        color: '#5B2DAD',
     },
     // DETAILS
     detailBox: { marginBottom: scaleFont(32) },
     boxLabel: { fontSize: scaleFont(11), fontWeight: '800', color: '#94A3B8', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(16), fontFamily: 'Outfit_800ExtraBold' },
     chipRow: { flexDirection: 'row', gap: scaleFont(10), marginBottom: scaleFont(16) },
     chip: { paddingHorizontal: scaleFont(16), paddingVertical: scaleFont(10), borderRadius: scaleFont(14), backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0' },
-    chipActive: { backgroundColor: '#EEF2FF', borderColor: '#4F46E5' },
+    chipActive: { backgroundColor: '#EEF2FF', borderColor: '#5B2DAD' },
     chipText: { fontSize: scaleFont(14), fontWeight: '700', color: '#64748B', fontFamily: 'Outfit_700Bold' },
-    chipTextActive: { color: '#4F46E5' },
+    chipTextActive: { color: '#5B2DAD' },
     daysInput: { backgroundColor: '#F8FAFC', borderRadius: scaleFont(16), padding: scaleFont(16), fontSize: scaleFont(16), fontWeight: '600', color: '#1E293B', borderWidth: 1, borderColor: '#E2E8F0', fontFamily: 'Outfit_400Regular' },
     counter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#F8FAFC', borderRadius: scaleFont(20), padding: scaleFont(12), borderWidth: 1, borderColor: '#E2E8F0' },
     counterAction: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(14), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: scaleFont(2) },
@@ -479,7 +479,7 @@ const styles = StyleSheet.create({
     codeLabel: { fontSize: scaleFont(11), fontWeight: '900', color: '#94A3B8', letterSpacing: scaleFont(2), marginBottom: scaleFont(12), fontFamily: 'Outfit_800ExtraBold' },
     codeValue: { fontSize: scaleFont(48), fontWeight: '900', color: '#1E293B', letterSpacing: scaleFont(4), marginBottom: scaleFont(24), fontFamily: 'Outfit_800ExtraBold' },
     copyBtn: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(8), backgroundColor: '#EEF2FF', paddingHorizontal: scaleFont(20), paddingVertical: scaleFont(12), borderRadius: scaleFont(14) },
-    copyBtnText: { color: '#4F46E5', fontWeight: '800', fontSize: scaleFont(14), fontFamily: 'Outfit_800ExtraBold' },
+    copyBtnText: { color: '#5B2DAD', fontWeight: '800', fontSize: scaleFont(14), fontFamily: 'Outfit_800ExtraBold' },
     doneBtn: { width: '100%', backgroundColor: '#1E293B', paddingVertical: scaleFont(18), borderRadius: scaleFont(20), alignItems: 'center' },
     doneBtnText: { color: '#FFF', fontSize: scaleFont(17), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' }
 });

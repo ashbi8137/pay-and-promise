@@ -141,7 +141,7 @@ export default function LandingScreen() {
         const timer = setTimeout(() => {
             setStep(1);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }, 2500);
+        }, 3000);
 
         return () => clearTimeout(timer);
     }, []);
@@ -184,7 +184,7 @@ export default function LandingScreen() {
             highlight: "Stake",
             subtitle: "Put real money on your goals so you actually show up.",
             icon: "wallet-outline",
-            color: "#4F46E5",
+            color: "#5B2DAD",
         },
         {
             id: 2,
@@ -205,70 +205,67 @@ export default function LandingScreen() {
     ];
 
     const SlideItem = ({ item, index }: { item: any, index: number }) => {
-        const animatedStyle = useAnimatedStyle(() => {
-            const inputRange = [
-                (index - 1) * SCREEN_WIDTH,
-                index * SCREEN_WIDTH,
-                (index + 1) * SCREEN_WIDTH
-            ];
+        // Staggered Parallax Animation
+        const animatedContainerStyle = useAnimatedStyle(() => {
+            const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            // Unique "Depth Stack" Animation - Smoother
-            const scale = interpolate(
-                scrollX.value,
-                inputRange,
-                [0.9, 1, 0.9], // Less aggressive scaling
-                Extrapolation.CLAMP
-            );
+            // Background Scale & Opacity
+            const opacity = interpolate(scrollX.value, inputRange, [0, 1, 0], Extrapolation.CLAMP);
+            const scale = interpolate(scrollX.value, inputRange, [0.5, 1, 0.5], Extrapolation.CLAMP);
 
-            const opacity = interpolate(
-                scrollX.value,
-                inputRange,
-                [0.6, 1, 0.6], // Higher inactive opacity
-                Extrapolation.CLAMP
-            );
+            return { opacity, transform: [{ scale }] };
+        });
 
-            const rotateY = interpolate(
-                scrollX.value,
-                inputRange,
-                [15, 0, -15], // Subtle rotation (was 45)
-                Extrapolation.CLAMP
-            );
+        const animatedIconStyle = useAnimatedStyle(() => {
+            const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            const translateX = interpolate(
-                scrollX.value,
-                inputRange,
-                [-scaleFont(50), 0, scaleFont(50)], // Reduced overlap distance
-                Extrapolation.CLAMP
-            );
+            // Icon moves faster + rotates
+            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.5, 0, SCREEN_WIDTH * 0.5], Extrapolation.CLAMP);
+            const rotate = interpolate(scrollX.value, inputRange, [-20, 0, 20], Extrapolation.CLAMP);
+            const scale = interpolate(scrollX.value, inputRange, [0.5, 1.2, 0.5], Extrapolation.CLAMP);
 
-            return {
-                transform: [
-                    { perspective: 1000 },
-                    { scale },
-                    { rotateY: `${rotateY}deg` },
-                    { translateX }
-                ],
-                opacity
-            };
+            return { transform: [{ translateX }, { rotate: `${rotate}deg` }, { scale }] };
+        });
+
+        const animatedTextStyle = useAnimatedStyle(() => {
+            const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
+
+            // Text moves slower (Parallax)
+            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.2, 0, SCREEN_WIDTH * 0.2], Extrapolation.CLAMP);
+            const opacity = interpolate(scrollX.value, inputRange, [-1, 1, -1], Extrapolation.CLAMP);
+
+            return { transform: [{ translateX }], opacity };
         });
 
         // Split title to highlight executive words
         const titleParts = item.title.split(item.highlight);
 
         return (
-            <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: scaleFont(20) }}>
-                <Animated.View style={[styles.slideCard, animatedStyle]}>
-                    <View style={styles.glassEffect} />
-                    <LinearGradient colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.4)']} style={StyleSheet.absoluteFill} />
+            <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+
+                {/* 1. Premium Background: Grid + Subtle Glow */}
+                <View style={StyleSheet.absoluteFill}>
+                    <GridOverlay />
+                    <LinearGradient
+                        colors={[item.color, 'transparent']}
+                        style={{ position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, opacity: 0.05 }}
+                        start={{ x: 0.5, y: 0 }}
+                        end={{ x: 0.5, y: 0.8 }}
+                    />
+                </View>
 
 
 
-                    {/* Main Content Container - Better Spacing */}
-                    <View style={styles.slideContent}>
-                        <View style={[styles.newIconWrapper, { shadowColor: item.color }]}>
-                            <Ionicons name={item.icon as any} size={scaleFont(48)} color={item.color} />
-                        </View>
+                {/* 2. Main Content */}
+                <View style={styles.slideContent}>
 
+                    {/* Animated Icon */}
+                    <Animated.View style={[styles.newIconWrapper, { shadowColor: item.color, backgroundColor: 'transparent', elevation: 0 }, animatedIconStyle]}>
+                        <Ionicons name={item.icon as any} size={scaleFont(100)} color={item.color} />
+                    </Animated.View>
+
+                    {/* Animated Text */}
+                    <Animated.View style={animatedTextStyle}>
                         <Text style={styles.slideTitle} allowFontScaling={false}>
                             {titleParts[0]}
                             <Text style={{ color: item.color }}>{item.highlight}</Text>
@@ -278,8 +275,8 @@ export default function LandingScreen() {
                         <View style={styles.subtitleWrapper}>
                             <Text style={styles.slideSubtitle} allowFontScaling={false}>{item.subtitle}</Text>
                         </View>
-                    </View>
-                </Animated.View>
+                    </Animated.View>
+                </View>
             </View>
         );
     };
@@ -292,7 +289,7 @@ export default function LandingScreen() {
                 const dotStyle = useAnimatedStyle(() => {
                     const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [scaleFont(8), scaleFont(28), scaleFont(8)], Extrapolation.CLAMP);
                     const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.4, 1, 0.4], Extrapolation.CLAMP); // Increased base opacity
-                    return { width, opacity, backgroundColor: '#4F46E5' };
+                    return { width, opacity, backgroundColor: '#5B2DAD' };
                 });
                 return <Animated.View key={index} style={[styles.dot, dotStyle]} />;
             })}
@@ -304,16 +301,12 @@ export default function LandingScreen() {
             <View style={styles.splashContainer}>
                 <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
                 <Animated.View style={[styles.logoWrapper, { transform: [{ scale: logoScale }], opacity: logoOpacity }]}>
-                    <View style={styles.logoRing}>
-                        <Image
-                            source={require('../../assets/images/icon.png')}
-                            style={styles.splashLogo}
-                            resizeMode="contain"
-                            onLoadEnd={() => setIsImageReady(true)}
-                        />
-                    </View>
-                    <Text style={styles.splashBrand} allowFontScaling={false}>Pay & Promise</Text>
-                    <Text style={styles.splashTagline} allowFontScaling={false}>Where discipline begins</Text>
+                    <Image
+                        source={require('../../assets/images/icon_transparent.png')}
+                        style={{ width: scaleFont(220), height: scaleFont(220), marginBottom: scaleFont(10) }}
+                        resizeMode="contain"
+                        onLoadEnd={() => setIsImageReady(true)}
+                    />
                 </Animated.View>
             </View>
         );
@@ -389,7 +382,7 @@ export default function LandingScreen() {
                                     disabled={!isButtonActive}
                                 >
                                     <LinearGradient
-                                        colors={['#4F46E5', '#312E81']}
+                                        colors={['#5B2DAD', '#312E81']}
                                         style={styles.portalGradient}
                                     >
                                         <Ionicons name="arrow-forward" size={scaleFont(22)} color="#FFF" />
@@ -406,88 +399,113 @@ export default function LandingScreen() {
                             INITIATE JOURNEY
                         </Text>
                     </Animated.View>
+
+                    <TouchableOpacity
+                        style={styles.skipButton}
+                        onPress={() => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            router.replace('/screens/AuthScreen');
+                        }}
+                        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                    >
+                        <Text style={styles.skipText}>Skip</Text>
+                    </TouchableOpacity>
                 </View>
             </SafeAreaView>
         </View>
     );
 }
 
-// ... existing imports
-
-// ... (rest of the file content until scaleFont definition)
-
-// Removed local scaleFont definition
-
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-
-    // Splash Styles
-    splashContainer: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    logoWrapper: { alignItems: 'center' },
-    logoRing: {
-        width: scaleFont(140),
-        height: scaleFont(140),
-        borderRadius: scaleFont(70),
-        backgroundColor: '#FFF',
-        padding: scaleFont(20),
-        elevation: scaleFont(20),
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: scaleFont(15) },
-        shadowOpacity: 0.1,
-        shadowRadius: scaleFont(25),
+    container: {
+        flex: 1,
+        backgroundColor: '#F8FAFC',
+    },
+    splashContainer: {
+        flex: 1,
+        alignItems: 'center',
         justifyContent: 'center',
-        alignItems: 'center'
     },
-    splashLogo: { width: '100%', height: '100%' },
-    splashBrand: {
-        fontSize: scaleFont(32),
-        fontWeight: '900',
-        color: '#1E293B',
-        marginTop: scaleFont(32),
-        letterSpacing: scaleFont(-1),
-        fontFamily: 'Outfit_800ExtraBold'
+    logoWrapper: {
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    splashTagline: {
-        fontSize: scaleFont(16),
-        color: '#64748B',
-        marginTop: scaleFont(8),
-        fontWeight: '600',
-        fontFamily: 'Outfit_400Regular' // Changed to Regular as requested for common text
+    content: {
+        flex: 1,
     },
-
-    // --- MAIN CONTENT ---
-    content: { flex: 1 }, // Removed paddingBottom for absolute layout
-
-    sliderContainer: { ...StyleSheet.absoluteFillObject }, // Full screen to capture all swipes
+    sliderContainer: {
+        ...StyleSheet.absoluteFillObject,
+    },
     controlsContainer: {
         position: 'absolute',
-        bottom: scaleFont(150), // Lifted up to clear the footer
+        bottom: scaleFont(150),
         width: '100%',
         alignItems: 'center',
-        zIndex: 20
+        zIndex: 20,
     },
     slideCard: {
-        width: SCREEN_WIDTH * 0.85,
-        height: '75%', // Slightly taller feel
-        borderRadius: scaleFont(40),
-        backgroundColor: '#FFF',
-        overflow: 'hidden',
-        elevation: scaleFont(15),
-        shadowColor: 'rgba(0,0,0,0.1)',
-        shadowOffset: { width: 0, height: scaleFont(20) },
-        shadowOpacity: 0.25,
-        shadowRadius: scaleFont(30),
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.8)'
-    },
-    swipeHintContainer: {
-        width: '100%',
-        flexDirection: 'row',
+        width: SCREEN_WIDTH,
+        height: '100%',
+        backgroundColor: 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    slideContent: {
+        width: '100%',
+        alignItems: 'center', // Back to Center
+        justifyContent: 'center',
+        paddingHorizontal: scaleFont(24),
+        paddingBottom: scaleFont(80), // Lift content slightly above center
+    },
+    newIconWrapper: {
+        marginBottom: scaleFont(40),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    slideTitle: {
+        fontSize: scaleFont(40),
+        fontWeight: '900',
+        color: '#1E293B',
+        textAlign: 'center', // Back to Center
+        lineHeight: scaleFont(48),
+        fontFamily: 'Outfit_800ExtraBold',
+        marginBottom: scaleFont(16),
+        textShadowColor: 'rgba(255,255,255,0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 10,
+    },
+    subtitleWrapper: {
+        width: '85%',
+        alignSelf: 'center',
+    },
+    slideSubtitle: {
+        fontSize: scaleFont(18),
+        color: '#475569',
+        textAlign: 'center', // Back to Center
+        lineHeight: scaleFont(28),
+        fontFamily: 'Outfit_400Regular',
+    },
+    glassEffect: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(255,255,255,0.4)',
+        opacity: 0.7,
+    },
+    pagination: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: scaleFont(20),
+    },
+    dot: {
+        height: scaleFont(8),
+        borderRadius: scaleFont(4),
+        marginHorizontal: scaleFont(6),
+    },
+    swipeHintContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
         gap: scaleFont(8),
-        marginTop: scaleFont(15),
-        zIndex: 10,
+        marginTop: scaleFont(20),
     },
     swipeHintText: {
         fontSize: scaleFont(14),
@@ -495,90 +513,34 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_500Medium',
         letterSpacing: 0.5,
     },
-    glassEffect: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.4)', opacity: 0.7 },
-
-    watermarkNumber: {
+    skipButton: {
         position: 'absolute',
-        top: -scaleFont(20),
-        right: -scaleFont(20),
-        fontSize: scaleFont(140),
-        fontWeight: '900',
-        fontFamily: 'Outfit_800ExtraBold',
-        opacity: 0.8
+        top: scaleFont(60), // Adjust for status bar
+        right: scaleFont(24),
+        zIndex: 50,
+        padding: scaleFont(8),
+        backgroundColor: 'rgba(255,255,255,0.8)',
+        borderRadius: scaleFont(20),
     },
-
-    slideContent: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: scaleFont(20),
-        gap: scaleFont(24), // Explicit spacing gap
-    },
-
-    newIconWrapper: {
-        width: scaleFont(80),
-        height: scaleFont(80),
-        borderRadius: scaleFont(40),
-        backgroundColor: '#FFF',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowOffset: { width: 0, height: scaleFont(10) },
-        shadowOpacity: 0.2,
-        shadowRadius: scaleFont(20),
-        marginBottom: scaleFont(10),
-        elevation: 10
-    },
-
-    slideTitle: {
-        fontSize: scaleFont(28),
-        color: '#1E293B',
-        textAlign: 'center',
-        letterSpacing: scaleFont(-0.5),
-        fontFamily: 'Outfit_700Bold',
-        lineHeight: scaleFont(36),
-    },
-
-    subtitleWrapper: {
-        width: '90%',
-        alignItems: 'center'
-    },
-
-    slideSubtitle: {
-        fontSize: scaleFont(16),
+    skipText: {
+        fontSize: scaleFont(14),
+        fontFamily: 'Outfit_600SemiBold',
         color: '#64748B',
-        textAlign: 'center',
-        lineHeight: scaleFont(24),
-        fontFamily: 'Outfit_400Regular',
     },
-
-    // accentLine removed as requested for cleaner look
-
-    pagination: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginTop: scaleFont(20)
-    },
-    dot: {
-        height: scaleFont(7),
-        borderRadius: scaleFont(3.5),
-        marginHorizontal: scaleFont(5)
-    },
-
     footer: {
         position: 'absolute',
         bottom: 0,
         width: '100%',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        paddingBottom: '5%',
-        zIndex: 30
+        paddingBottom: '8%',
+        zIndex: 30,
     },
     portalWrapper: {
         width: scaleFont(80),
         height: scaleFont(80),
         justifyContent: 'center',
-        alignItems: 'center'
+        alignItems: 'center',
     },
     portalHalo: {
         position: 'absolute',
@@ -588,7 +550,7 @@ const styles = StyleSheet.create({
         borderWidth: scaleFont(2),
         borderColor: '#4F46E5',
         borderStyle: 'dashed',
-        opacity: 0.2
+        opacity: 0.2,
     },
     portalAction: {
         width: scaleFont(56),
@@ -607,7 +569,7 @@ const styles = StyleSheet.create({
         borderRadius: scaleFont(28),
         justifyContent: 'center',
         alignItems: 'center',
-        zIndex: 2
+        zIndex: 2,
     },
     portalInnerRing: {
         position: 'absolute',
@@ -616,23 +578,17 @@ const styles = StyleSheet.create({
         borderRadius: scaleFont(34),
         borderWidth: scaleFont(1.5),
         borderColor: 'rgba(79, 70, 229, 0.2)',
-        zIndex: 1
+        zIndex: 1,
     },
     portalLabel: {
-        fontSize: scaleFont(10),
+        fontSize: scaleFont(12),
         fontWeight: '900',
         color: '#4F46E5',
-        marginTop: scaleFont(24), // Increased spacing between button and text
-        letterSpacing: scaleFont(3),
+        marginTop: scaleFont(24),
+        letterSpacing: scaleFont(2),
         opacity: 0.9,
-        textTransform: 'uppercase'
-    },
-    footNote: {
-        fontSize: scaleFont(11),
-        color: '#94A3B8',
-        fontWeight: '700',
-        marginTop: scaleFont(16),
-        letterSpacing: scaleFont(0.5),
-        fontFamily: 'Outfit_300Light'
+        textTransform: 'uppercase',
     },
 });
+
+

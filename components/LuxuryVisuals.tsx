@@ -40,7 +40,7 @@ export const AmbientGlow = ({ size, color, top, left, right, bottom, opacity = 0
     ]} />
 );
 
-export const NebulaGlow = ({ color = "#4F46E5", top, left, right, bottom, scale = 1 }: { color?: string, top?: DimensionValue, left?: DimensionValue, right?: DimensionValue, bottom?: DimensionValue, scale?: number }) => (
+export const NebulaGlow = ({ color = "#5B2DAD", top, left, right, bottom, scale = 1 }: { color?: string, top?: DimensionValue, left?: DimensionValue, right?: DimensionValue, bottom?: DimensionValue, scale?: number }) => (
     <View style={[styles.nebulaContainer, { top, left, right, bottom, transform: [{ scale }] }]} pointerEvents="none">
         <View style={[styles.nebulaOrb, { width: scaleFont(400), height: scaleFont(400), borderRadius: scaleFont(200), backgroundColor: color, opacity: 0.08, top: scaleFont(-50), left: scaleFont(-50) }]} />
         <View style={[styles.nebulaOrb, { width: scaleFont(300), height: scaleFont(300), borderRadius: scaleFont(150), backgroundColor: color, opacity: 0.05, bottom: scaleFont(-30), right: scaleFont(-20) }]} />

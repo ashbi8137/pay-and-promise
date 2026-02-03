@@ -113,14 +113,14 @@ export default function TransactionHistoryScreen() {
 
                 {loading ? (
                     <View style={styles.centerContent}>
-                        <ActivityIndicator size="large" color="#4F46E5" />
+                        <ActivityIndicator size="large" color="#5B2DAD" />
                     </View>
                 ) : (
                     <ScrollView
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                         refreshControl={
-                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />
+                            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5B2DAD" />
                         }
                     >
                         {history.length === 0 ? (

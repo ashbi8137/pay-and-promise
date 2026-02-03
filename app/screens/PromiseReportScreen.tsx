@@ -509,13 +509,13 @@ export default function PromiseReportScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
-                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />
+                        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5B2DAD" />
                     }
                 >
                     {/* DASHBOARD HERO */}
                     <Animated.View entering={FadeInDown.duration(800).springify()}>
                         <LinearGradient
-                            colors={['#4F46E5', '#7C3AED']}
+                            colors={['#5B2DAD', '#7C3AED']}
                             style={styles.heroCard}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
@@ -635,7 +635,7 @@ export default function PromiseReportScreen() {
                                                                     onPress={() => handleCopy(displayedUpiId)}
                                                                 >
                                                                     <Text style={styles.upiText} numberOfLines={1}>{displayedUpiId}</Text>
-                                                                    <Ionicons name="copy" size={12} color="#4F46E5" />
+                                                                    <Ionicons name="copy" size={12} color="#5B2DAD" />
                                                                 </TouchableOpacity>
                                                             ) : (
                                                                 <Text style={styles.noUpi}>No UPI ID</Text>
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginBottom: scaleFont(24),
         elevation: scaleFont(10),
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(10) },
         shadowOpacity: 0.3,
         shadowRadius: scaleFont(20),
@@ -962,7 +962,7 @@ const styles = StyleSheet.create({
     avatarChar: {
         fontSize: scaleFont(20),
         fontWeight: '800',
-        color: '#4F46E5',
+        color: '#5B2DAD',
         fontFamily: 'Outfit_800ExtraBold',
     },
     paymentInfo: {
@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
     },
     upiText: {
         fontSize: scaleFont(10),
-        color: '#4F46E5',
+        color: '#5B2DAD',
         fontWeight: '600',
         fontFamily: 'Outfit_700Bold',
     },
@@ -1068,7 +1068,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
     },
     payBtn: {
-        backgroundColor: '#4F46E5',
+        backgroundColor: '#5B2DAD',
         flexDirection: 'row',
         alignItems: 'center',
         gap: scaleFont(8),
@@ -1149,7 +1149,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_400Regular',
     },
     backButtonAlt: {
-        backgroundColor: '#4F46E5',
+        backgroundColor: '#5B2DAD',
         paddingHorizontal: scaleFont(24),
         paddingVertical: scaleFont(14),
         borderRadius: scaleFont(16),

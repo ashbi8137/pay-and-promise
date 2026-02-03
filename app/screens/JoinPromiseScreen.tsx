@@ -169,7 +169,7 @@ export default function JoinPromiseScreen() {
                                 maxLength={8}
                                 autoCapitalize="characters"
                             />
-                            {loading && <ActivityIndicator style={{ marginTop: 20 }} color="#4F46E5" />}
+                            {loading && <ActivityIndicator style={{ marginTop: 20 }} color="#5B2DAD" />}
 
                             <TouchableOpacity
                                 style={[styles.searchBtn, { opacity: code.length >= 6 ? 1 : 0.5 }]}
@@ -184,7 +184,7 @@ export default function JoinPromiseScreen() {
                             <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={StyleSheet.absoluteFill} />
 
                             <View style={styles.iconBox}>
-                                <Ionicons name="sparkles" size={scaleFont(32)} color="#4F46E5" />
+                                <Ionicons name="sparkles" size={scaleFont(32)} color="#5B2DAD" />
                             </View>
 
                             <Text style={styles.pTitle}>{promise.title}</Text>
@@ -230,20 +230,20 @@ const styles = StyleSheet.create({
     content: { flex: 1, paddingHorizontal: scaleFont(24), justifyContent: 'center' },
     inputCard: { backgroundColor: '#FFF', borderRadius: scaleFont(24), padding: scaleFont(32), alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
     label: { fontSize: scaleFont(12), fontWeight: '800', color: '#64748B', letterSpacing: 2, marginBottom: scaleFont(20), fontFamily: 'Outfit_800ExtraBold' },
-    input: { fontSize: scaleFont(40), fontWeight: '800', color: '#4F46E5', textAlign: 'center', letterSpacing: 4, width: '100%', fontFamily: 'Outfit_800ExtraBold', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingBottom: scaleFont(10) },
+    input: { fontSize: scaleFont(40), fontWeight: '800', color: '#5B2DAD', textAlign: 'center', letterSpacing: 4, width: '100%', fontFamily: 'Outfit_800ExtraBold', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingBottom: scaleFont(10) },
     searchBtn: { marginTop: scaleFont(30), backgroundColor: '#0F172A', paddingVertical: scaleFont(16), paddingHorizontal: scaleFont(32), borderRadius: scaleFont(16), width: '100%', alignItems: 'center' },
     searchBtnText: { color: '#FFF', fontSize: scaleFont(16), fontWeight: '700', fontFamily: 'Outfit_700Bold' },
 
     promiseCard: { width: '100%', padding: scaleFont(32), borderRadius: scaleFont(32), alignItems: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#C7D2FE' },
-    iconBox: { width: scaleFont(64), height: scaleFont(64), borderRadius: scaleFont(32), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', marginBottom: scaleFont(24), shadowColor: '#4F46E5', shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
+    iconBox: { width: scaleFont(64), height: scaleFont(64), borderRadius: scaleFont(32), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', marginBottom: scaleFont(24), shadowColor: '#5B2DAD', shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
     pTitle: { fontSize: scaleFont(28), fontWeight: '900', color: '#1E293B', textAlign: 'center', marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
     pSub: { fontSize: scaleFont(14), color: '#64748B', marginBottom: scaleFont(32), fontFamily: 'Outfit_600SemiBold' },
     statsRow: { flexDirection: 'row', alignItems: 'center', width: '100%', marginBottom: scaleFont(40) },
     stat: { flex: 1, alignItems: 'center' },
-    statVal: { fontSize: scaleFont(24), fontWeight: '800', color: '#4F46E5', fontFamily: 'Outfit_800ExtraBold' },
+    statVal: { fontSize: scaleFont(24), fontWeight: '800', color: '#5B2DAD', fontFamily: 'Outfit_800ExtraBold' },
     statLabel: { fontSize: scaleFont(11), fontWeight: '800', color: '#94A3B8', letterSpacing: 1, marginTop: scaleFont(4), fontFamily: 'Outfit_800ExtraBold' },
     divider: { width: 1, height: scaleFont(40), backgroundColor: '#CBD5E1' },
-    joinBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#4F46E5', paddingVertical: scaleFont(20), borderRadius: scaleFont(20), width: '100%', gap: scaleFont(12), shadowColor: '#4F46E5', shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 },
+    joinBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#5B2DAD', paddingVertical: scaleFont(20), borderRadius: scaleFont(20), width: '100%', gap: scaleFont(12), shadowColor: '#5B2DAD', shadowOpacity: 0.4, shadowRadius: 12, elevation: 8 },
     joinBtnText: { color: '#FFF', fontSize: scaleFont(18), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' },
     cancelLink: { marginTop: scaleFont(20) },
     cancelText: { color: '#64748B', fontWeight: '600', fontSize: scaleFont(14), fontFamily: 'Outfit_600SemiBold' }

@@ -572,7 +572,7 @@ export default function PromiseDetailScreen() {
         return (
             <Animated.View entering={FadeInUp} style={styles.heroCard}>
                 <LinearGradient
-                    colors={['#4F46E5', '#7C3AED']}
+                    colors={['#5B2DAD', '#7C3AED']}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={StyleSheet.absoluteFill}
@@ -672,7 +672,7 @@ export default function PromiseDetailScreen() {
                                 ) : day.status === 'failed' ? (
                                     <Ionicons name="close" size={16} color="#FFF" />
                                 ) : (
-                                    <Text style={[styles.dayNum, day.isToday && { color: '#4F46E5' }]}>{day.dayNum}</Text>
+                                    <Text style={[styles.dayNum, day.isToday && { color: '#5B2DAD' }]}>{day.dayNum}</Text>
                                 )}
                             </View>
                             <Text style={[styles.dayLabel, day.isToday && styles.dayLabelActive]}>{day.dateLabel}</Text>
@@ -738,9 +738,9 @@ export default function PromiseDetailScreen() {
                                                 Waiting for peers...
                                             </Text>
                                         </View>
-                                        <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#4F46E5' }]} onPress={handlePhotoCheckIn} disabled={updating}>
-                                            <Ionicons name="camera-reverse" size={20} color="#4F46E5" />
-                                            <Text style={[styles.mainActionText, { color: '#4F46E5' }]}>Change Proof</Text>
+                                        <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#5B2DAD' }]} onPress={handlePhotoCheckIn} disabled={updating}>
+                                            <Ionicons name="camera-reverse" size={20} color="#5B2DAD" />
+                                            <Text style={[styles.mainActionText, { color: '#5B2DAD' }]}>Change Proof</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}
@@ -865,7 +865,7 @@ export default function PromiseDetailScreen() {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="large" color="#4F46E5" />
+                    <ActivityIndicator size="large" color="#5B2DAD" />
                     <Text style={styles.loadingText}>Syncing Promise...</Text>
                 </View>
             </SafeAreaView>
@@ -887,7 +887,7 @@ export default function PromiseDetailScreen() {
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5B2DAD" />}
                 >
                     {renderHero()}
 
@@ -935,7 +935,7 @@ export default function PromiseDetailScreen() {
                             <View style={styles.waitCodeBox}>
                                 <Text style={styles.waitCode}>{invite_code}</Text>
                                 <TouchableOpacity onPress={handleCopyCode}>
-                                    <Ionicons name="copy-outline" size={20} color="#4F46E5" />
+                                    <Ionicons name="copy-outline" size={20} color="#5B2DAD" />
                                 </TouchableOpacity>
                             </View>
                         </Animated.View>
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_400Regular',
     },
     backButtonAlt: {
-        backgroundColor: '#4F46E5',
+        backgroundColor: '#5B2DAD',
         paddingHorizontal: scaleFont(24),
         paddingVertical: scaleFont(14),
         borderRadius: scaleFont(16),
@@ -1031,7 +1031,7 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         marginBottom: scaleFont(20),
         elevation: scaleFont(8),
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(10) },
         shadowOpacity: 0.2,
         shadowRadius: scaleFont(15),
@@ -1175,8 +1175,8 @@ const styles = StyleSheet.create({
         borderColor: '#EF4444',
     },
     dayToday: {
-        borderColor: '#4F46E5',
-        shadowColor: '#4F46E5',
+        borderColor: '#5B2DAD',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(4) },
         shadowOpacity: 0.2,
         shadowRadius: scaleFont(8),
@@ -1195,7 +1195,7 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_700Bold',
     },
     dayLabelActive: {
-        color: '#4F46E5',
+        color: '#5B2DAD',
     },
     // ACTIONS
     actionCard: {
@@ -1288,14 +1288,14 @@ const styles = StyleSheet.create({
     },
     mainActionBtn: {
         flexDirection: 'row',
-        backgroundColor: '#4F46E5',
+        backgroundColor: '#5B2DAD',
         paddingHorizontal: scaleFont(28),
         paddingVertical: scaleFont(16),
         borderRadius: scaleFont(18),
         alignItems: 'center',
         gap: scaleFont(10),
         elevation: scaleFont(6),
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(6) },
         shadowOpacity: 0.3,
         shadowRadius: scaleFont(12),
@@ -1342,7 +1342,7 @@ const styles = StyleSheet.create({
     avatarChar: {
         fontSize: scaleFont(16),
         fontWeight: '800',
-        color: '#4F46E5',
+        color: '#5B2DAD',
         fontFamily: 'Outfit_800ExtraBold',
     },
     peerName: {
@@ -1504,7 +1504,7 @@ const styles = StyleSheet.create({
     waitCode: {
         fontSize: scaleFont(18),
         fontWeight: '800',
-        color: '#4F46E5',
+        color: '#5B2DAD',
         fontFamily: 'Outfit_800ExtraBold',
         letterSpacing: 2,
     }

@@ -116,7 +116,7 @@ export default function PaymentsScreen() {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.centerContent}>
-                    <ActivityIndicator size="large" color="#4F46E5" />
+                    <ActivityIndicator size="large" color="#5B2DAD" />
                 </View>
             </SafeAreaView>
         );
@@ -170,7 +170,7 @@ export default function PaymentsScreen() {
                         {!isEditing ? (
                             <TouchableOpacity style={styles.editCardBtn} onPress={() => setIsEditing(true)}>
                                 <Text style={styles.editCardBtnText}>Update Payment Identity</Text>
-                                <Ionicons name="pencil-outline" size={18} color="#4F46E5" />
+                                <Ionicons name="pencil-outline" size={18} color="#5B2DAD" />
                             </TouchableOpacity>
                         ) : (
                             <View style={styles.editPanel}>
@@ -206,7 +206,7 @@ export default function PaymentsScreen() {
                         )}
 
                         <View style={styles.infoCard}>
-                            <Ionicons name="information-circle" size={24} color="#4F46E5" />
+                            <Ionicons name="information-circle" size={24} color="#5B2DAD" />
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.infoTitle}>Peer-to-Peer Payments</Text>
                                 <Text style={styles.infoSub}>Your UPI ID is shared only with members of promises you join to enable direct settlements.</Text>
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
     infoTitle: { fontSize: scaleFont(15), fontWeight: '800', color: '#1E293B', marginBottom: scaleFont(4), fontFamily: 'Outfit_800ExtraBold' },
     infoSub: { fontSize: scaleFont(13), color: '#64748B', lineHeight: scaleFont(18), fontFamily: 'Outfit_400Regular' },
     editCardBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF2FF', paddingVertical: scaleFont(18), borderRadius: scaleFont(20), gap: scaleFont(10), borderWidth: 1, borderColor: '#C7D2FE' },
-    editCardBtnText: { color: '#4F46E5', fontSize: scaleFont(15), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' },
+    editCardBtnText: { color: '#5B2DAD', fontSize: scaleFont(15), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' },
     editPanel: { gap: scaleFont(16) },
     inputLabel: { fontSize: scaleFont(12), fontWeight: '800', color: '#94A3B8', letterSpacing: scaleFont(1), textTransform: 'uppercase', fontFamily: 'Outfit_800ExtraBold' },
     inputWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: scaleFont(16), borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: scaleFont(16) },
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
     actionRow: { flexDirection: 'row', gap: scaleFont(12), marginTop: scaleFont(8) },
     cancelBtn: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: scaleFont(16), borderRadius: scaleFont(16), backgroundColor: '#F1F5F9' },
     cancelBtnText: { fontSize: scaleFont(14), fontWeight: '700', color: '#64748B', fontFamily: 'Outfit_700Bold' },
-    saveBtn: { flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: scaleFont(16), borderRadius: scaleFont(16), backgroundColor: '#4F46E5' },
+    saveBtn: { flex: 2, alignItems: 'center', justifyContent: 'center', paddingVertical: scaleFont(16), borderRadius: scaleFont(16), backgroundColor: '#5B2DAD' },
     saveBtnText: { fontSize: scaleFont(14), fontWeight: '800', color: '#FFF', fontFamily: 'Outfit_800ExtraBold' },
     securityBadge: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: scaleFont(6), opacity: 0.6 },
     securityText: { fontSize: scaleFont(11), fontWeight: '700', color: '#94A3B8', fontFamily: 'Outfit_700Bold' }

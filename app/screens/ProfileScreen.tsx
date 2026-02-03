@@ -95,7 +95,7 @@ export default function ProfileScreen() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#4F46E5" />
+                <ActivityIndicator size="large" color="#5B2DAD" />
             </View>
         );
     }
@@ -109,7 +109,7 @@ export default function ProfileScreen() {
                 <View style={styles.header}>
                     <View style={styles.headerIdentity}>
                         <View style={styles.avatarWrapperMini}>
-                            <LinearGradient colors={['#4F46E5', '#818CF8']} style={styles.avatarGradientMini}>
+                            <LinearGradient colors={['#5B2DAD', '#818CF8']} style={styles.avatarGradientMini}>
                                 <Text style={styles.avatarTxtMini}>{firstName.charAt(0).toUpperCase()}</Text>
                             </LinearGradient>
                             <View style={styles.statusPingMini} />
@@ -117,20 +117,20 @@ export default function ProfileScreen() {
                         <View style={styles.nameBlockMini}>
                             <Text style={styles.userNameMini}>{profile?.name}</Text>
                             <View style={styles.tierBadgeMini}>
-                                <Ionicons name="diamond" size={10} color="#4F46E5" />
+                                <Ionicons name="diamond" size={10} color="#5B2DAD" />
                                 <Text style={styles.tierTxtMini}>PREMIUM MEMBER</Text>
                             </View>
                         </View>
                     </View>
                     <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.settingsBtn}>
-                        <Ionicons name="settings-sharp" size={20} color="#4F46E5" />
+                        <Ionicons name="settings-sharp" size={20} color="#5B2DAD" />
                     </TouchableOpacity>
                 </View>
 
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
-                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchProfileData(); }} tintColor="#4F46E5" />}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchProfileData(); }} tintColor="#5B2DAD" />}
                 >
                     {/* IDENTITY BLOCK REMOVED (Moved to Header) */}
                     <View style={{ height: scaleFont(10) }} />

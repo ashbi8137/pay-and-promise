@@ -37,7 +37,7 @@ export default function TermsScreen() {
                         <View style={styles.section}>
                             <View style={styles.sectionHeader}>
                                 <View style={[styles.sectionIcon, { backgroundColor: '#EEF2FF' }]}>
-                                    <Ionicons name="document-text" size={scaleFont(18)} color="#4F46E5" />
+                                    <Ionicons name="document-text" size={scaleFont(18)} color="#5B2DAD" />
                                 </View>
                                 <Text style={styles.sectionTitle}>1. Protocol Membership</Text>
                             </View>

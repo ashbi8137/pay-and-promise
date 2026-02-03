@@ -167,10 +167,25 @@ export default function WalkthroughOverlay({ onComplete, forceShow = false, init
 
                     {/* Text Card */}
                     <View style={styles.textCard}>
+
+
                         <Text style={styles.coachText}>{mark.text}</Text>
 
-                        {/* Progress & Got It */}
+                        {/* Footer: Skip | Dots | Got It */}
                         <View style={styles.footer}>
+
+                            {/* Skip (Left) */}
+                            <TouchableOpacity
+                                onPress={completeCoachMarks}
+                                style={styles.footerSkipBtn}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                            >
+                                <Text style={styles.footerSkipText}>
+                                    {currentStep < COACH_MARKS.length - 1 ? 'Skip' : ''}
+                                </Text>
+                            </TouchableOpacity>
+
+                            {/* Dots (Center) */}
                             <View style={styles.dotsContainer}>
                                 {COACH_MARKS.map((_, index) => (
                                     <View
@@ -190,7 +205,7 @@ export default function WalkthroughOverlay({ onComplete, forceShow = false, init
                                 <Ionicons
                                     name={currentStep < COACH_MARKS.length - 1 ? "chevron-forward" : "checkmark"}
                                     size={14}
-                                    color="#4F46E5"
+                                    color="#5B2DAD"
                                 />
                             </TouchableOpacity>
                         </View>
@@ -297,5 +312,14 @@ const styles = StyleSheet.create({
         borderRightColor: 'transparent',
         borderTopColor: '#FFFFFF',
         marginTop: -1,
+    },
+    footerSkipBtn: {
+        padding: scaleFont(4),
+        minWidth: scaleFont(40), // Reserve space even if empty to keep dots centered
+    },
+    footerSkipText: {
+        fontSize: scaleFont(13),
+        fontWeight: '500',
+        color: '#94A3B8',
     },
 });

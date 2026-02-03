@@ -202,14 +202,14 @@ export default function JourneyScreen() {
 
                 {loading ? (
                     <View style={styles.loaderContainer}>
-                        <ActivityIndicator size="large" color="#4F46E5" />
+                        <ActivityIndicator size="large" color="#5B2DAD" />
                         <Text style={styles.loadingText}>Synchronizing Ledger...</Text>
                     </View>
                 ) : (
                     <ScrollView
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
-                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
+                        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#5B2DAD" />}
                     >
                         {history.length > 0 && (
                             <Animated.View entering={FadeInDown.duration(800)} style={styles.impactCardWrapper}>
@@ -352,8 +352,8 @@ const styles = StyleSheet.create({
     headerTitle: { fontSize: scaleFont(24), fontWeight: '900', color: '#0F172A', letterSpacing: scaleFont(-1), fontFamily: 'Outfit_800ExtraBold' },
     scrollContent: { paddingHorizontal: scaleFont(28), paddingBottom: scaleFont(40) },
     loaderContainer: { marginTop: scaleFont(100), alignItems: 'center' },
-    loadingText: { marginTop: scaleFont(16), fontSize: scaleFont(14), fontWeight: '700', color: '#4F46E5', fontFamily: 'Outfit_700Bold' },
-    impactCardWrapper: { marginBottom: scaleFont(32), borderRadius: scaleFont(28), overflow: 'hidden', elevation: scaleFont(12), shadowColor: '#4F46E5', shadowOffset: { width: 0, height: scaleFont(10) }, shadowOpacity: 0.2, shadowRadius: scaleFont(20) },
+    loadingText: { marginTop: scaleFont(16), fontSize: scaleFont(14), fontWeight: '700', color: '#5B2DAD', fontFamily: 'Outfit_700Bold' },
+    impactCardWrapper: { marginBottom: scaleFont(32), borderRadius: scaleFont(28), overflow: 'hidden', elevation: scaleFont(12), shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(10) }, shadowOpacity: 0.2, shadowRadius: scaleFont(20) },
     impactCard: { padding: scaleFont(24) },
     impactBgIcon: { position: 'absolute', bottom: scaleFont(-20), right: scaleFont(-20) },
     impactLabel: { fontSize: scaleFont(10), fontWeight: '900', color: 'rgba(255,255,255,0.6)', letterSpacing: scaleFont(2), marginBottom: scaleFont(20), textAlign: 'center', fontFamily: 'Outfit_800ExtraBold' },
@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
         padding: scaleFont(24),
         borderWidth: 1,
         borderColor: 'rgba(255, 255, 255, 0.6)',
-        shadowColor: '#4F46E5',
+        shadowColor: '#5B2DAD',
         shadowOffset: { width: 0, height: scaleFont(12) },
         shadowOpacity: 0.08,
         shadowRadius: scaleFont(16),
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
     bgSuccess: { backgroundColor: 'transparent' },
     bgActive: { backgroundColor: 'transparent' },
     textSuccess: { color: '#10B981', fontSize: scaleFont(12), fontWeight: '900', fontFamily: 'Outfit_800ExtraBold' },
-    textActive: { color: '#4F46E5', fontSize: scaleFont(12), fontWeight: '900', fontFamily: 'Outfit_800ExtraBold' },
+    textActive: { color: '#5B2DAD', fontSize: scaleFont(12), fontWeight: '900', fontFamily: 'Outfit_800ExtraBold' },
     statusText: { letterSpacing: scaleFont(1) },
     sectionLabel: { fontSize: scaleFont(10), fontWeight: '900', color: '#CBD5E1', textTransform: 'uppercase', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(14), fontFamily: 'Outfit_800ExtraBold' },
     storyGraph: { flexDirection: 'row', flexWrap: 'wrap', gap: scaleFont(6), marginBottom: scaleFont(28) },

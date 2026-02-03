@@ -91,7 +91,7 @@ export default function PrivacySecurityScreen() {
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <View style={[styles.iconBox, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="lock-closed" size={scaleFont(22)} color="#4F46E5" />
+                                <Ionicons name="lock-closed" size={scaleFont(22)} color="#5B2DAD" />
                             </View>
                             <Text style={styles.cardTitle}>Data Security</Text>
                         </View>

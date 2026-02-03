@@ -22,7 +22,7 @@ const TabBackground = ({ colorScheme }: { colorScheme: 'light' | 'dark' }) => {
             borderRadius: 36,
             borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.5)',
-            shadowColor: '#4F46E5',
+            shadowColor: '#5B2DAD',
             shadowOffset: { width: 0, height: 8 },
             shadowOpacity: 0.1,
             shadowRadius: 15,
@@ -58,7 +58,7 @@ export default function TabLayout() {
                     justifyContent: 'center',
                     alignItems: 'center',
                 },
-                tabBarActiveTintColor: '#4F46E5',
+                tabBarActiveTintColor: '#5B2DAD',
                 tabBarInactiveTintColor: '#94A3B8',
                 tabBarShowLabel: false,
                 tabBarIconStyle: {
@@ -138,14 +138,14 @@ export default function TabLayout() {
                                     width: 68,
                                     height: 68,
                                     borderRadius: 34,
-                                    shadowColor: '#4F46E5',
+                                    shadowColor: '#5B2DAD',
                                     shadowOffset: { width: 0, height: 12 },
                                     shadowOpacity: 0.4,
                                     shadowRadius: 18,
                                     elevation: 15,
                                 }}>
                                     <LinearGradient
-                                        colors={['#4F46E5', '#7C3AED']}
+                                        colors={['#5B2DAD', '#7C3AED']}
                                         style={{
                                             flex: 1,
                                             borderRadius: 34,

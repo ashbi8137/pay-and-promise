@@ -66,7 +66,7 @@ const PremiumAlert: React.FC = () => {
             case 'error': return '#EF4444';
             case 'warning': return '#F59E0B';
             case 'success': return '#10B981';
-            default: return '#6366F1';
+            default: return '#8B5CF6';
         }
     };
 

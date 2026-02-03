@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: scaleFont(24),
-        paddingTop: Platform.OS === 'android' ? scaleFont(44) : scaleFont(12),
+        paddingTop: Platform.OS === 'android' ? scaleFont(48) : scaleFont(16),
         paddingBottom: scaleFont(20)
     },
     backButton: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(14), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F1F5F9', elevation: scaleFont(2), shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(2) }, shadowOpacity: 0.05, shadowRadius: scaleFont(5) },

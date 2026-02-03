@@ -110,8 +110,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(20),
-        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingHorizontal: scaleFont(24),
+        paddingTop: Platform.OS === 'android' ? scaleFont(48) : scaleFont(16),
     },
     backButton: {
         width: scaleFont(40),

@@ -21,6 +21,8 @@ import Animated, {
     Extrapolation,
     FadeInDown,
     interpolate,
+    runOnJS,
+    useAnimatedReaction,
     useAnimatedScrollHandler,
     useAnimatedStyle,
     useSharedValue,
@@ -50,6 +52,8 @@ export default function LandingScreen() {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
     const [isImageReady, setIsImageReady] = useState(false);
     const [step, setStep] = useState(0); // 0 = Splash, 1 = Content
+    const [isButtonActive, setIsButtonActive] = useState(false); // Controls footer interactivity
+    const [showSwipeHint, setShowSwipeHint] = useState(true);
 
     // Animation Values
     const scrollX = useSharedValue(0);
@@ -62,6 +66,25 @@ export default function LandingScreen() {
         },
     });
 
+    // Monitor scroll for button activation & swipe hint
+    useAnimatedReaction(
+        () => scrollX.value,
+        (currentScrollX: number) => {
+            // Button Logic
+            const shouldBeActive = currentScrollX > SCREEN_WIDTH * 1.5;
+            if (shouldBeActive !== isButtonActive) {
+                runOnJS(setIsButtonActive)(shouldBeActive);
+            }
+
+            // Swipe Hint Logic (Hide as soon as we start scrolling significanlty)
+            const shouldShowHint = currentScrollX < 20;
+            if (shouldShowHint !== showSwipeHint) {
+                runOnJS(setShowSwipeHint)(shouldShowHint);
+            }
+        },
+        [isButtonActive, showSwipeHint]
+    );
+
     useEffect(() => {
         if (isImageReady) {
             SplashScreenModule.hideAsync().catch(() => { });
@@ -69,6 +92,29 @@ export default function LandingScreen() {
             logoOpacity.value = withTiming(1, { duration: 800 });
         }
     }, [isImageReady]);
+
+    // ... (rest of imports and useEffects remain same until animatedFooterStyle)
+
+    const footerAnimatedStyle = useAnimatedStyle(() => {
+        const opacity = interpolate(
+            scrollX.value,
+            [SCREEN_WIDTH * 1.3, SCREEN_WIDTH * 1.8], // Fade in as we approach the 3rd slide
+            [0, 1],
+            Extrapolation.CLAMP
+        );
+        const translateY = interpolate(
+            scrollX.value,
+            [SCREEN_WIDTH * 1.3, SCREEN_WIDTH * 1.8],
+            [20, 0],
+            Extrapolation.CLAMP
+        );
+
+        return {
+            opacity,
+            transform: [{ translateY }],
+            // Removed display: 'none' to preserve layout space and prevent jumps
+        };
+    });
 
     useEffect(() => {
         const checkDeepLink = async () => {
@@ -166,32 +212,32 @@ export default function LandingScreen() {
                 (index + 1) * SCREEN_WIDTH
             ];
 
-            // Unique "Depth Stack" Animation
+            // Unique "Depth Stack" Animation - Smoother
             const scale = interpolate(
                 scrollX.value,
                 inputRange,
-                [0.8, 1, 0.8],
+                [0.9, 1, 0.9], // Less aggressive scaling
                 Extrapolation.CLAMP
             );
 
             const opacity = interpolate(
                 scrollX.value,
                 inputRange,
-                [0.5, 1, 0.5],
+                [0.6, 1, 0.6], // Higher inactive opacity
                 Extrapolation.CLAMP
             );
 
             const rotateY = interpolate(
                 scrollX.value,
                 inputRange,
-                [45, 0, -45], // degrees
+                [15, 0, -15], // Subtle rotation (was 45)
                 Extrapolation.CLAMP
             );
 
             const translateX = interpolate(
                 scrollX.value,
                 inputRange,
-                [-scaleFont(100), 0, scaleFont(100)], // overlap effect scaled
+                [-scaleFont(50), 0, scaleFont(50)], // Reduced overlap distance
                 Extrapolation.CLAMP
             );
 
@@ -210,36 +256,42 @@ export default function LandingScreen() {
         const titleParts = item.title.split(item.highlight);
 
         return (
-            <View style={{ width: SCREEN_WIDTH, alignItems: 'center', justifyContent: 'center', paddingHorizontal: scaleFont(30) }}>
+            <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center', paddingHorizontal: scaleFont(20) }}>
                 <Animated.View style={[styles.slideCard, animatedStyle]}>
                     <View style={styles.glassEffect} />
-                    <LinearGradient colors={[`${item.color}15`, 'transparent']} style={StyleSheet.absoluteFill} />
+                    <LinearGradient colors={['rgba(255,255,255,0.8)', 'rgba(255,255,255,0.4)']} style={StyleSheet.absoluteFill} />
 
-                    {/* Reduced Icon Container Size */}
-                    <View style={[styles.iconContainer, { backgroundColor: `${item.color}10` }]}>
-                        {/* Reduced Icon Size from 54 to 42 */}
-                        <Ionicons name={item.icon as any} size={scaleFont(42)} color={item.color} />
+
+
+                    {/* Main Content Container - Better Spacing */}
+                    <View style={styles.slideContent}>
+                        <View style={[styles.newIconWrapper, { shadowColor: item.color }]}>
+                            <Ionicons name={item.icon as any} size={scaleFont(48)} color={item.color} />
+                        </View>
+
+                        <Text style={styles.slideTitle} allowFontScaling={false}>
+                            {titleParts[0]}
+                            <Text style={{ color: item.color }}>{item.highlight}</Text>
+                            {titleParts[1]}
+                        </Text>
+
+                        <View style={styles.subtitleWrapper}>
+                            <Text style={styles.slideSubtitle} allowFontScaling={false}>{item.subtitle}</Text>
+                        </View>
                     </View>
-
-                    <Text style={styles.slideTitle} allowFontScaling={false}>
-                        {titleParts[0]}
-                        <Text style={{ color: item.color }}>{item.highlight}</Text>
-                        {titleParts[1]}
-                    </Text>
-                    <Text style={styles.slideSubtitle} allowFontScaling={false}>{item.subtitle}</Text>
-
-                    <View style={[styles.accentLine, { backgroundColor: item.color }]} />
                 </Animated.View>
             </View>
         );
     };
+
+
 
     const Pagination = () => (
         <View style={styles.pagination}>
             {slides.map((_, index) => {
                 const dotStyle = useAnimatedStyle(() => {
                     const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [scaleFont(8), scaleFont(28), scaleFont(8)], Extrapolation.CLAMP);
-                    const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.2, 1, 0.2], Extrapolation.CLAMP);
+                    const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.4, 1, 0.4], Extrapolation.CLAMP); // Increased base opacity
                     return { width, opacity, backgroundColor: '#4F46E5' };
                 });
                 return <Animated.View key={index} style={[styles.dot, dotStyle]} />;
@@ -280,6 +332,7 @@ export default function LandingScreen() {
 
                     <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.sliderContainer}>
                         <Animated.ScrollView
+                            style={StyleSheet.absoluteFill}
                             horizontal
                             pagingEnabled
                             showsHorizontalScrollIndicator={false}
@@ -292,11 +345,38 @@ export default function LandingScreen() {
                                 <SlideItem key={item.id} item={item} index={index} />
                             ))}
                         </Animated.ScrollView>
-                        <Pagination />
+
+                        <View style={styles.controlsContainer} pointerEvents="box-none">
+                            <Pagination />
+
+                            <Animated.View
+                                style={[
+                                    styles.swipeHintContainer,
+                                    {
+                                        opacity: interpolate(
+                                            scrollX.value,
+                                            [0, SCREEN_WIDTH * 0.2],
+                                            [1, 0],
+                                            Extrapolation.CLAMP
+                                        )
+                                    }
+                                ]}
+                                pointerEvents="none"
+                            >
+                                <Text style={styles.swipeHintText} allowFontScaling={false}>Swipe left to explore</Text>
+                                <Ionicons name="arrow-forward" size={scaleFont(16)} color="#64748B" />
+                            </Animated.View>
+                        </View>
                     </Animated.View>
 
-                    <Animated.View entering={FadeInDown.delay(700).springify()} style={styles.footer}>
-                        <View style={styles.portalWrapper}>
+                    <Animated.View
+                        style={[styles.footer, footerAnimatedStyle]}
+                        pointerEvents="box-none" // Allow swipes in empty areas
+                    >
+                        <View
+                            style={styles.portalWrapper}
+                            pointerEvents={isButtonActive ? 'auto' : 'none'} // Only button catches touches when active
+                        >
                             <Animated.View style={[styles.portalHalo, animatedHaloStyle]} />
                             <Animated.View style={animatedPortalStyle}>
                                 <TouchableOpacity
@@ -306,19 +386,25 @@ export default function LandingScreen() {
                                         router.replace('/screens/AuthScreen');
                                     }}
                                     activeOpacity={0.7}
+                                    disabled={!isButtonActive}
                                 >
                                     <LinearGradient
                                         colors={['#4F46E5', '#312E81']}
                                         style={styles.portalGradient}
                                     >
-                                        <Ionicons name="arrow-forward" size={scaleFont(36)} color="#FFF" />
+                                        <Ionicons name="arrow-forward" size={scaleFont(22)} color="#FFF" />
                                     </LinearGradient>
                                     <View style={styles.portalInnerRing} />
                                 </TouchableOpacity>
                             </Animated.View>
                         </View>
-                        <Text style={styles.portalLabel} allowFontScaling={false}>INITIATE JOURNEY</Text>
-                        <Text style={styles.footNote} allowFontScaling={false}>Join the 1% of disciplined achievers.</Text>
+                        <Text
+                            style={styles.portalLabel}
+                            allowFontScaling={false}
+                            pointerEvents="none" // Pass swipe touches through text
+                        >
+                            INITIATE JOURNEY
+                        </Text>
                     </Animated.View>
                 </View>
             </SafeAreaView>
@@ -370,59 +456,102 @@ const styles = StyleSheet.create({
     },
 
     // --- MAIN CONTENT ---
-    content: { flex: 1, justifyContent: 'space-evenly', paddingBottom: '5%' },
+    content: { flex: 1 }, // Removed paddingBottom for absolute layout
 
-    sliderContainer: { height: '60%', justifyContent: 'center' },
+    sliderContainer: { ...StyleSheet.absoluteFillObject }, // Full screen to capture all swipes
+    controlsContainer: {
+        position: 'absolute',
+        bottom: scaleFont(150), // Lifted up to clear the footer
+        width: '100%',
+        alignItems: 'center',
+        zIndex: 20
+    },
     slideCard: {
         width: SCREEN_WIDTH * 0.85,
-        height: '85%',
-        borderRadius: scaleFont(44),
-        backgroundColor: 'rgba(255,255,255,0.92)',
-        padding: '8%',
+        height: '75%', // Slightly taller feel
+        borderRadius: scaleFont(40),
+        backgroundColor: '#FFF',
+        overflow: 'hidden',
+        elevation: scaleFont(15),
+        shadowColor: 'rgba(0,0,0,0.1)',
+        shadowOffset: { width: 0, height: scaleFont(20) },
+        shadowOpacity: 0.25,
+        shadowRadius: scaleFont(30),
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.8)'
+    },
+    swipeHintContainer: {
+        width: '100%',
+        flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        overflow: 'hidden',
-        elevation: scaleFont(12),
-        shadowColor: 'rgba(79, 70, 229, 0.15)',
-        shadowOffset: { width: 0, height: scaleFont(24) },
-        shadowOpacity: 0.3,
-        shadowRadius: scaleFont(36)
+        gap: scaleFont(8),
+        marginTop: scaleFont(15),
+        zIndex: 10,
+    },
+    swipeHintText: {
+        fontSize: scaleFont(14),
+        color: '#64748B',
+        fontFamily: 'Outfit_500Medium',
+        letterSpacing: 0.5,
     },
     glassEffect: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(255,255,255,0.4)', opacity: 0.7 },
 
-    iconContainer: {
-        width: scaleFont(80),
-        height: scaleFont(80),
-        borderRadius: scaleFont(28),
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: '8%'
-    },
-    slideTitle: {
-        fontSize: scaleFont(32),
-        color: '#0F172A',
-        marginBottom: scaleFont(12),
-        textAlign: 'center',
-        letterSpacing: scaleFont(-1),
-        fontFamily: 'Outfit_800ExtraBold'
-    },
-    slideSubtitle: {
-        fontSize: scaleFont(17),
-        color: '#64748B',
-        textAlign: 'center',
-        lineHeight: scaleFont(26),
-        fontWeight: '500',
-        paddingHorizontal: scaleFont(10),
-        fontFamily: 'Outfit_300Light' // Changed to Light/Thin as requested
+    watermarkNumber: {
+        position: 'absolute',
+        top: -scaleFont(20),
+        right: -scaleFont(20),
+        fontSize: scaleFont(140),
+        fontWeight: '900',
+        fontFamily: 'Outfit_800ExtraBold',
+        opacity: 0.8
     },
 
-    accentLine: {
-        width: scaleFont(60),
-        height: scaleFont(5),
-        borderRadius: scaleFont(2.5),
-        marginTop: '10%',
-        opacity: 0.2
+    slideContent: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: scaleFont(20),
+        gap: scaleFont(24), // Explicit spacing gap
     },
+
+    newIconWrapper: {
+        width: scaleFont(80),
+        height: scaleFont(80),
+        borderRadius: scaleFont(40),
+        backgroundColor: '#FFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowOffset: { width: 0, height: scaleFont(10) },
+        shadowOpacity: 0.2,
+        shadowRadius: scaleFont(20),
+        marginBottom: scaleFont(10),
+        elevation: 10
+    },
+
+    slideTitle: {
+        fontSize: scaleFont(28),
+        color: '#1E293B',
+        textAlign: 'center',
+        letterSpacing: scaleFont(-0.5),
+        fontFamily: 'Outfit_700Bold',
+        lineHeight: scaleFont(36),
+    },
+
+    subtitleWrapper: {
+        width: '90%',
+        alignItems: 'center'
+    },
+
+    slideSubtitle: {
+        fontSize: scaleFont(16),
+        color: '#64748B',
+        textAlign: 'center',
+        lineHeight: scaleFont(24),
+        fontFamily: 'Outfit_400Regular',
+    },
+
+    // accentLine removed as requested for cleaner look
 
     pagination: {
         flexDirection: 'row',
@@ -437,69 +566,73 @@ const styles = StyleSheet.create({
     },
 
     footer: {
+        position: 'absolute',
+        bottom: 0,
+        width: '100%',
         alignItems: 'center',
         justifyContent: 'flex-end',
-        paddingBottom: '5%'
+        paddingBottom: '5%',
+        zIndex: 30
     },
     portalWrapper: {
-        width: scaleFont(120),
-        height: scaleFont(120),
+        width: scaleFont(80),
+        height: scaleFont(80),
         justifyContent: 'center',
         alignItems: 'center'
     },
     portalHalo: {
         position: 'absolute',
-        width: scaleFont(110),
-        height: scaleFont(110),
-        borderRadius: scaleFont(55),
+        width: scaleFont(72),
+        height: scaleFont(72),
+        borderRadius: scaleFont(36),
         borderWidth: scaleFont(2),
         borderColor: '#4F46E5',
         borderStyle: 'dashed',
         opacity: 0.2
     },
     portalAction: {
-        width: scaleFont(90),
-        height: scaleFont(90),
-        borderRadius: scaleFont(45),
+        width: scaleFont(56),
+        height: scaleFont(56),
+        borderRadius: scaleFont(28),
         justifyContent: 'center',
         alignItems: 'center',
-        elevation: scaleFont(25),
+        elevation: scaleFont(20),
         shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: scaleFont(12) },
-        shadowRadius: scaleFont(24),
+        shadowOffset: { width: 0, height: scaleFont(8) },
+        shadowRadius: scaleFont(16),
     },
     portalGradient: {
-        width: scaleFont(90),
-        height: scaleFont(90),
-        borderRadius: scaleFont(45),
+        width: scaleFont(56),
+        height: scaleFont(56),
+        borderRadius: scaleFont(28),
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 2
     },
     portalInnerRing: {
         position: 'absolute',
-        width: scaleFont(106),
-        height: scaleFont(106),
-        borderRadius: scaleFont(53),
+        width: scaleFont(68),
+        height: scaleFont(68),
+        borderRadius: scaleFont(34),
         borderWidth: scaleFont(1.5),
         borderColor: 'rgba(79, 70, 229, 0.2)',
         zIndex: 1
     },
     portalLabel: {
-        fontSize: scaleFont(11),
+        fontSize: scaleFont(10),
         fontWeight: '900',
         color: '#4F46E5',
-        marginTop: scaleFont(18),
-        letterSpacing: scaleFont(4),
+        marginTop: scaleFont(24), // Increased spacing between button and text
+        letterSpacing: scaleFont(3),
         opacity: 0.9,
         textTransform: 'uppercase'
     },
     footNote: {
-        fontSize: scaleFont(12),
+        fontSize: scaleFont(11),
         color: '#94A3B8',
         fontWeight: '700',
-        marginTop: scaleFont(20),
-        letterSpacing: scaleFont(0.6),
-        fontFamily: 'Outfit_300Light' // Changed to Light
+        marginTop: scaleFont(16),
+        letterSpacing: scaleFont(0.5),
+        fontFamily: 'Outfit_300Light'
     },
 });

@@ -56,9 +56,9 @@ export default function HomeScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
-    // Tooltip State
-    // Tooltip State
+    // Tooltip & Tutorial State
     const [showTooltip, setShowTooltip] = useState(false);
+    const [shouldShowTutorial, setShouldShowTutorial] = useState(false);
     const pulseAnim = useRef(new RNAnimated.Value(1)).current;
 
     // Swing Animation for Date Tag
@@ -67,6 +67,9 @@ export default function HomeScreen() {
     useEffect(() => {
         checkTooltip();
         startPulse();
+
+        // Check for tutorial flag in user metadata
+        checkTutorialStatus();
 
         // Start swinging animation
         rotation.value = withRepeat(
@@ -100,6 +103,17 @@ export default function HomeScreen() {
     const dismissTooltip = async () => {
         setShowTooltip(false);
         await AsyncStorage.setItem(HAS_SEEN_TOOLTIP_KEY, 'true');
+    };
+
+    const handleTutorialComplete = async () => {
+        setShouldShowTutorial(false);
+        try {
+            await supabase.auth.updateUser({
+                data: { has_seen_tutorial: true }
+            });
+        } catch (e) {
+            console.log('Error updating tutorial flag:', e);
+        }
     };
 
     const startPulse = () => {
@@ -151,6 +165,13 @@ export default function HomeScreen() {
     );
 
 
+
+    const checkTutorialStatus = async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && !user.user_metadata?.has_seen_tutorial) {
+            setShouldShowTutorial(true);
+        }
+    };
 
     const fetchData = async () => {
         // Don't set loading=true here to avoid flashing the empty state/spinner on every focus
@@ -411,7 +432,7 @@ export default function HomeScreen() {
     };
 
     return (
-        <View style={[styles.container, { backgroundColor: '#F8FAFC' }]}>
+        <View style={[styles.container, { backgroundColor: theme.background }]}>
             <GridOverlay />
 
             <SafeAreaView style={{ flex: 1 }}>
@@ -529,7 +550,8 @@ export default function HomeScreen() {
                             <TouchableOpacity
                                 onPress={() => setPromiseListTab('in_progress')}
                                 activeOpacity={0.7}
-                                style={{ marginRight: 32 }}
+                                style={{ marginRight: 32, paddingVertical: 8 }}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <Text style={[
                                     styles.editorialTabTitle,
@@ -544,6 +566,8 @@ export default function HomeScreen() {
                             <TouchableOpacity
                                 onPress={() => setPromiseListTab('completed')}
                                 activeOpacity={0.7}
+                                style={{ paddingVertical: 8 }}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             >
                                 <Text style={[
                                     styles.editorialTabTitle,
@@ -600,7 +624,10 @@ export default function HomeScreen() {
             </SafeAreaView>
 
             {/* First-Time Walkthrough Overlay */}
-            <WalkthroughOverlay />
+            <WalkthroughOverlay
+                initialVisible={shouldShowTutorial}
+                onComplete={handleTutorialComplete}
+            />
         </View>
     );
 }
@@ -613,7 +640,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         padding: scaleFont(24),
         paddingTop: Platform.OS === 'android' ? scaleFont(80) : scaleFont(60),
-        paddingBottom: scaleFont(40),
+        paddingBottom: scaleFont(120), // Increased from 40 to clear bottom tabs
     },
     // HERO TYPOGRAPHY HEADER
     heroHeaderContainer: {

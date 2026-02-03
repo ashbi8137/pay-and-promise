@@ -79,6 +79,7 @@ export default function CreatePromiseScreen() {
         } else {
             setTitle(selectedTitle);
             setStep(1);
+            setAmountPerPerson('500'); // Sync state with visual slider
             const defaultX = (500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE);
             translateX.value = withSpring(defaultX);
         }
@@ -111,6 +112,7 @@ export default function CreatePromiseScreen() {
             if (nextX < 0) nextX = 0;
             if (nextX > (SLIDER_WIDTH - KNOB_SIZE)) nextX = (SLIDER_WIDTH - KNOB_SIZE);
             translateX.value = nextX;
+            // Debounce or optimize this if lagging, but for simple slider JS thread is fine usually
             runOnJS(updateStake)(nextX);
         });
 
@@ -146,7 +148,11 @@ export default function CreatePromiseScreen() {
                     amount_per_person: parseInt(amountPerPerson),
                     total_amount: parseInt(numPeople) * parseInt(amountPerPerson),
                     stake_per_day: (parseInt(amountPerPerson) / parseInt(duration)),
-                    participants: [{ name: 'You', number: 'User' }],
+                    participants: [{
+                        name: user.user_metadata?.full_name || 'Creator',
+                        id: user.id,
+                        avatar_url: user.user_metadata?.avatar_url || null
+                    }],
                     created_by: user.id,
                     status: 'active',
                     invite_code: code

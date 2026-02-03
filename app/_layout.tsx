@@ -19,7 +19,7 @@ export default function RootLayout() {
   const segments = useSegments();
   const [isProcessingAuth, setIsProcessingAuth] = useState(false);
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Outfit_300Light,
     Outfit_400Regular,
     Outfit_700Bold,
@@ -27,10 +27,13 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded) {
+    if (fontsLoaded || fontError) {
+      if (fontError) {
+        console.error("Font loading error:", fontError);
+      }
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded]);
+  }, [fontsLoaded, fontError]);
 
 
 
@@ -126,7 +129,7 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return null;
   }
 

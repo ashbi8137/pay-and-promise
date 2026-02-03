@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import {
     Dimensions,
@@ -80,28 +79,24 @@ interface CoachMarksProps {
     forceShow?: boolean;
 }
 
-export default function WalkthroughOverlay({ onComplete, forceShow = false }: CoachMarksProps) {
+interface CoachMarksProps {
+    onComplete?: () => void;
+    forceShow?: boolean;
+    initialVisible?: boolean; // New prop
+}
+
+export default function WalkthroughOverlay({ onComplete, forceShow = false, initialVisible = false }: CoachMarksProps) {
     const [visible, setVisible] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
 
     useEffect(() => {
-        checkShouldShow();
-    }, [forceShow]);
-
-    const checkShouldShow = async () => {
         if (forceShow) {
             setVisible(true);
-            return;
+        } else if (initialVisible) {
+            // Delay slightly for smooth entrance
+            setTimeout(() => setVisible(true), 1500);
         }
-        try {
-            const hasSeen = await AsyncStorage.getItem(COACH_MARKS_KEY);
-            if (!hasSeen) {
-                setTimeout(() => setVisible(true), 1200);
-            }
-        } catch (e) {
-            console.log('Coach marks check error:', e);
-        }
-    };
+    }, [forceShow, initialVisible]);
 
     const handleNext = () => {
         if (currentStep < COACH_MARKS.length - 1) {
@@ -113,12 +108,7 @@ export default function WalkthroughOverlay({ onComplete, forceShow = false }: Co
 
     const completeCoachMarks = async () => {
         setVisible(false);
-        try {
-            await AsyncStorage.setItem(COACH_MARKS_KEY, 'true');
-        } catch (e) {
-            console.log('Failed to save coach marks flag:', e);
-        }
-        onComplete?.();
+        onComplete?.(); // Parent handles Supabase update
     };
 
     if (!visible) return null;

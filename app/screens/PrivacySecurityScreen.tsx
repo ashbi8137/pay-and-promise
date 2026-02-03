@@ -49,6 +49,15 @@ export default function PrivacySecurityScreen() {
         });
     };
 
+    const handleBiometric = () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showAlert({
+            title: 'Coming Soon',
+            message: 'Biometric login (FaceID/TouchID) will be available in the next update.',
+            type: 'info'
+        });
+    };
+
     const handleDataDeletion = () => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         Linking.openURL('mailto:payandpromise@gmail.com?subject=Data Deletion Request');
@@ -123,6 +132,17 @@ export default function PrivacySecurityScreen() {
                             <Text style={styles.actionText}>Update Credentials</Text>
                         </View>
                         <Ionicons name="chevron-forward" size={scaleFont(18)} color="#CBD5E1" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionRow} onPress={handleBiometric}>
+                        <View style={styles.actionLeft}>
+                            <Ionicons name="finger-print" size={scaleFont(20)} color="#64748B" style={{ marginRight: scaleFont(12) }} />
+                            <Text style={styles.actionText}>Biometric Access</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                            <Text style={{ fontSize: scaleFont(10), color: '#94A3B8', marginRight: scaleFont(8), fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
+                            <Ionicons name="toggle" size={scaleFont(24)} color="#CBD5E1" />
+                        </View>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionRow} onPress={handleLogout}>

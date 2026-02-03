@@ -47,7 +47,7 @@ export default function AboutScreen() {
                             />
                         </View>
                         <Text style={styles.appName}>Pay & Promise</Text>
-                        <Text style={styles.version}>v1.0.0 "Genesis"</Text>
+                        <Text style={styles.version}>v1.0.0 </Text>
                     </View>
 
                     {/* Team Info */}
@@ -63,14 +63,14 @@ export default function AboutScreen() {
 
                         <View style={styles.teamMember}>
                             <Text style={styles.devName}>Rahul T U</Text>
-                            <Text style={styles.devRole}>Marketing & Growth Lead</Text>
+                            <Text style={styles.devRole}>Marketing Lead</Text>
                         </View>
 
                         <View style={styles.teamDivider} />
 
                         <View style={styles.teamMember}>
                             <Text style={styles.devName}>Ajay Sreenivasan</Text>
-                            <Text style={styles.devRole}>Design & Brand Lead</Text>
+                            <Text style={styles.devRole}>Design Lead</Text>
                         </View>
                     </View>
 
@@ -86,20 +86,10 @@ export default function AboutScreen() {
                         <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" style={{ marginLeft: 'auto' }} />
                     </TouchableOpacity>
 
-                    {/* Legal Row */}
-                    <View style={styles.legalRow}>
-                        <TouchableOpacity style={styles.legalButton} onPress={() => handlePress('/screens/PrivacyPolicyScreen')}>
-                            <Text style={styles.legalButtonText}>Privacy</Text>
-                        </TouchableOpacity>
-                        <View style={styles.dot} />
-                        <TouchableOpacity style={styles.legalButton} onPress={() => handlePress('/screens/TermsScreen')}>
-                            <Text style={styles.legalButtonText}>Terms</Text>
-                        </TouchableOpacity>
-                    </View>
 
                     <View style={styles.footer}>
                         <Ionicons name="shield-checkmark" size={scaleFont(14)} color="#94A3B8" />
-                        <Text style={styles.copyright}>© 2026 Pay & Promise Protocol</Text>
+                        <Text style={styles.copyright}> Pay & Promise </Text>
                     </View>
 
                 </ScrollView>
@@ -117,8 +107,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(20),
-        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingHorizontal: scaleFont(24),
+        paddingTop: Platform.OS === 'android' ? scaleFont(48) : scaleFont(16),
         paddingBottom: scaleFont(20),
     },
     backButton: {

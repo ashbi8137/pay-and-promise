@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -15,6 +16,7 @@ import {
     View
 } from 'react-native';
 import { GridOverlay } from '../../components/LuxuryVisuals';
+import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 import { scaleFont } from '../utils/layout';
 
@@ -22,6 +24,7 @@ const { width } = Dimensions.get('window');
 
 export default function ProfileScreen() {
     const router = useRouter();
+    const { showAlert } = useAlert();
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [profile, setProfile] = useState<{ name: string; email: string } | null>(null);
@@ -71,6 +74,24 @@ export default function ProfileScreen() {
         }
     };
 
+    const handleBiometric = () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showAlert({
+            title: 'Coming Soon',
+            message: 'Biometric login (FaceID/TouchID) will be available in the next update.',
+            type: 'info'
+        });
+    };
+
+    const handleWallet = () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showAlert({
+            title: 'Coming Soon',
+            message: 'Digital Wallet integration will be available in the next update.',
+            type: 'info'
+        });
+    };
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -86,12 +107,23 @@ export default function ProfileScreen() {
             <SafeAreaView style={{ flex: 1 }}>
                 {/* Executive Header */}
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.headerGreeting}>EXECUTIVE COMMAND</Text>
-                        <Text style={styles.headerDate}>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</Text>
+                    <View style={styles.headerIdentity}>
+                        <View style={styles.avatarWrapperMini}>
+                            <LinearGradient colors={['#4F46E5', '#818CF8']} style={styles.avatarGradientMini}>
+                                <Text style={styles.avatarTxtMini}>{firstName.charAt(0).toUpperCase()}</Text>
+                            </LinearGradient>
+                            <View style={styles.statusPingMini} />
+                        </View>
+                        <View style={styles.nameBlockMini}>
+                            <Text style={styles.userNameMini}>{profile?.name}</Text>
+                            <View style={styles.tierBadgeMini}>
+                                <Ionicons name="diamond" size={10} color="#4F46E5" />
+                                <Text style={styles.tierTxtMini}>PREMIUM MEMBER</Text>
+                            </View>
+                        </View>
                     </View>
                     <TouchableOpacity onPress={() => router.push('/screens/SettingsScreen')} style={styles.settingsBtn}>
-                        <Ionicons name="settings-sharp" size={22} color="#4F46E5" />
+                        <Ionicons name="settings-sharp" size={20} color="#4F46E5" />
                     </TouchableOpacity>
                 </View>
 
@@ -100,28 +132,14 @@ export default function ProfileScreen() {
                     showsVerticalScrollIndicator={false}
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); fetchProfileData(); }} tintColor="#4F46E5" />}
                 >
-                    {/* IDENTITY BLOCK */}
-                    <View style={styles.identitySection}>
-                        <View style={styles.avatarWrapper}>
-                            <LinearGradient colors={['#4F46E5', '#818CF8']} style={styles.avatarGradient}>
-                                <Text style={styles.avatarTxt}>{firstName.charAt(0).toUpperCase()}</Text>
-                            </LinearGradient>
-                            <View style={styles.statusPing} />
-                        </View>
-                        <View style={styles.nameBlock}>
-                            <Text style={styles.userName}>{profile?.name}</Text>
-                            <View style={styles.tierBadge}>
-                                <Ionicons name="diamond" size={10} color="#4F46E5" />
-                                <Text style={styles.tierTxt}>PREMIUM PROTOCOL</Text>
-                            </View>
-                        </View>
-                    </View>
+                    {/* IDENTITY BLOCK REMOVED (Moved to Header) */}
+                    <View style={{ height: scaleFont(10) }} />
 
                     {/* CORE FINANCIAL DASHBOARD */}
                     <View style={styles.dashboardSection}>
                         <LinearGradient colors={['#FFFFFF', '#F9FAFB']} style={styles.mainCard}>
                             <View style={styles.cardInfo}>
-                                <Text style={styles.cardLabel}>TOTAL PROTOCOL VALUATION</Text>
+                                <Text style={styles.cardLabel}>TOTAL COMMITMENT</Text>
                                 <Text style={[styles.mainNetValue, { color: financials.net >= 0 ? '#0F172A' : '#EF4444' }]}>
                                     ₹{financials.net.toLocaleString()}
                                 </Text>
@@ -153,26 +171,32 @@ export default function ProfileScreen() {
                     <View style={styles.shortcutSection}>
                         <Text style={styles.sectionTitle}>SYSTEM INTEGRITY</Text>
                         <View style={styles.shortcutCard}>
-                            <TouchableOpacity style={styles.shortcutRow} onPress={() => router.push('/screens/PaymentsScreen')}>
+                            <TouchableOpacity style={styles.shortcutRow} onPress={handleWallet}>
                                 <View style={styles.shortcutLeft}>
                                     <View style={styles.shortIconBg}><Ionicons name="card-outline" size={20} color="#64748B" /></View>
-                                    <Text style={styles.shortLabel}>Connected Accounts</Text>
+                                    <View>
+                                        <Text style={styles.shortLabel}>Connected Accounts</Text>
+                                        <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
+                                    </View>
                                 </View>
-                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                                <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
                             </TouchableOpacity>
                             <View style={styles.hDivider} />
-                            <TouchableOpacity style={styles.shortcutRow} onPress={() => router.push('/screens/PrivacySecurityScreen')}>
+                            <TouchableOpacity style={styles.shortcutRow} onPress={handleBiometric}>
                                 <View style={styles.shortcutLeft}>
-                                    <View style={styles.shortIconBg}><Ionicons name="shield-outline" size={20} color="#64748B" /></View>
-                                    <Text style={styles.shortLabel}>Biometric Access</Text>
+                                    <View style={styles.shortIconBg}><Ionicons name="finger-print" size={20} color="#64748B" /></View>
+                                    <View>
+                                        <Text style={styles.shortLabel}>Biometric Access</Text>
+                                        <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
+                                    </View>
                                 </View>
-                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                                <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
                             </TouchableOpacity>
                         </View>
                     </View>
 
                     <View style={styles.footerInfo}>
-                        <Text style={styles.versionTxt}>ESTABLISHED PROTOCOL v1.0.4 • 2026</Text>
+                        <Text style={styles.versionTxt}>VERSION 1.0.4 • 2026</Text>
                     </View>
                 </ScrollView>
             </SafeAreaView>
@@ -189,23 +213,24 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'space-between',
         paddingHorizontal: scaleFont(24),
-        paddingTop: Platform.OS === 'android' ? scaleFont(68) : scaleFont(32),
-        paddingBottom: scaleFont(16)
+        paddingTop: Platform.OS === 'android' ? scaleFont(60) : scaleFont(32), // More breathing room
+        paddingBottom: scaleFont(20)
     },
-    headerGreeting: { fontSize: scaleFont(11), fontWeight: '900', color: '#94A3B8', letterSpacing: scaleFont(2), fontFamily: 'Outfit_800ExtraBold' },
-    headerDate: { fontSize: scaleFont(13), fontWeight: '700', color: '#1E293B', marginTop: scaleFont(2), fontFamily: 'Outfit_700Bold' },
-    settingsBtn: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(15), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.05, shadowRadius: scaleFont(10), elevation: scaleFont(3) },
+    headerIdentity: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(16), flex: 1 },
+    avatarWrapperMini: { position: 'relative' },
+    avatarGradientMini: { width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(20), alignItems: 'center', justifyContent: 'center' },
+    avatarTxtMini: { fontSize: scaleFont(20), fontWeight: '900', color: '#FFF', fontFamily: 'Outfit_800ExtraBold' },
+    statusPingMini: { position: 'absolute', bottom: 0, right: 0, width: scaleFont(12), height: scaleFont(12), borderRadius: scaleFont(6), backgroundColor: '#10B981', borderWidth: scaleFont(2), borderColor: '#F8FAFC' },
+    nameBlockMini: { gap: scaleFont(2) },
+    userNameMini: { fontSize: scaleFont(20), fontWeight: '900', color: '#0F172A', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
+    tierBadgeMini: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(4) },
+    tierTxtMini: { fontSize: scaleFont(10), fontWeight: '800', color: '#64748B', letterSpacing: scaleFont(1), fontFamily: 'Outfit_800ExtraBold' },
+    settingsBtn: { width: scaleFont(48), height: scaleFont(48), borderRadius: scaleFont(16), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.05, shadowRadius: scaleFont(10), elevation: scaleFont(2) },
 
     scrollContent: { paddingBottom: scaleFont(100) },
-    identitySection: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: scaleFont(24), marginVertical: scaleFont(20), gap: scaleFont(16) },
-    avatarWrapper: { position: 'relative' },
-    avatarGradient: { width: scaleFont(64), height: scaleFont(64), borderRadius: scaleFont(24), alignItems: 'center', justifyContent: 'center' },
-    avatarTxt: { fontSize: scaleFont(26), fontWeight: '900', color: '#FFF', fontFamily: 'Outfit_800ExtraBold' },
-    statusPing: { position: 'absolute', bottom: -2, right: -2, width: scaleFont(14), height: scaleFont(14), borderRadius: scaleFont(7), backgroundColor: '#10B981', borderWidth: scaleFont(3), borderColor: '#F8FAFC' },
-    nameBlock: { flex: 1 },
-    userName: { fontSize: scaleFont(28), fontWeight: '900', color: '#0F172A', letterSpacing: scaleFont(-1), fontFamily: 'Outfit_800ExtraBold' },
-    tierBadge: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(6), marginTop: scaleFont(4) },
-    tierTxt: { fontSize: scaleFont(10), fontWeight: '800', color: '#64748B', letterSpacing: scaleFont(1), fontFamily: 'Outfit_800ExtraBold' },
+    // identitySection removed styles... keeping references minimal or cleaning up if safe:
+    identitySection: { display: 'none' }, // Legacy safe
+
 
     dashboardSection: { paddingHorizontal: scaleFont(24), marginBottom: scaleFont(20) },
     mainCard: { borderRadius: scaleFont(28), paddingHorizontal: scaleFont(28), paddingVertical: scaleFont(24), minHeight: scaleFont(160), justifyContent: 'center', overflow: 'hidden', borderWidth: 1, borderColor: '#F1F5F9', shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(8) }, shadowOpacity: 0.05, shadowRadius: scaleFont(15), elevation: scaleFont(3) },

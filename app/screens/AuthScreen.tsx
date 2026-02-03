@@ -104,9 +104,12 @@ export default function AuthScreen() {
               const { data: { user } } = await supabase.auth.getUser();
               if (user) {
                 const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+                const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
+
                 await supabase.from('profiles').upsert({
                   id: user.id,
                   full_name: googleName,
+                  avatar_url: avatarUrl,
                   updated_at: new Date().toISOString(),
                 });
 

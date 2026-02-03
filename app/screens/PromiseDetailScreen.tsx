@@ -58,6 +58,7 @@ export default function PromiseDetailScreen() {
     const [todayStatus, setTodayStatus] = React.useState<'done' | 'failed' | null>(null);
     const [realParticipantCount, setRealParticipantCount] = React.useState(numPeople);
     const [currentPromiseStatus, setCurrentPromiseStatus] = React.useState(promiseData.status);
+    const [actualStartDate, setActualStartDate] = React.useState<string | null>(null);
 
     const [submissions, setSubmissions] = React.useState<any[]>([]);
     const [myVotes, setMyVotes] = React.useState<string[]>([]);
@@ -70,7 +71,7 @@ export default function PromiseDetailScreen() {
     React.useEffect(() => {
         fetchInitialData();
 
-        const subChannel = supabase.channel(`promise_${promiseData.id}`)
+        const subChannel = supabase.channel(`promise_detail_v2_${promiseData.id}`)
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'promise_submissions', filter: `promise_id=eq.${promiseData.id}` },
@@ -208,22 +209,121 @@ export default function PromiseDetailScreen() {
     };
 
     const fetchParticipantCount = async () => {
-        const { count, data } = await supabase
-            .from('promise_participants')
-            .select('user_id', { count: 'exact' })
-            .eq('promise_id', promiseData.id);
+        // DEBUG: Explicitly show we are trying to fetch
+        // console.log('[MeetingRoom] Fetching for:', promiseData.id);
 
-        if (count !== null) setRealParticipantCount(count);
+        try {
+            const { data, error } = await supabase
+                .from('promise_participants')
+                .select('user_id, created_at')
+                .eq('promise_id', promiseData.id)
+                .order('created_at', { ascending: true });
 
-        if (data && data.length > 0) {
-            const userIds = data.map(d => d.user_id);
-            const { data: names } = await supabase.rpc('get_user_names', { user_ids: userIds });
-            if (names) {
-                const formatted = names.map((n: any) => ({
-                    name: n.full_name?.split(' ')[0] || n.email?.split('@')[0] || "User",
-                    id: n.user_id
-                }));
-                setJoinedParticipants(formatted);
+            if (error) {
+                console.log('[MeetingRoom] RLS blocked access, fetching fresh cache.');
+
+                // Fetch fresh promise data to get latest cache
+                const { data: freshPromise } = await supabase
+                    .from('promises')
+                    .select('participants')
+                    .eq('id', promiseData.id)
+                    .single();
+
+                const fallbackList = freshPromise?.participants || promiseData.participants;
+
+                if (fallbackList) {
+                    const mapped = fallbackList.map((p: any) => ({
+                        name: p.name || 'User',
+                        id: 'unknown',
+                        avatar_url: p.avatar_url || null
+                    }));
+                    setJoinedParticipants(mapped);
+                    setRealParticipantCount(mapped.length);
+                }
+                return;
+            }
+
+            if (data) {
+                setRealParticipantCount(data.length);
+                const userIds = data.map(d => d.user_id);
+
+                if (userIds.length > 0) {
+                    // 1. Fetch Names via RPC
+                    const { data: names, error: rpcError } = await supabase.rpc('get_user_names', { user_ids: userIds });
+
+                    if (rpcError) {
+                        console.error('[MeetingRoom] RPC Error:', rpcError);
+                    }
+
+                    // 2. Try Fetching Profiles for Avatars
+                    let avatarMap: Record<string, string> = {};
+                    try {
+                        const { data: profiles } = await supabase
+                            .from('profiles')
+                            .select('id, avatar_url')
+                            .in('id', userIds);
+
+                        if (profiles) {
+                            profiles.forEach((p: any) => {
+                                if (p.avatar_url) avatarMap[p.id] = p.avatar_url;
+                            });
+                        }
+                    } catch (e) {
+                        console.log('[MeetingRoom] Avatar fetch skipped', e);
+                    }
+
+                    if (names) {
+                        const formatted = names.map((n: any) => ({
+                            name: n.full_name?.split(' ')[0] || n.email?.split('@')[0] || "User",
+                            id: n.user_id,
+                            avatar_url: avatarMap[n.user_id] || null
+                        }));
+
+                        // CRITICAL FIX: Merge with cache if RLS hides people
+                        if (promiseData.participants && promiseData.participants.length > formatted.length) {
+                            console.log('[MeetingRoom] Using Cache for Display (RLS Gap detected)');
+                            const cached = promiseData.participants.map((p: any) => ({
+                                name: p.name || 'User',
+                                id: p.id || 'unknown',
+                                avatar_url: p.avatar_url || null
+                            }));
+                            setJoinedParticipants(cached);
+                        } else {
+                            setJoinedParticipants(formatted);
+                        }
+                    }
+                } else {
+                    // RLS returned empty? Use cache
+                    if (promiseData.participants && promiseData.participants.length > 0) {
+                        console.log('[MeetingRoom] Data Empty, Using Cache');
+                        const cached = promiseData.participants.map((p: any) => ({
+                            name: p.name || 'User',
+                            id: p.id || 'unknown',
+                            avatar_url: p.avatar_url || null
+                        }));
+                        setJoinedParticipants(cached);
+                    } else {
+                        setJoinedParticipants([]);
+                    }
+                }
+
+                // Logic: Start Date
+                if (data.length >= numPeople) {
+                    const lastJoin = data[data.length - 1];
+                    setActualStartDate(lastJoin.created_at);
+                } else {
+                    setActualStartDate(null);
+                }
+            }
+        } catch (err) {
+            console.error('[MeetingRoom] Unexpected:', err);
+            // Last resort fallback
+            if (promiseData.participants) {
+                setJoinedParticipants(promiseData.participants.map((p: any) => ({
+                    name: p.name,
+                    id: 'x',
+                    avatar_url: null
+                })));
             }
         }
     };
@@ -293,19 +393,24 @@ export default function PromiseDetailScreen() {
 
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ["images"],
-            allowsEditing: false,
+            allowsEditing: true, // Allow cropping/editing logic if needed
+            aspect: [4, 3],
             quality: 0.5,
         });
 
         if (!result.canceled) {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            setUpdating(true);
+            setUpdating(true); // LOCK UI
+
             try {
+                // Haptic Immediately
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
                 const photo = result.assets[0];
                 const ext = photo.uri.substring(photo.uri.lastIndexOf('.') + 1);
+                // timestamp filename to uniquely identify this attempt
                 const fileName = `${user.id}/${new Date().getTime()}.${ext}`;
                 const formData = new FormData();
 
@@ -315,6 +420,7 @@ export default function PromiseDetailScreen() {
                     type: photo.mimeType || `image/${ext}`
                 } as any);
 
+                // 1. UPLOAD
                 const { error: uploadError } = await supabase.storage.from('proofs').upload(fileName, formData, {
                     contentType: photo.mimeType || `image/${ext}`,
                     upsert: false
@@ -323,24 +429,48 @@ export default function PromiseDetailScreen() {
                 if (uploadError) throw uploadError;
 
                 const { data: { publicUrl } } = supabase.storage.from('proofs').getPublicUrl(fileName);
+                console.log('[Debug] New Image URL:', publicUrl);
                 const dateStr = new Date().toISOString().split('T')[0];
 
-                // Check for existing submission to UPSERT
+                // 2. CHECK / UPSERT SUBMISSION
+                // We want to handle "pending" submissions too - allowing REPLACEMENT
                 const { data: existing } = await supabase.from('promise_submissions')
-                    .select('id')
+                    .select('id, status')
                     .eq('promise_id', promiseData.id)
                     .eq('user_id', user.id)
                     .eq('date', dateStr)
                     .single();
 
-                let checkinError;
                 if (existing) {
+                    // RETRY/REPLACE FLOW
+                    // Update the image and reset status to 'pending' to restart verification
                     const { error } = await supabase.from('promise_submissions').update({
                         image_url: publicUrl,
-                        status: 'pending' // Reset to pending on retry
+                        status: 'pending'
                     }).eq('id', existing.id);
-                    checkinError = error;
+                    if (error) throw error;
+
+                    // CRITICAL: Clear existing verifications so voting restarts
+                    await supabase.from('submission_verifications').delete().eq('submission_id', existing.id);
+
+                    // OPTIMISTIC UPDATE: Update local state immediately
+                    // Appending time param to ENSURE Image component sees it as unique for sure
+                    const robustUrl = `${publicUrl}?t=${new Date().getTime()}`;
+                    console.log('[Debug] Optimistic Update. Target User:', user.id);
+
+                    setSubmissions(prev => {
+                        const updated = prev.map(s => {
+                            if (s.user_id === user.id) {
+                                console.log('[Debug] Found match, updating image to:', robustUrl);
+                                return { ...s, image_url: robustUrl, status: 'pending' };
+                            }
+                            return s;
+                        });
+                        return updated;
+                    });
+
                 } else {
+                    // NEW FLOW
                     const { error } = await supabase.from('promise_submissions').insert({
                         promise_id: promiseData.id,
                         user_id: user.id,
@@ -348,25 +478,24 @@ export default function PromiseDetailScreen() {
                         image_url: publicUrl,
                         status: 'pending'
                     });
-                    checkinError = error;
+                    if (error) throw error;
+
+                    // For new insert, we DO need to fetch to get the ID, but let's wait a bit longer
+                    setTimeout(fetchDailyReview, 1000);
                 }
 
-                if (checkinError) throw checkinError;
+                showAlert({ title: "Submitted!", message: "Proof uploaded for verification.", type: "success" });
 
-                // Also reset any decision votes for this day so people can vote again?
-                // For now, simpler to just reset status. The votes link to specific submission_id?
-                // If I update rows, the submission_id stays same. Old verifications linked to it might persist.
-                // Ideally, clear old verifications? 
+                // Refresh checks
+                fetchCheckins();
+
+                // RESTORED: Fetch latest after a delay to ensure server consistency
                 if (existing) {
-                    await supabase.from('submission_verifications').delete().eq('submission_id', existing.id);
-                    setMyVotes(prev => prev.filter(id => id !== existing.id)); // Clear local cache if any (though this is for others' task)
+                    setTimeout(fetchDailyReview, 1500);
                 }
-
-                showAlert({ title: "Submitted!", message: "Proof is pending verification.", type: "success" });
-                fetchDailyReview();
             } catch (e) {
-                console.error(e);
-                showAlert({ title: "Error", message: "Failed to upload proof.", type: "error" });
+                console.error('Upload error:', e);
+                showAlert({ title: "Upload Failed", message: "Could not upload. Please check your network and try again.", type: "error" });
             } finally {
                 setUpdating(false);
             }
@@ -461,10 +590,6 @@ export default function PromiseDetailScreen() {
                                 <Ionicons name="calendar-outline" size={14} color="#FFF" opacity={0.7} />
                                 <Text style={styles.heroStatText}>{duration} Days</Text>
                             </View>
-                            <View style={styles.heroStatItem}>
-                                <Ionicons name="people-outline" size={14} color="#FFF" opacity={0.7} />
-                                <Text style={styles.heroStatText}>{realParticipantCount}/{numPeople} Peers</Text>
-                            </View>
                         </View>
                     </View>
                     <View style={styles.heroBottom}>
@@ -490,17 +615,34 @@ export default function PromiseDetailScreen() {
     const renderJourneyMap = () => {
         const totalDuration = duration || 7;
         const days = [];
-        let startDate = promiseData.created_at ? new Date(promiseData.created_at) : new Date();
-        const todayStr = new Date().toISOString().split('T')[0];
+
+        // Start Date Logic - Fallback to created_at if actualStartDate not set (though if we are showing map, it should be set)
+        let start = actualStartDate ? new Date(actualStartDate) : (promiseData.created_at ? new Date(promiseData.created_at) : new Date());
+
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        // Reset time for strictly date comparison
+        const todayNoTime = new Date();
+        todayNoTime.setHours(0, 0, 0, 0);
 
         for (let i = 0; i < totalDuration; i++) {
-            const d = new Date(startDate);
-            d.setDate(startDate.getDate() + i);
+            const d = new Date(start);
+            d.setDate(start.getDate() + i);
             const dateStr = d.toISOString().split('T')[0];
             const checkin = checkins.find(c => c.date === dateStr);
 
             let status = 'pending';
             if (checkin) status = checkin.status;
+
+            // RED DAY LOGIC:
+            // If this date is strictly before today (in the past) AND status is still 'pending',
+            // it means we missed it. Mark clearly as 'failed'.
+            const dTime = new Date(d);
+            dTime.setHours(0, 0, 0, 0);
+
+            if (dTime < todayNoTime && status === 'pending') {
+                status = 'failed';
+            }
 
             days.push({
                 dayNum: i + 1,
@@ -567,7 +709,11 @@ export default function PromiseDetailScreen() {
                             </View>
                         ) : (
                             <View>
-                                <Image source={{ uri: mySub.image_url }} style={styles.submissionImage} />
+                                <Image
+                                    key={mySub.image_url}
+                                    source={{ uri: mySub.image_url }}
+                                    style={styles.submissionImage}
+                                />
 
                                 {mySub.status === 'rejected' && (
                                     <View style={{ marginTop: 16 }}>
@@ -586,7 +732,16 @@ export default function PromiseDetailScreen() {
 
                                 {mySub.status === 'pending' && (
                                     <View style={{ marginTop: 16 }}>
-                                        <Text style={styles.waitingText}>Waiting for peers...</Text>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF9C3', padding: 12, borderRadius: 12 }}>
+                                            <ActivityIndicator size="small" color="#CA8A04" />
+                                            <Text style={{ color: '#CA8A04', fontWeight: '700', fontSize: scaleFont(13), flex: 1 }}>
+                                                Waiting for peers...
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#4F46E5' }]} onPress={handlePhotoCheckIn} disabled={updating}>
+                                            <Ionicons name="camera-reverse" size={20} color="#4F46E5" />
+                                            <Text style={[styles.mainActionText, { color: '#4F46E5' }]}>Change Proof</Text>
+                                        </TouchableOpacity>
                                     </View>
                                 )}
                             </View>
@@ -597,9 +752,18 @@ export default function PromiseDetailScreen() {
                         <Animated.View entering={FadeInDown} style={styles.uploadCard}>
                             <Text style={styles.uploadTitle}>Ready for today?</Text>
                             <Text style={styles.uploadSub}>Capture your progress and share it.</Text>
-                            <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn}>
-                                <Ionicons name="camera" size={24} color="#FFF" />
-                                <Text style={styles.mainActionText}>Submit Proof</Text>
+                            <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn} disabled={updating}>
+                                {updating ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <ActivityIndicator color="#FFF" />
+                                        <Text style={styles.mainActionText}>Uploading...</Text>
+                                    </View>
+                                ) : (
+                                    <>
+                                        <Ionicons name="camera" size={24} color="#FFF" />
+                                        <Text style={styles.mainActionText}>Submit Proof</Text>
+                                    </>
+                                )}
                             </TouchableOpacity>
                             <TouchableOpacity onPress={() => handleCheckIn('failed')}>
                                 <Text style={styles.failLink}>I missed it today</Text>
@@ -726,9 +890,66 @@ export default function PromiseDetailScreen() {
                     refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" />}
                 >
                     {renderHero()}
-                    {renderCompletion()}
-                    {renderJourneyMap()}
-                    {renderDailyActions()}
+
+                    {/* MEETING ROOM */}
+                    <View style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>Meeting Room</Text>
+                            <Text style={styles.sectionSub}>Member Status ({joinedParticipants.length}/{numPeople})</Text>
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: scaleFont(12), paddingHorizontal: scaleFont(4) }}>
+                            {joinedParticipants.map((p, i) => (
+                                <Animated.View key={`participant-${i}`} entering={FadeInRight.delay(i * 100)} style={{ alignItems: 'center', gap: 6 }}>
+                                    <View style={{ width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#DBEAFE', overflow: 'hidden' }}>
+                                        {p.avatar_url ? (
+                                            <Image source={{ uri: p.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                                        ) : (
+                                            <Text style={{ fontSize: scaleFont(18), fontWeight: '800', color: '#3B82F6' }}>{p.name.charAt(0).toUpperCase()}</Text>
+                                        )}
+                                    </View>
+                                    <Text style={{ fontSize: scaleFont(11), color: '#475569', fontWeight: '600' }}>{p.name}</Text>
+                                </Animated.View>
+                            ))}
+                            {/* Placeholders */}
+                            {Array.from({ length: Math.max(0, numPeople - joinedParticipants.length) }).map((_, i) => (
+                                <View key={`empty-${i}`} style={{ alignItems: 'center', gap: 6, opacity: 0.5 }}>
+                                    <View style={{ width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed' }}>
+                                        <Ionicons name="person-add" size={20} color="#94A3B8" />
+                                    </View>
+                                    <Text style={{ fontSize: scaleFont(11), color: '#94A3B8' }}>Waiting</Text>
+                                </View>
+                            ))}
+                        </ScrollView>
+                    </View>
+
+                    {/* WAITING FOR TEAM BLOCKER */}
+                    {realParticipantCount < numPeople && (
+                        <Animated.View entering={FadeInUp} style={styles.waitCard}>
+                            <View style={styles.waitIconBox}>
+                                <Ionicons name="time" size={32} color="#D97706" />
+                            </View>
+                            <Text style={styles.waitTitle}>Waiting for Squad...</Text>
+                            <Text style={styles.waitSub}>
+                                The journey begins automatically when all {numPeople} members have joined.
+                            </Text>
+                            <View style={styles.waitCodeBox}>
+                                <Text style={styles.waitCode}>{invite_code}</Text>
+                                <TouchableOpacity onPress={handleCopyCode}>
+                                    <Ionicons name="copy-outline" size={20} color="#4F46E5" />
+                                </TouchableOpacity>
+                            </View>
+                        </Animated.View>
+                    )}
+
+                    {/* Show Journey Loop ONLY if Full Team OR if Promise is somehow already active/completed */}
+                    {(realParticipantCount >= numPeople || currentPromiseStatus !== 'active') && (
+                        <>
+                            {renderCompletion()}
+                            {renderJourneyMap()}
+                            {currentPromiseStatus === 'active' && renderDailyActions()}
+                        </>
+                    )}
+
                     <View style={{ height: scaleFont(40) }} />
                 </ScrollView>
             </SafeAreaView>
@@ -745,8 +966,8 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(20),
-        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingHorizontal: scaleFont(24),
+        paddingTop: Platform.OS === 'android' ? scaleFont(48) : scaleFont(16),
         paddingBottom: scaleFont(16),
     },
     backButton: {
@@ -765,6 +986,7 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingHorizontal: scaleFont(20),
+        paddingBottom: scaleFont(100),
     },
     loadingContainer: {
         flex: 1,
@@ -1233,5 +1455,57 @@ const styles = StyleSheet.create({
         backgroundColor: '#1E293B',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    // WAIT CARD
+    waitCard: {
+        backgroundColor: '#FFFBEB',
+        borderRadius: scaleFont(24),
+        padding: scaleFont(24),
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: '#FCD34D',
+        marginBottom: scaleFont(32),
+    },
+    waitIconBox: {
+        width: scaleFont(64),
+        height: scaleFont(64),
+        borderRadius: scaleFont(32),
+        backgroundColor: '#FEF3C7',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: scaleFont(16),
+    },
+    waitTitle: {
+        fontSize: scaleFont(20),
+        fontWeight: '800',
+        color: '#B45309',
+        marginBottom: scaleFont(8),
+        fontFamily: 'Outfit_800ExtraBold',
+    },
+    waitSub: {
+        fontSize: scaleFont(14),
+        color: '#92400E',
+        textAlign: 'center',
+        marginBottom: scaleFont(20),
+        lineHeight: scaleFont(20),
+        fontFamily: 'Outfit_400Regular',
+    },
+    waitCodeBox: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: scaleFont(20),
+        paddingVertical: scaleFont(12),
+        borderRadius: scaleFont(12),
+        gap: scaleFont(12),
+        borderWidth: 1,
+        borderColor: '#FCD34D',
+    },
+    waitCode: {
+        fontSize: scaleFont(18),
+        fontWeight: '800',
+        color: '#4F46E5',
+        fontFamily: 'Outfit_800ExtraBold',
+        letterSpacing: 2,
     }
 });

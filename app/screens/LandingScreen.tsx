@@ -205,13 +205,13 @@ export default function LandingScreen() {
     ];
 
     const SlideItem = ({ item, index }: { item: any, index: number }) => {
-        // Staggered Parallax Animation
+        // Luxury Parallax Animation with smoother curves
         const animatedContainerStyle = useAnimatedStyle(() => {
             const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            // Background Scale & Opacity
-            const opacity = interpolate(scrollX.value, inputRange, [0, 1, 0], Extrapolation.CLAMP);
-            const scale = interpolate(scrollX.value, inputRange, [0.5, 1, 0.5], Extrapolation.CLAMP);
+            // Smoother opacity and scale transitions
+            const opacity = interpolate(scrollX.value, inputRange, [0.3, 1, 0.3], Extrapolation.CLAMP);
+            const scale = interpolate(scrollX.value, inputRange, [0.85, 1, 0.85], Extrapolation.CLAMP);
 
             return { opacity, transform: [{ scale }] };
         });
@@ -219,22 +219,30 @@ export default function LandingScreen() {
         const animatedIconStyle = useAnimatedStyle(() => {
             const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            // Icon moves faster + rotates
-            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.5, 0, SCREEN_WIDTH * 0.5], Extrapolation.CLAMP);
-            const rotate = interpolate(scrollX.value, inputRange, [-20, 0, 20], Extrapolation.CLAMP);
-            const scale = interpolate(scrollX.value, inputRange, [0.5, 1.2, 0.5], Extrapolation.CLAMP);
+            // Gentler, more fluid icon movement
+            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.3, 0, SCREEN_WIDTH * 0.3], Extrapolation.CLAMP);
+            const rotate = interpolate(scrollX.value, inputRange, [-8, 0, 8], Extrapolation.CLAMP);
+            const scale = interpolate(scrollX.value, inputRange, [0.7, 1.1, 0.7], Extrapolation.CLAMP);
+            const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
 
-            return { transform: [{ translateX }, { rotate: `${rotate}deg` }, { scale }] };
+            return {
+                transform: [{ translateX }, { rotate: `${rotate}deg` }, { scale }],
+                opacity
+            };
         });
 
         const animatedTextStyle = useAnimatedStyle(() => {
             const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            // Text moves slower (Parallax)
-            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.2, 0, SCREEN_WIDTH * 0.2], Extrapolation.CLAMP);
-            const opacity = interpolate(scrollX.value, inputRange, [-1, 1, -1], Extrapolation.CLAMP);
+            // Smoother text parallax with subtle movement
+            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.12, 0, SCREEN_WIDTH * 0.12], Extrapolation.CLAMP);
+            const opacity = interpolate(scrollX.value, inputRange, [0, 1, 0], Extrapolation.CLAMP);
+            const scale = interpolate(scrollX.value, inputRange, [0.95, 1, 0.95], Extrapolation.CLAMP);
 
-            return { transform: [{ translateX }], opacity };
+            return {
+                transform: [{ translateX }, { scale }],
+                opacity
+            };
         });
 
         // Split title to highlight executive words
@@ -287,9 +295,16 @@ export default function LandingScreen() {
         <View style={styles.pagination}>
             {slides.map((_, index) => {
                 const dotStyle = useAnimatedStyle(() => {
-                    const width = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [scaleFont(8), scaleFont(28), scaleFont(8)], Extrapolation.CLAMP);
-                    const opacity = interpolate(scrollX.value, [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH], [0.4, 1, 0.4], Extrapolation.CLAMP); // Increased base opacity
-                    return { width, opacity, backgroundColor: '#5B2DAD' };
+                    const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
+                    const width = interpolate(scrollX.value, inputRange, [scaleFont(8), scaleFont(32), scaleFont(8)], Extrapolation.CLAMP);
+                    const opacity = interpolate(scrollX.value, inputRange, [0.35, 1, 0.35], Extrapolation.CLAMP);
+                    const scale = interpolate(scrollX.value, inputRange, [0.9, 1.1, 0.9], Extrapolation.CLAMP);
+                    return {
+                        width,
+                        opacity,
+                        backgroundColor: '#5B2DAD',
+                        transform: [{ scale }]
+                    };
                 });
                 return <Animated.View key={index} style={[styles.dot, dotStyle]} />;
             })}
@@ -330,9 +345,11 @@ export default function LandingScreen() {
                             pagingEnabled
                             showsHorizontalScrollIndicator={false}
                             onScroll={scrollHandler}
-                            scrollEventThrottle={16}
+                            scrollEventThrottle={8}
                             contentContainerStyle={{ alignItems: 'center' }}
-                            decelerationRate="fast"
+                            decelerationRate="normal"
+                            bounces={true}
+                            overScrollMode="always"
                         >
                             {slides.map((item, index) => (
                                 <SlideItem key={item.id} item={item} index={index} />

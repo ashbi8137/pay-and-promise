@@ -13,6 +13,16 @@
     },
     "android": {
       "package": "com.ashbin.payandpromise",
+      "splash": {
+        "backgroundColor": "#EDE7F6",
+        "image": "./assets/images/splash.png",
+        "resizeMode": "contain",
+        "dark": {
+          "backgroundColor": "#EDE7F6",
+          "image": "./assets/images/splash.png",
+          "resizeMode": "contain"
+        }
+      },
       "intentFilters": [
         {
           "action": "VIEW",
@@ -40,7 +50,13 @@
           "image": "./assets/images/splash.png",
           "imageWidth": 300,
           "resizeMode": "contain",
-          "backgroundColor": "#EDE7F6"
+          "backgroundColor": "#EDE7F6",
+          "dark": {
+            "image": "./assets/images/splash.png",
+            "imageWidth": 300,
+            "resizeMode": "contain",
+            "backgroundColor": "#EDE7F6"
+          }
         }
       ],
       [

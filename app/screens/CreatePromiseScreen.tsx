@@ -135,6 +135,12 @@ export default function CreatePromiseScreen() {
                 return;
             }
 
+            if (parseInt(duration) >= 30) {
+                showAlert({ title: 'Attention', message: 'Duration must be less than 30 days.', type: 'warning' });
+                setLoading(false);
+                return;
+            }
+
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             setInviteCode(code);
 
@@ -281,7 +287,7 @@ export default function CreatePromiseScreen() {
             <View style={styles.detailBox}>
                 <Text style={styles.boxLabel}>DURATION</Text>
                 <View style={styles.chipRow}>
-                    {['1', '7', '14', '30'].map(d => (
+                    {['1', '7', '14', '21'].map(d => (
                         <TouchableOpacity key={d} style={[styles.chip, duration === d && styles.chipActive]} onPress={() => setDuration(d)}>
                             <Text style={[styles.chipText, duration === d && styles.chipTextActive]}>{d} Days</Text>
                         </TouchableOpacity>

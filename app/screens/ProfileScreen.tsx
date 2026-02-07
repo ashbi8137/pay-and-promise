@@ -74,11 +74,20 @@ export default function ProfileScreen() {
         }
     };
 
-    const handleBiometric = () => {
+    const handleAIIntegration = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         showAlert({
             title: 'Coming Soon',
-            message: 'Biometric login (FaceID/TouchID) will be available in the next update.',
+            message: 'We will integrate AI for uploaded proof verification to ensure authenticity.',
+            type: 'info'
+        });
+    };
+
+    const handleSelfPromise = () => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        showAlert({
+            title: 'Coming Soon',
+            message: 'A new module for "Self Promise" where you can track promises alone (no peer team needed).',
             type: 'info'
         });
     };
@@ -182,11 +191,26 @@ export default function ProfileScreen() {
                                 <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
                             </TouchableOpacity>
                             <View style={styles.hDivider} />
-                            <TouchableOpacity style={styles.shortcutRow} onPress={handleBiometric}>
+
+                            {/* Added Self Promise */}
+                            <TouchableOpacity style={styles.shortcutRow} onPress={handleSelfPromise}>
                                 <View style={styles.shortcutLeft}>
-                                    <View style={styles.shortIconBg}><Ionicons name="finger-print" size={20} color="#64748B" /></View>
+                                    <View style={styles.shortIconBg}><Ionicons name="person-circle-outline" size={20} color="#64748B" /></View>
                                     <View>
-                                        <Text style={styles.shortLabel}>Biometric Access</Text>
+                                        <Text style={styles.shortLabel}>Self Promise Module</Text>
+                                        <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
+                            </TouchableOpacity>
+                            <View style={styles.hDivider} />
+
+                            {/* Replaced Biometric with AI Integration */}
+                            <TouchableOpacity style={styles.shortcutRow} onPress={handleAIIntegration}>
+                                <View style={styles.shortcutLeft}>
+                                    <View style={styles.shortIconBg}><Ionicons name="scan-outline" size={20} color="#64748B" /></View>
+                                    <View>
+                                        <Text style={styles.shortLabel}>AI Proof Verification</Text>
                                         <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
                                     </View>
                                 </View>

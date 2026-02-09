@@ -135,7 +135,7 @@ export default function CreatePromiseScreen() {
                 return;
             }
 
-            if (parseInt(duration) >= 30) {
+            if (parseInt(duration) > 30) {
                 showAlert({ title: 'Attention', message: 'Duration must be less than 30 days.', type: 'warning' });
                 setLoading(false);
                 return;

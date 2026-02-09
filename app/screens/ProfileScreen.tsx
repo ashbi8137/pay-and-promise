@@ -82,7 +82,6 @@ export default function ProfileScreen() {
             type: 'info'
         });
     };
-
     const handleSelfPromise = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         showAlert({
@@ -91,7 +90,6 @@ export default function ProfileScreen() {
             type: 'info'
         });
     };
-
     const handleWallet = () => {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
         showAlert({
@@ -180,6 +178,18 @@ export default function ProfileScreen() {
                     <View style={styles.shortcutSection}>
                         <Text style={styles.sectionTitle}>SYSTEM INTEGRITY</Text>
                         <View style={styles.shortcutCard}>
+                            {/* AI Integration module */}
+                            <TouchableOpacity style={styles.shortcutRow} onPress={handleAIIntegration}>
+                                <View style={styles.shortcutLeft}>
+                                    <View style={styles.shortIconBg}><Ionicons name="scan-outline" size={20} color="#64748B" /></View>
+                                    <View>
+                                        <Text style={styles.shortLabel}>AI Proof Verification</Text>
+                                        <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
+                            </TouchableOpacity>
+                            {/* Connected accounts module */}
                             <TouchableOpacity style={styles.shortcutRow} onPress={handleWallet}>
                                 <View style={styles.shortcutLeft}>
                                     <View style={styles.shortIconBg}><Ionicons name="card-outline" size={20} color="#64748B" /></View>
@@ -191,8 +201,7 @@ export default function ProfileScreen() {
                                 <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
                             </TouchableOpacity>
                             <View style={styles.hDivider} />
-
-                            {/* Added Self Promise */}
+                            {/* Self Promise Module */}
                             <TouchableOpacity style={styles.shortcutRow} onPress={handleSelfPromise}>
                                 <View style={styles.shortcutLeft}>
                                     <View style={styles.shortIconBg}><Ionicons name="person-circle-outline" size={20} color="#64748B" /></View>
@@ -204,18 +213,6 @@ export default function ProfileScreen() {
                                 <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
                             </TouchableOpacity>
                             <View style={styles.hDivider} />
-
-                            {/* Replaced Biometric with AI Integration */}
-                            <TouchableOpacity style={styles.shortcutRow} onPress={handleAIIntegration}>
-                                <View style={styles.shortcutLeft}>
-                                    <View style={styles.shortIconBg}><Ionicons name="scan-outline" size={20} color="#64748B" /></View>
-                                    <View>
-                                        <Text style={styles.shortLabel}>AI Proof Verification</Text>
-                                        <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
-                                    </View>
-                                </View>
-                                <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
-                            </TouchableOpacity>
                         </View>
                     </View>
 
@@ -223,7 +220,7 @@ export default function ProfileScreen() {
                         <Text style={styles.versionTxt}>VERSION 1.0.4 • 2026</Text>
                     </View>
                 </ScrollView>
-            </SafeAreaView>
+            </SafeAreaView> 
         </View>
     );
 }

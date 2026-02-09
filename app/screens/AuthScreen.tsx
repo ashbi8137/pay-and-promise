@@ -295,8 +295,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_400Regular',
   },
   appName: {
-
-
     color: '#0F172A',
     fontFamily: 'Outfit_800ExtraBold',
     letterSpacing: scaleFont(-2),

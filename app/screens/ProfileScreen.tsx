@@ -1,11 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
+    Image,
     Platform,
     RefreshControl,
     SafeAreaView,
@@ -31,6 +33,8 @@ export default function ProfileScreen() {
     const [firstName, setFirstName] = useState<string>('User');
     const [financials, setFinancials] = useState({ winnings: 0, penalties: 0, net: 0 });
     const [metrics, setMetrics] = useState({ active: 0, success: '96%' });
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [uploadingImage, setUploadingImage] = useState(false);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -51,6 +55,16 @@ export default function ProfileScreen() {
             }
 
             setProfile({ name: metadataName || 'Executive Member', email: user.email || '' });
+
+            // Fetch avatar URL from profiles table
+            const { data: profileData } = await supabase
+                .from('profiles')
+                .select('avatar_url')
+                .eq('id', user.id)
+                .single();
+            if (profileData?.avatar_url) {
+                setAvatarUrl(profileData.avatar_url);
+            }
 
             const { data: ledger } = await supabase.from('ledger').select('amount, type').eq('user_id', user.id);
             const { count: activeCount } = await supabase.from('promises').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'active');
@@ -99,6 +113,99 @@ export default function ProfileScreen() {
         });
     };
 
+    const pickImage = async () => {
+        try {
+            const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (!permissionResult.granted) {
+                showAlert({ title: 'Permission Required', message: 'Please allow access to photos to update your profile picture.', type: 'warning' });
+                return;
+            }
+
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ['images'],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.7,
+            });
+
+            if (!result.canceled && result.assets[0]) {
+                setUploadingImage(true);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+                // Immediately show selected image in UI
+                const selectedUri = result.assets[0].uri;
+                setAvatarUrl(selectedUri);
+
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) {
+                    console.log('No user found');
+                    return;
+                }
+                console.log('Starting upload for user:', user.id);
+
+                const uri = result.assets[0].uri;
+                const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
+                const fileName = `${user.id}/avatar.${fileExt}`;
+                const mimeType = result.assets[0].mimeType || `image/${fileExt}`;
+
+                // Use FormData approach (works in React Native)
+                const formData = new FormData();
+                formData.append('file', {
+                    uri: uri,
+                    name: fileName,
+                    type: mimeType
+                } as any);
+
+                console.log('Uploading file:', fileName, 'type:', mimeType);
+
+                // Try to delete existing file first
+                const { data: deleteData, error: deleteError } = await supabase.storage
+                    .from('profile')
+                    .remove([fileName]);
+
+                if (deleteError) {
+                    console.log('Delete error:', deleteError);
+                } else {
+                    console.log('Delete result:', deleteData);
+                }
+
+                // Upload to Supabase Storage using FormData
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('profile')
+                    .upload(fileName, formData, {
+                        contentType: mimeType,
+                        upsert: true
+                    });
+
+                console.log('Upload data:', uploadData);
+
+                if (uploadError) {
+                    console.error('Upload error:', uploadError);
+                    showAlert({ title: 'Upload Failed', message: 'Could not upload image. Please try again.', type: 'error' });
+                    return;
+                }
+
+                console.log('Upload successful, file:', fileName);
+
+                // Get public URL
+                const { data: urlData } = supabase.storage.from('profile').getPublicUrl(fileName);
+                const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`; // Cache bust
+                console.log('Public URL:', publicUrl);
+
+                // Update profiles table
+                await supabase.from('profiles').upsert({ id: user.id, avatar_url: publicUrl });
+
+                setAvatarUrl(publicUrl);
+                showAlert({ title: 'Success', message: 'Profile photo updated!', type: 'success' });
+            }
+        } catch (error) {
+            console.error('Error picking image:', error);
+            showAlert({ title: 'Error', message: 'Could not update photo.', type: 'error' });
+        } finally {
+            setUploadingImage(false);
+        }
+    };
+
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
@@ -115,12 +222,20 @@ export default function ProfileScreen() {
                 {/* Executive Header */}
                 <View style={styles.header}>
                     <View style={styles.headerIdentity}>
-                        <View style={styles.avatarWrapperMini}>
-                            <LinearGradient colors={['#5B2DAD', '#818CF8']} style={styles.avatarGradientMini}>
-                                <Text style={styles.avatarTxtMini}>{firstName.charAt(0).toUpperCase()}</Text>
-                            </LinearGradient>
-                            <View style={styles.statusPingMini} />
-                        </View>
+                        <TouchableOpacity style={styles.avatarWrapperMini} onPress={pickImage} disabled={uploadingImage}>
+                            {avatarUrl ? (
+                                <Image source={{ uri: avatarUrl }} style={styles.avatarImageMini} />
+                            ) : (
+                                <LinearGradient colors={['#5B2DAD', '#818CF8']} style={styles.avatarGradientMini}>
+                                    <Text style={styles.avatarTxtMini}>{firstName.charAt(0).toUpperCase()}</Text>
+                                </LinearGradient>
+                            )}
+                            {uploadingImage ? (
+                                <View style={styles.avatarEditBadge}><ActivityIndicator size="small" color="#FFF" /></View>
+                            ) : (
+                                <View style={styles.avatarEditBadge}><Ionicons name="camera" size={10} color="#FFF" /></View>
+                            )}
+                        </TouchableOpacity>
                         <View style={styles.nameBlockMini}>
                             <Text style={styles.userNameMini}>{profile?.name}</Text>
                             <View style={styles.tierBadgeMini}>
@@ -174,9 +289,26 @@ export default function ProfileScreen() {
 
 
 
-                    {/* QUICK ACCESS (Account Integrity) */}
+                    {/* CONNECTED ACCOUNTS SECTION */}
                     <View style={styles.shortcutSection}>
-                        <Text style={styles.sectionTitle}>SYSTEM INTEGRITY</Text>
+                        <Text style={styles.sectionTitle}>CONNECTED ACCOUNTS</Text>
+                        <View style={styles.shortcutCard}>
+                            <TouchableOpacity style={styles.shortcutRow} onPress={() => router.push('/screens/PaymentsScreen')}>
+                                <View style={styles.shortcutLeft}>
+                                    <View style={[styles.shortIconBg, { backgroundColor: '#F0EBFF' }]}><Ionicons name="card-outline" size={20} color="#5B2DAD" /></View>
+                                    <View>
+                                        <Text style={styles.shortLabel}>UPI Payment ID</Text>
+                                        <Text style={{ fontSize: scaleFont(9), color: '#10B981', fontFamily: 'Outfit_700Bold' }}>MANAGE UPI</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color="#5B2DAD" />
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+
+                    {/* COMING SOON FEATURES */}
+                    <View style={styles.shortcutSection}>
+                        <Text style={styles.sectionTitle}>COMING SOON</Text>
                         <View style={styles.shortcutCard}>
                             {/* AI Integration module */}
                             <TouchableOpacity style={styles.shortcutRow} onPress={handleAIIntegration}>
@@ -184,17 +316,6 @@ export default function ProfileScreen() {
                                     <View style={styles.shortIconBg}><Ionicons name="scan-outline" size={20} color="#64748B" /></View>
                                     <View>
                                         <Text style={styles.shortLabel}>AI Proof Verification</Text>
-                                        <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
-                                    </View>
-                                </View>
-                                <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
-                            </TouchableOpacity>
-                            {/* Connected accounts module */}
-                            <TouchableOpacity style={styles.shortcutRow} onPress={handleWallet}>
-                                <View style={styles.shortcutLeft}>
-                                    <View style={styles.shortIconBg}><Ionicons name="card-outline" size={20} color="#64748B" /></View>
-                                    <View>
-                                        <Text style={styles.shortLabel}>Connected Accounts</Text>
                                         <Text style={{ fontSize: scaleFont(9), color: '#94A3B8', fontFamily: 'Outfit_700Bold' }}>COMING SOON</Text>
                                     </View>
                                 </View>
@@ -212,15 +333,12 @@ export default function ProfileScreen() {
                                 </View>
                                 <Ionicons name="alert-circle-outline" size={16} color="#CBD5E1" />
                             </TouchableOpacity>
-                            <View style={styles.hDivider} />
                         </View>
                     </View>
 
-                    <View style={styles.footerInfo}>
-                        <Text style={styles.versionTxt}>VERSION 1.0.4 • 2026</Text>
-                    </View>
+
                 </ScrollView>
-            </SafeAreaView> 
+            </SafeAreaView>
         </View>
     );
 }
@@ -239,11 +357,13 @@ const styles = StyleSheet.create({
     },
     headerIdentity: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(16), flex: 1 },
     avatarWrapperMini: { position: 'relative' },
-    avatarGradientMini: { width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(20), alignItems: 'center', justifyContent: 'center' },
+    avatarGradientMini: { width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), alignItems: 'center', justifyContent: 'center' },
     avatarTxtMini: { fontSize: scaleFont(20), fontWeight: '900', color: '#FFF', fontFamily: 'Outfit_800ExtraBold' },
+    avatarImageMini: { width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26) },
+    avatarEditBadge: { position: 'absolute', bottom: -2, right: -2, width: scaleFont(20), height: scaleFont(20), borderRadius: scaleFont(10), backgroundColor: '#5B2DAD', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFF' },
     statusPingMini: { position: 'absolute', bottom: 0, right: 0, width: scaleFont(12), height: scaleFont(12), borderRadius: scaleFont(6), backgroundColor: '#10B981', borderWidth: scaleFont(2), borderColor: '#F8FAFC' },
     nameBlockMini: { gap: scaleFont(2) },
-    userNameMini: { fontSize: scaleFont(20), fontWeight: '900', color: '#0F172A', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
+    userNameMini: { fontSize: scaleFont(29), fontWeight: '900', color: '#0F172A', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
     tierBadgeMini: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(4) },
     tierTxtMini: { fontSize: scaleFont(10), fontWeight: '800', color: '#64748B', letterSpacing: scaleFont(1), fontFamily: 'Outfit_800ExtraBold' },
     settingsBtn: { width: scaleFont(48), height: scaleFont(48), borderRadius: scaleFont(16), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.05, shadowRadius: scaleFont(10), elevation: scaleFont(2) },

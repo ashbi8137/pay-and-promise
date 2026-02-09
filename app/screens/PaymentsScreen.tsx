@@ -156,8 +156,8 @@ export default function PaymentsScreen() {
                             <View>
                                 <Text style={styles.footerLabel}>STATUS</Text>
                                 <View style={styles.statusRow}>
-                                    <View style={[styles.statusDot, { backgroundColor: upiId ? '#10B981' : '#F59E0B' }]} />
-                                    <Text style={styles.statusText}>{upiId ? 'Verified' : 'Pending'}</Text>
+                                    <View style={[styles.statusDot, { backgroundColor: (upiId && !isEditing) ? '#10B981' : '#F59E0B' }]} />
+                                    <Text style={styles.statusText}>{(upiId && !isEditing) ? 'Verified' : 'Pending'}</Text>
                                 </View>
                             </View>
                             <Ionicons name="shield-checkmark" size={24} color="rgba(255,255,255,0.3)" />

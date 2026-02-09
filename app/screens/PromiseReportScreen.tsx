@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { setStringAsync } from 'expo-clipboard';
+import * as Linking from 'expo-linking';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
@@ -407,11 +408,38 @@ export default function PromiseReportScreen() {
     const isGain = financials.netResult >= 0;
 
     const handlePay = async (upiId: string, name: string, amount: number, settlementId: string) => {
-        showAlert({
-            title: "Almost there! ",
-            message: "Direct in-app payments are coming soon!\n\nPlease settle externally for now.\n\nOnce done, tap “Mark as Paid” to verify your integrity.",
-            type: "info"
-        });
+        if (!upiId) {
+            showAlert({
+                title: "No UPI ID",
+                message: "The receiver hasn't added their UPI ID yet. Please ask them to update their profile.",
+                type: "warning"
+            });
+            return;
+        }
+
+        // Build UPI deep link URL
+        const transactionNote = encodeURIComponent(`Pay&Promise: ${promiseData?.title || 'Settlement'}`);
+        const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=${transactionNote}`;
+
+        try {
+            const canOpen = await Linking.canOpenURL(upiUrl);
+            if (canOpen) {
+                await Linking.openURL(upiUrl);
+            } else {
+                showAlert({
+                    title: "No UPI App Found",
+                    message: "Please install a UPI app (Google Pay, PhonePe, etc.) to make payments.",
+                    type: "warning"
+                });
+            }
+        } catch (error) {
+            console.error('Error opening UPI link:', error);
+            showAlert({
+                title: "Error",
+                message: "Could not open UPI app. Please try again.",
+                type: "error"
+            });
+        }
     };
 
     const handleMarkPaid = async (settlementId: string) => {
@@ -1160,3 +1188,4 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_700Bold',
     }
 });
+

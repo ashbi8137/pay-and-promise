@@ -132,9 +132,9 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  if (!fontsLoaded && !fontError) {
-    return null;
-  }
+  // if (!fontsLoaded && !fontError) {
+  //   return null;
+  // }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

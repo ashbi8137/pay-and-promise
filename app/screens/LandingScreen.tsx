@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import {
     Dimensions,
     Image,
+    Platform,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -15,12 +16,14 @@ import {
     useColorScheme
 } from 'react-native';
 
+import MaskedView from '@react-native-masked-view/masked-view';
 import * as Haptics from 'expo-haptics';
 import Animated, {
     Easing,
     Extrapolation,
     FadeInDown,
     interpolate,
+    interpolateColor,
     runOnJS,
     useAnimatedReaction,
     useAnimatedScrollHandler,
@@ -42,6 +45,29 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 
 
+
+// --- GRADIENT TEXT COMPONENT ---
+const GradientText = ({ colors, style, children, ...props }: any) => {
+    return (
+        <MaskedView
+            style={{ height: scaleFont(120), width: '100%', flexDirection: 'row', justifyContent: 'center' }}
+            maskElement={
+                <View style={{ backgroundColor: 'transparent', flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={[style, { opacity: 1 }]} {...props}>
+                        {children}
+                    </Text>
+                </View>
+            }
+        >
+            <LinearGradient
+                colors={colors}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={{ flex: 1 }}
+            />
+        </MaskedView>
+    );
+};
 
 export default function LandingScreen() {
     const router = useRouter();
@@ -205,86 +231,72 @@ export default function LandingScreen() {
     ];
 
     const SlideItem = ({ item, index }: { item: any, index: number }) => {
-        // Luxury Parallax Animation with smoother curves
+        // 3D Glassmorphism Carousel
         const animatedContainerStyle = useAnimatedStyle(() => {
             const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            // Smoother opacity and scale transitions
-            const opacity = interpolate(scrollX.value, inputRange, [0.3, 1, 0.3], Extrapolation.CLAMP);
+            // 3D ROTATION & DEPTH
+            // Scale: Active is big, sides are smaller
             const scale = interpolate(scrollX.value, inputRange, [0.85, 1, 0.85], Extrapolation.CLAMP);
 
-            return { opacity, transform: [{ scale }] };
-        });
+            // Opacity: Sides fade out slightly
+            const opacity = interpolate(scrollX.value, inputRange, [0.6, 1, 0.6], Extrapolation.CLAMP);
 
-        const animatedIconStyle = useAnimatedStyle(() => {
-            const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
+            // Perspective Rotate: Simulate flipping through a deck
+            const rotateY = interpolate(scrollX.value, inputRange, [45, 0, -45], Extrapolation.CLAMP);
 
-            // Gentler, more fluid icon movement
-            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.3, 0, SCREEN_WIDTH * 0.3], Extrapolation.CLAMP);
-            const rotate = interpolate(scrollX.value, inputRange, [-8, 0, 8], Extrapolation.CLAMP);
-            const scale = interpolate(scrollX.value, inputRange, [0.7, 1.1, 0.7], Extrapolation.CLAMP);
-            const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
+            // TranslateX: Bring sides closer to center for "stack" feel? Or keep standard?
+            // Standard parallax spacing feels safer for now, but let's add slight negative margin?
+            // No, keep standard spacing but use perspective to sell the depth.
 
             return {
-                transform: [{ translateX }, { rotate: `${rotate}deg` }, { scale }],
+                transform: [
+                    { perspective: 1000 },
+                    { scale },
+                    { rotateY: `${rotateY}deg` },
+                ],
                 opacity
             };
         });
-
-        const animatedTextStyle = useAnimatedStyle(() => {
-            const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
-
-            // Smoother text parallax with subtle movement
-            const translateX = interpolate(scrollX.value, inputRange, [-SCREEN_WIDTH * 0.12, 0, SCREEN_WIDTH * 0.12], Extrapolation.CLAMP);
-            const opacity = interpolate(scrollX.value, inputRange, [0, 1, 0], Extrapolation.CLAMP);
-            const scale = interpolate(scrollX.value, inputRange, [0.95, 1, 0.95], Extrapolation.CLAMP);
-
-            return {
-                transform: [{ translateX }, { scale }],
-                opacity
-            };
-        });
-
-        // Split title to highlight executive words
-        const titleParts = item.title.split(item.highlight);
 
         return (
-            <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+            <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
 
-                {/* 1. Premium Background: Grid + Subtle Glow */}
-                <View style={StyleSheet.absoluteFill}>
-                    <GridOverlay />
+                {/* GLASS CARD CONTAINER */}
+                <Animated.View
+                    style={[
+                        styles.glassCard,
+                        { shadowColor: item.color },
+                        animatedContainerStyle
+                    ]}
+                >
+                    {/* Inner Gradient Tint */}
                     <LinearGradient
                         colors={[item.color, 'transparent']}
-                        style={{ position: 'absolute', width: SCREEN_WIDTH, height: SCREEN_HEIGHT, opacity: 0.05 }}
+                        style={[StyleSheet.absoluteFill, { opacity: 0.15 }]}
                         start={{ x: 0.5, y: 0 }}
-                        end={{ x: 0.5, y: 0.8 }}
+                        end={{ x: 0.5, y: 0.6 }}
                     />
-                </View>
 
-
-
-                {/* 2. Main Content */}
-                <View style={styles.slideContent}>
-
-                    {/* Animated Icon */}
-                    <Animated.View style={[styles.newIconWrapper, { shadowColor: item.color, backgroundColor: 'transparent', elevation: 0 }, animatedIconStyle]}>
-                        <Ionicons name={item.icon as any} size={scaleFont(100)} color={item.color} />
-                    </Animated.View>
-
-                    {/* Animated Text */}
-                    <Animated.View style={animatedTextStyle}>
-                        <Text style={styles.slideTitle} allowFontScaling={false}>
-                            {titleParts[0]}
-                            <Text style={{ color: item.color }}>{item.highlight}</Text>
-                            {titleParts[1]}
-                        </Text>
-
-                        <View style={styles.subtitleWrapper}>
-                            <Text style={styles.slideSubtitle} allowFontScaling={false}>{item.subtitle}</Text>
+                    {/* CONTENT */}
+                    <View style={styles.cardContent}>
+                        <View style={[styles.iconCircle, { backgroundColor: item.color + '20' }]}>
+                            <Ionicons name={item.icon as any} size={scaleFont(64)} color={item.color} />
                         </View>
-                    </Animated.View>
-                </View>
+
+                        <GradientText
+                            colors={[item.color, '#0F172A']}
+                            style={styles.slideTitle}
+                            allowFontScaling={false}
+                        >
+                            {item.title}
+                        </GradientText>
+
+                        <Text style={styles.slideSubtitle} allowFontScaling={false}>
+                            {item.subtitle}
+                        </Text>
+                    </View>
+                </Animated.View>
             </View>
         );
     };
@@ -311,6 +323,15 @@ export default function LandingScreen() {
         </View>
     );
 
+    const backgroundAnimatedStyle = useAnimatedStyle(() => {
+        const backgroundColor = interpolateColor(
+            scrollX.value,
+            [0, SCREEN_WIDTH, SCREEN_WIDTH * 2],
+            ['#F8FAFC', '#EEF2FF', '#E0E7FF'] // Lighter tints of slide colors
+        );
+        return { backgroundColor };
+    });
+
     if (step === 0) {
         return (
             <View style={styles.splashContainer}>
@@ -330,7 +351,9 @@ export default function LandingScreen() {
     return (
         <View style={styles.container}>
             <StatusBar style="dark" />
-            <LinearGradient colors={['#F8FAFC', '#F1F5F9', '#EAEEF3']} style={StyleSheet.absoluteFill} />
+
+            {/* Dynamic Background */}
+            <Animated.View style={[StyleSheet.absoluteFill, backgroundAnimatedStyle]} />
 
             <GridOverlay />
 
@@ -345,11 +368,12 @@ export default function LandingScreen() {
                             pagingEnabled
                             showsHorizontalScrollIndicator={false}
                             onScroll={scrollHandler}
-                            scrollEventThrottle={8}
+                            scrollEventThrottle={16}
                             contentContainerStyle={{ alignItems: 'center' }}
-                            decelerationRate="normal"
+                            decelerationRate="fast"
                             bounces={true}
                             overScrollMode="always"
+                            removeClippedSubviews={Platform.OS === 'android'}
                         >
                             {slides.map((item, index) => (
                                 <SlideItem key={item.id} item={item} index={index} />
@@ -358,25 +382,25 @@ export default function LandingScreen() {
 
                         <View style={styles.controlsContainer} pointerEvents="box-none">
                             <Pagination />
-
-                            <Animated.View
-                                style={[
-                                    styles.swipeHintContainer,
-                                    {
-                                        opacity: interpolate(
-                                            scrollX.value,
-                                            [0, SCREEN_WIDTH * 0.2],
-                                            [1, 0],
-                                            Extrapolation.CLAMP
-                                        )
-                                    }
-                                ]}
-                                pointerEvents="none"
-                            >
-                                <Text style={styles.swipeHintText} allowFontScaling={false}>Swipe left to explore</Text>
-                                <Ionicons name="arrow-forward" size={scaleFont(16)} color="#64748B" />
-                            </Animated.View>
                         </View>
+
+                        <Animated.View
+                            style={[
+                                styles.swipeHintContainer,
+                                {
+                                    opacity: interpolate(
+                                        scrollX.value,
+                                        [0, SCREEN_WIDTH * 0.2, SCREEN_WIDTH * 0.8, SCREEN_WIDTH, SCREEN_WIDTH * 1.2, SCREEN_WIDTH * 2],
+                                        [0.8, 0, 0, 0.8, 0, 0],
+                                        Extrapolation.CLAMP
+                                    )
+                                }
+                            ]}
+                            pointerEvents="none"
+                        >
+                            <Text style={styles.swipeHintText} allowFontScaling={false}>Swipe left to explore</Text>
+                            <Ionicons name="arrow-forward" size={scaleFont(16)} color="#64748B" style={{ opacity: 0.3 }} />
+                        </Animated.View>
                     </Animated.View>
 
                     <Animated.View
@@ -455,10 +479,10 @@ const styles = StyleSheet.create({
     },
     controlsContainer: {
         position: 'absolute',
-        bottom: scaleFont(150),
+        bottom: scaleFont(170), // Move Pagination UP further
         width: '100%',
         alignItems: 'center',
-        zIndex: 20,
+        zIndex: 30,
     },
     slideCard: {
         width: SCREEN_WIDTH,
@@ -475,7 +499,7 @@ const styles = StyleSheet.create({
         paddingBottom: scaleFont(80), // Lift content slightly above center
     },
     newIconWrapper: {
-        marginBottom: scaleFont(40),
+        marginBottom: scaleFont(80),
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -484,7 +508,6 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: '#1E293B',
         textAlign: 'center', // Back to Center
-        lineHeight: scaleFont(48),
         fontFamily: 'Outfit_800ExtraBold',
         marginBottom: scaleFont(16),
         textShadowColor: 'rgba(255,255,255,0.5)',
@@ -499,8 +522,8 @@ const styles = StyleSheet.create({
         fontSize: scaleFont(18),
         color: '#475569',
         textAlign: 'center', // Back to Center
-        lineHeight: scaleFont(28),
         fontFamily: 'Outfit_400Regular',
+        lineHeight: scaleFont(28),
     },
     glassEffect: {
         ...StyleSheet.absoluteFillObject,
@@ -511,7 +534,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        marginTop: scaleFont(20),
+        // Removed marginTop
     },
     dot: {
         height: scaleFont(8),
@@ -519,16 +542,21 @@ const styles = StyleSheet.create({
         marginHorizontal: scaleFont(6),
     },
     swipeHintContainer: {
+        position: 'absolute',
+        bottom: scaleFont(100), // Move Swipe Hint DOWN clearly below pagination
+        width: '100%',
         flexDirection: 'row',
+        justifyContent: 'center',
         alignItems: 'center',
         gap: scaleFont(8),
-        marginTop: scaleFont(20),
+        zIndex: 15,
     },
     swipeHintText: {
         fontSize: scaleFont(14),
         color: '#64748B',
         fontFamily: 'Outfit_500Medium',
-        letterSpacing: 0.5,
+        letterSpacing: 0.3,
+        opacity: 0.3,
     },
     skipButton: {
         position: 'absolute',
@@ -605,6 +633,38 @@ const styles = StyleSheet.create({
         letterSpacing: scaleFont(2),
         opacity: 0.9,
         textTransform: 'uppercase',
+    },
+    // New Luxury Styles
+    glassCard: {
+        width: SCREEN_WIDTH * 0.82,
+        height: SCREEN_HEIGHT * 0.6,
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: scaleFont(32),
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.8)',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: scaleFont(20) },
+        shadowOpacity: 0.15,
+        shadowRadius: scaleFont(30),
+        elevation: 10,
+        overflow: 'hidden',
+        alignItems: 'center',
+        paddingVertical: scaleFont(40),
+    },
+    cardContent: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: scaleFont(24),
+        width: '100%',
+    },
+    iconCircle: {
+        width: scaleFont(120),
+        height: scaleFont(120),
+        borderRadius: scaleFont(60),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: scaleFont(40),
     },
 });
 

@@ -2,11 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
     Keyboard,
+    KeyboardAvoidingView,
     Platform,
     SafeAreaView,
     StyleSheet,
@@ -143,8 +145,14 @@ export default function JoinPromiseScreen() {
     };
 
     return (
-        <View style={styles.container}>
+        <KeyboardAvoidingView
+            style={styles.container}
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+            <StatusBar style="dark" />
+            <LinearGradient colors={['#F8FAFC', '#F1F5F9']} style={StyleSheet.absoluteFill} />
             <GridOverlay />
+
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
@@ -153,72 +161,78 @@ export default function JoinPromiseScreen() {
                     <Text style={styles.headerTitle}>Join Promise</Text>
                 </View>
 
-                <View style={styles.content}>
-                    {!promise ? (
-                        <Animated.View entering={FadeInUp.delay(200)} style={styles.inputCard}>
-                            <Text style={styles.label}>ENTER INVITE CODE</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="ABC-123"
-                                placeholderTextColor="#94A3B8"
-                                value={code}
-                                onChangeText={(t) => {
-                                    setCode(t.toUpperCase());
-                                    if (t.length >= 6) handleSearch();
-                                }}
-                                maxLength={8}
-                                autoCapitalize="characters"
-                            />
-                            {loading && <ActivityIndicator style={{ marginTop: 20 }} color="#5B2DAD" />}
+                <Animated.ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={styles.content}>
+                        {!promise ? (
+                            <Animated.View entering={FadeInUp.delay(200)} style={styles.inputCard}>
+                                <Text style={styles.label}>ENTER INVITE CODE</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="ABC-123"
+                                    placeholderTextColor="#94A3B8"
+                                    value={code}
+                                    onChangeText={(t) => {
+                                        setCode(t.toUpperCase());
+                                        if (t.length >= 6) handleSearch();
+                                    }}
+                                    maxLength={8}
+                                    autoCapitalize="characters"
+                                />
+                                {loading && <ActivityIndicator style={{ marginTop: 20 }} color="#5B2DAD" />}
 
-                            <TouchableOpacity
-                                style={[styles.searchBtn, { opacity: code.length >= 6 ? 1 : 0.5 }]}
-                                onPress={handleSearch}
-                                disabled={code.length < 6 || loading}
-                            >
-                                <Text style={styles.searchBtnText}>Find Promise</Text>
-                            </TouchableOpacity>
-                        </Animated.View>
-                    ) : (
-                        <Animated.View entering={FadeInDown} style={styles.promiseCard}>
-                            <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={StyleSheet.absoluteFill} />
+                                <TouchableOpacity
+                                    style={[styles.searchBtn, { opacity: code.length >= 6 ? 1 : 0.5 }]}
+                                    onPress={handleSearch}
+                                    disabled={code.length < 6 || loading}
+                                >
+                                    <Text style={styles.searchBtnText}>Find Promise</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        ) : (
+                            <Animated.View entering={FadeInDown} style={styles.promiseCard}>
+                                <LinearGradient colors={['#EEF2FF', '#E0E7FF']} style={StyleSheet.absoluteFill} />
 
-                            <View style={styles.iconBox}>
-                                <Ionicons name="sparkles" size={scaleFont(32)} color="#5B2DAD" />
-                            </View>
-
-                            <Text style={styles.pTitle}>{promise.title}</Text>
-                            <Text style={styles.pSub}>Hosted by Creator</Text>
-
-                            <View style={styles.statsRow}>
-                                <View style={styles.stat}>
-                                    <Text style={styles.statVal}>₹{promise.amount_per_person}</Text>
-                                    <Text style={styles.statLabel}>STAKE</Text>
+                                <View style={styles.iconBox}>
+                                    <Ionicons name="sparkles" size={scaleFont(32)} color="#5B2DAD" />
                                 </View>
-                                <View style={styles.divider} />
-                                <View style={styles.stat}>
-                                    <Text style={styles.statVal}>{promise.duration_days}</Text>
-                                    <Text style={styles.statLabel}>DAYS</Text>
+
+                                <Text style={styles.pTitle}>{promise.title}</Text>
+                                <Text style={styles.pSub}>Hosted by Creator</Text>
+
+                                <View style={styles.statsRow}>
+                                    <View style={styles.stat}>
+                                        <Text style={styles.statVal}>₹{promise.amount_per_person}</Text>
+                                        <Text style={styles.statLabel}>STAKE</Text>
+                                    </View>
+                                    <View style={styles.divider} />
+                                    <View style={styles.stat}>
+                                        <Text style={styles.statVal}>{promise.duration_days}</Text>
+                                        <Text style={styles.statLabel}>DAYS</Text>
+                                    </View>
                                 </View>
-                            </View>
 
-                            <TouchableOpacity style={styles.joinBtn} onPress={handleJoin} disabled={loading}>
-                                {loading ? <ActivityIndicator color="#FFF" /> : (
-                                    <>
-                                        <Text style={styles.joinBtnText}>Commit & Join</Text>
-                                        <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
-                                    </>
-                                )}
-                            </TouchableOpacity>
+                                <TouchableOpacity style={styles.joinBtn} onPress={handleJoin} disabled={loading}>
+                                    {loading ? <ActivityIndicator color="#FFF" /> : (
+                                        <>
+                                            <Text style={styles.joinBtnText}>Commit & Join</Text>
+                                            <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
+                                        </>
+                                    )}
+                                </TouchableOpacity>
 
-                            <TouchableOpacity style={styles.cancelLink} onPress={() => setPromise(null)}>
-                                <Text style={styles.cancelText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </Animated.View>
-                    )}
-                </View>
+                                <TouchableOpacity style={styles.cancelLink} onPress={() => setPromise(null)}>
+                                    <Text style={styles.cancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )}
+                    </View>
+                </Animated.ScrollView>
             </SafeAreaView>
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -228,6 +242,7 @@ const styles = StyleSheet.create({
     backBtn: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(12), backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
     headerTitle: { fontSize: scaleFont(20), fontWeight: '800', color: '#0F172A', marginLeft: scaleFont(20), fontFamily: 'Outfit_800ExtraBold' },
     content: { flex: 1, paddingHorizontal: scaleFont(24), justifyContent: 'center' },
+    scrollContent: { flexGrow: 1, justifyContent: 'center', paddingBottom: scaleFont(40) },
     inputCard: { backgroundColor: '#FFF', borderRadius: scaleFont(24), padding: scaleFont(32), alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
     label: { fontSize: scaleFont(12), fontWeight: '800', color: '#64748B', letterSpacing: 2, marginBottom: scaleFont(20), fontFamily: 'Outfit_800ExtraBold' },
     input: { fontSize: scaleFont(40), fontWeight: '800', color: '#5B2DAD', textAlign: 'center', letterSpacing: 4, width: '100%', fontFamily: 'Outfit_800ExtraBold', borderBottomWidth: 2, borderBottomColor: '#E2E8F0', paddingBottom: scaleFont(10) },

@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { setStringAsync } from 'expo-clipboard';
-import * as Linking from 'expo-linking';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -422,22 +422,13 @@ export default function PromiseReportScreen() {
         const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(name)}&am=${amount}&cu=INR&tn=${transactionNote}`;
 
         try {
-            const canOpen = await Linking.canOpenURL(upiUrl);
-            if (canOpen) {
-                await Linking.openURL(upiUrl);
-            } else {
-                showAlert({
-                    title: "No UPI App Found",
-                    message: "Please install a UPI app (Google Pay, PhonePe, etc.) to make payments.",
-                    type: "warning"
-                });
-            }
+            await Linking.openURL(upiUrl);
         } catch (error) {
             console.error('Error opening UPI link:', error);
             showAlert({
-                title: "Error",
-                message: "Could not open UPI app. Please try again.",
-                type: "error"
+                title: "No UPI App Found",
+                message: "Please install a UPI app (Google Pay, PhonePe, etc.) to make payments.",
+                type: "warning"
             });
         }
     };

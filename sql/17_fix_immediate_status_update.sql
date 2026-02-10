@@ -43,26 +43,32 @@ begin
         from public.submission_verifications
         where submission_id = v_submission_id;
         
-        -- IMMEDIATE STATUS UPDATE LOGIC
-        if v_reject_count > 0 then
-            -- Any reject = immediate rejection
-            update public.promise_submissions
-            set status = 'rejected'
-            where id = v_submission_id and status = 'pending';
-            
-        elsif v_confirm_count >= v_required_votes then
-            -- All required confirmations received = verified
-            update public.promise_submissions
-            set status = 'verified'
-            where id = v_submission_id and status = 'pending';
-            
-            -- Also sync to daily_checkins
-            insert into public.daily_checkins (promise_id, user_id, date, status, proof_url)
-            select promise_id, user_id, date, 'done', image_url
-            from public.promise_submissions
-            where id = v_submission_id
-            on conflict (promise_id, user_id, date) do update set status = 'done';
-        end if;
+        -- MAJORITY-BASED STATUS UPDATE LOGIC
+        -- In a 4-person promise: required_votes=3, majority=2
+        -- So 2+ rejects = rejected, 2+ confirms = verified
+        declare
+            v_majority int := ceil(v_required_votes::numeric / 2);
+        begin
+            if v_reject_count >= v_majority then
+                -- Majority rejected
+                update public.promise_submissions
+                set status = 'rejected'
+                where id = v_submission_id and status = 'pending';
+                
+            elsif v_confirm_count >= v_majority then
+                -- Majority confirmed = verified
+                update public.promise_submissions
+                set status = 'verified'
+                where id = v_submission_id and status = 'pending';
+                
+                -- Also sync to daily_checkins
+                insert into public.daily_checkins (promise_id, user_id, date, status, proof_url)
+                select promise_id, user_id, date, 'done', image_url
+                from public.promise_submissions
+                where id = v_submission_id
+                on conflict (promise_id, user_id, date) do update set status = 'done';
+            end if;
+        end;
         
     elsif TG_TABLE_NAME = 'promise_submissions' then
         v_promise_id := new.promise_id;

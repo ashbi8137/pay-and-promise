@@ -469,7 +469,7 @@ export default function PromiseReportScreen() {
     const handleReject = async (settlementId: string) => {
         showAlert({
             title: "Reject Payment",
-            message: "Are you sure? This will ask the other user to pay again.",
+            message: "Are you sure? This will reset the payment and ask the other user to pay again.",
             type: "warning",
             buttons: [
                 { text: "Cancel", style: "cancel" },
@@ -477,9 +477,10 @@ export default function PromiseReportScreen() {
                     text: "Reject",
                     style: "destructive",
                     onPress: async () => {
+                        // Reset to 'pending' so payer can retry
                         const { error } = await supabase
                             .from('settlements')
-                            .update({ status: 'rejected' })
+                            .update({ status: 'pending' })
                             .eq('id', settlementId);
 
                         if (error) {

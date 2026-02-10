@@ -63,30 +63,32 @@ begin
     end if;
 
     -- C. Check 2: Has EVERY submission received required votes?
-    -- IMPORTANT: Required votes must account for auto-failed/rejected users who CAN'T vote.
-    -- We count how many participants have NOT been rejected for this day.
+    -- IMPORTANT: Voter pool = everyone who submitted, EXCEPT auto-fail timeout users.
+    -- Manual-fail users ARE present and CAN vote on others' submissions.
+    -- Only auto-fail (cron-generated) users are excluded since they aren't present.
     declare
         v_active_voters int;
         v_effective_required int;
     begin
+        -- Count potential voters: all who submitted EXCEPT auto-fail timeouts
         select count(*) into v_active_voters
         from public.promise_submissions
         where promise_id = p_promise_id and date = p_date
-        and status != 'rejected';
+        and image_url != 'auto_fail_placeholder';
         
         for v_submissions in 
             select id, user_id, status, image_url from public.promise_submissions 
             where promise_id = p_promise_id and date = p_date
         loop
             -- Skip check if already decided (manual fail or pre-rejected)
-            if v_submissions.status = 'rejected' or v_submissions.image_url in ('manual_fail', 'auto_fail_placeholder') then
+            if v_submissions.image_url in ('manual_fail', 'auto_fail_placeholder') then
                 continue;
             end if;
 
-            -- Dynamic required votes: other non-rejected participants (excluding self)
+            -- Dynamic required votes: other present participants (excluding self)
             v_effective_required := greatest(v_active_voters - 1, 0);
             
-            -- If no voters remain (everyone else failed), auto-verify this submission
+            -- If no voters remain (everyone else timed out), auto-verify this submission
             if v_effective_required = 0 then
                 continue; -- Will be verified during finalization
             end if;

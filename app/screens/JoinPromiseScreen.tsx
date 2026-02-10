@@ -83,7 +83,19 @@ export default function JoinPromiseScreen() {
                 return;
             }
 
-            // 2. Insert into participants table
+            // 2. Check if promise is full
+            const { count: currentCount } = await supabase
+                .from('promise_participants')
+                .select('*', { count: 'exact', head: true })
+                .eq('promise_id', promise.id);
+
+            if ((currentCount || 0) >= promise.number_of_people) {
+                showAlert({ title: 'Promise Full', message: `This promise already has ${promise.number_of_people} participants.`, type: 'warning' });
+                setLoading(false);
+                return;
+            }
+
+            // 3. Insert into participants table
             const { error: joinError } = await supabase
                 .from('promise_participants')
                 .insert({

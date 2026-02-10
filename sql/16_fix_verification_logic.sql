@@ -63,24 +63,44 @@ begin
     end if;
 
     -- C. Check 2: Has EVERY submission received required votes?
-    for v_submissions in 
-        select id, user_id, status, image_url from public.promise_submissions 
+    -- IMPORTANT: Required votes must account for auto-failed/rejected users who CAN'T vote.
+    -- We count how many participants have NOT been rejected for this day.
+    declare
+        v_active_voters int;
+        v_effective_required int;
+    begin
+        select count(*) into v_active_voters
+        from public.promise_submissions
         where promise_id = p_promise_id and date = p_date
-    loop
-        -- Skip check if already decided (manual fail or pre-rejected)
-        if v_submissions.status = 'rejected' or v_submissions.image_url in ('manual_fail', 'auto_fail_placeholder') then
-            continue;
-        end if;
+        and status != 'rejected';
+        
+        for v_submissions in 
+            select id, user_id, status, image_url from public.promise_submissions 
+            where promise_id = p_promise_id and date = p_date
+        loop
+            -- Skip check if already decided (manual fail or pre-rejected)
+            if v_submissions.status = 'rejected' or v_submissions.image_url in ('manual_fail', 'auto_fail_placeholder') then
+                continue;
+            end if;
 
-        select count(*) into v_vote_count
-        from public.submission_verifications
-        where submission_id = v_submissions.id;
+            -- Dynamic required votes: other non-rejected participants (excluding self)
+            v_effective_required := greatest(v_active_voters - 1, 0);
+            
+            -- If no voters remain (everyone else failed), auto-verify this submission
+            if v_effective_required = 0 then
+                continue; -- Will be verified during finalization
+            end if;
 
-        if v_vote_count < v_required_votes then
-            v_is_day_complete := false;
-            exit; -- Exit loop, not done yet
-        end if;
-    end loop;
+            select count(*) into v_vote_count
+            from public.submission_verifications
+            where submission_id = v_submissions.id;
+
+            if v_vote_count < v_effective_required then
+                v_is_day_complete := false;
+                exit; -- Exit loop, not done yet
+            end if;
+        end loop;
+    end;
 
     if not v_is_day_complete then
         return; -- Still waiting for votes
@@ -169,9 +189,21 @@ begin
 
     end loop;
 
-    -- E. Distribute Pool
-    -- Pool = (Total - Winners) * Stake
-    if v_winners_id is not null then
+    -- E. Distribute Pool (with Day-by-Day Forgiveness)
+    if v_winners_id is null or array_length(v_winners_id, 1) is null then
+        -- ALL FAILED → Day-by-Day Forgiveness: Refund everyone's penalties
+        -- This ensures no money vanishes when everyone equally fails
+        for v_submissions in
+            select user_id from public.promise_submissions
+            where promise_id = p_promise_id and date = p_date
+        loop
+            insert into public.ledger (promise_id, user_id, amount, type, description)
+            values (p_promise_id, v_submissions.user_id, v_stake, 'refund', 'Day cancelled: Everyone failed');
+        end loop;
+        v_total_pool := 0;
+        v_share := 0;
+    else
+        -- Standard Distribution: Pool = (Total - Winners) * Stake
         v_total_pool := (v_total_participants - array_length(v_winners_id, 1)) * v_stake;
         
         if v_total_pool > 0 and array_length(v_winners_id, 1) > 0 then
@@ -182,9 +214,6 @@ begin
                  values (p_promise_id, v_winner_uuid, v_share, 'winnings', 'Daily distribution');
             end loop;
         end if;
-    else
-        -- Everyone failed? Pool keeps the money (or goes to charity/burn - logic pending)
-        v_total_pool := v_total_participants * v_stake;
     end if;
 
     -- F. Mark Settled

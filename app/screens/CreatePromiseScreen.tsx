@@ -1,8 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Dimensions,
@@ -21,8 +22,7 @@ import Animated, {
     runOnJS,
     useAnimatedStyle,
     useSharedValue,
-    withSpring,
-    withTiming
+    withSpring
 } from 'react-native-reanimated';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
@@ -51,19 +51,21 @@ export default function CreatePromiseScreen() {
     const [category, setCategory] = useState<string | null>(null);
     const [inviteCode, setInviteCode] = useState('');
 
-    // Success Animation States
-    const successScale = useSharedValue(0);
-    const successOpacity = useSharedValue(0);
-
-    const successIconStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: successScale.value }],
-        opacity: successOpacity.value
-    }));
+    // Reset state when screen is focused
+    useFocusEffect(
+        useCallback(() => {
+            setStep(0);
+            setTitle('');
+            setCategory(null);
+            setDuration('7');
+            setNumPeople('2');
+            setAmountPerPerson('20');
+            setLoading(false);
+        }, [])
+    );
 
     useEffect(() => {
         if (step === 3) {
-            successScale.value = withSpring(1, { damping: 12 });
-            successOpacity.value = withTiming(1, { duration: 600 });
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
     }, [step]);
@@ -312,7 +314,6 @@ export default function CreatePromiseScreen() {
                 {loading ? <ActivityIndicator color="#FFF" /> : (
                     <>
                         <Text style={styles.nextBtnText}>Launch Promise</Text>
-                        <Ionicons name="rocket" size={scaleFont(20)} color="#FFF" />
                     </>
                 )}
             </TouchableOpacity>
@@ -321,26 +322,29 @@ export default function CreatePromiseScreen() {
 
     const renderSuccessStep = () => (
         <View style={styles.successContainer}>
-            <Animated.View style={[styles.successIconBox, successIconStyle]}>
-                <LinearGradient colors={['#10B981', '#059669']} style={StyleSheet.absoluteFill} />
-                <Ionicons name="checkmark" size={scaleFont(60)} color="#FFF" />
-            </Animated.View>
-            <Text style={styles.successTitle}>You're Bound</Text>
-            <Text style={styles.successSub}>Commitment is now live on the chain.</Text>
+            <View style={styles.successIconBox}>
+                <LinearGradient colors={['#5B2DAD', '#7C3AED']} style={StyleSheet.absoluteFill} />
+                <View style={styles.successIconInner}>
+                    <Ionicons name="shield-checkmark" size={scaleFont(50)} color="#FFF" />
+                </View>
+            </View>
+
+            <Text style={styles.successTitle}>Promise Active</Text>
+            <Text style={styles.successSub}>Your commitment is now live on the chain.</Text>
+
             <View style={styles.codeCard}>
                 <Text style={styles.codeLabel}>INVITE YOUR CREW</Text>
                 <Text style={styles.codeValue}>{inviteCode}</Text>
-                <TouchableOpacity style={styles.copyBtn} onPress={() => {
+                <TouchableOpacity style={styles.copyBtn} onPress={async () => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    await Clipboard.setStringAsync(inviteCode);
                     showAlert({ title: 'Copied', message: 'Invite code copied!', type: 'success' });
                 }}>
                     <Ionicons name="copy-outline" size={scaleFont(18)} color="#5B2DAD" />
                     <Text style={styles.copyBtnText}>Copy Code</Text>
                 </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.doneBtn} onPress={() => router.replace('/(tabs)')}>
-                <Text style={styles.doneBtnText}>Return to Dashboard</Text>
-            </TouchableOpacity>
+
         </View>
     );
 
@@ -352,7 +356,18 @@ export default function CreatePromiseScreen() {
 
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => step > 0 && step < 3 ? setStep(step - 1) : router.back()} style={styles.backBtn} disabled={step === 3}>
+                    <TouchableOpacity
+                        onPress={() => {
+                            if (step === 3) {
+                                router.replace('/(tabs)');
+                            } else if (step > 0) {
+                                setStep(step - 1);
+                            } else {
+                                router.back();
+                            }
+                        }}
+                        style={styles.backBtn}
+                    >
                         <Ionicons name={step === 3 ? "close" : "chevron-back"} size={scaleFont(24)} color="#0F172A" />
                     </TouchableOpacity>
                     <View style={styles.progressContainer}>
@@ -481,15 +496,17 @@ const styles = StyleSheet.create({
     counterVal: { fontSize: scaleFont(24), fontWeight: '900', color: '#1E293B', fontFamily: 'Outfit_800ExtraBold' },
     counterHint: { fontSize: scaleFont(12), color: '#94A3B8', textAlign: 'center', marginTop: scaleFont(10), fontWeight: '600', fontFamily: 'Outfit_400Regular' },
     // SUCCESS
-    successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: scaleFont(40) },
-    successIconBox: { width: scaleFont(100), height: scaleFont(100), borderRadius: scaleFont(32), alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginBottom: scaleFont(24), elevation: scaleFont(10), shadowColor: '#10B981', shadowOffset: { width: 0, height: scaleFont(10) }, shadowOpacity: 0.3, shadowRadius: scaleFont(15) },
-    successTitle: { fontSize: scaleFont(32), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
-    successSub: { fontSize: scaleFont(16), color: '#64748B', marginBottom: scaleFont(40), textAlign: 'center', fontFamily: 'Outfit_400Regular' },
-    codeCard: { width: '100%', backgroundColor: '#F8FAFC', borderRadius: scaleFont(28), padding: scaleFont(32), alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', marginBottom: scaleFont(40) },
-    codeLabel: { fontSize: scaleFont(11), fontWeight: '900', color: '#94A3B8', letterSpacing: scaleFont(2), marginBottom: scaleFont(12), fontFamily: 'Outfit_800ExtraBold' },
-    codeValue: { fontSize: scaleFont(48), fontWeight: '900', color: '#1E293B', letterSpacing: scaleFont(4), marginBottom: scaleFont(24), fontFamily: 'Outfit_800ExtraBold' },
-    copyBtn: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(8), backgroundColor: '#EEF2FF', paddingHorizontal: scaleFont(20), paddingVertical: scaleFont(12), borderRadius: scaleFont(14) },
-    copyBtnText: { color: '#5B2DAD', fontWeight: '800', fontSize: scaleFont(14), fontFamily: 'Outfit_800ExtraBold' },
-    doneBtn: { width: '100%', backgroundColor: '#1E293B', paddingVertical: scaleFont(18), borderRadius: scaleFont(20), alignItems: 'center' },
-    doneBtnText: { color: '#FFF', fontSize: scaleFont(17), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' }
+    successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: scaleFont(140) },
+    successIconBox: { width: scaleFont(120), height: scaleFont(120), borderRadius: scaleFont(60), alignItems: 'center', justifyContent: 'center', marginBottom: scaleFont(32), elevation: scaleFont(15), shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(12) }, shadowOpacity: 0.3, shadowRadius: scaleFont(20), overflow: 'hidden' },
+    successIconInner: { width: scaleFont(90), height: scaleFont(90), borderRadius: scaleFont(45), backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
+    successIconRing: { position: 'absolute', width: scaleFont(140), height: scaleFont(140), borderRadius: scaleFont(70), borderWidth: 2, borderColor: 'rgba(91, 45, 173, 0.2)', opacity: 0.5 },
+    successTitle: { fontSize: scaleFont(34), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(12), fontFamily: 'Outfit_800ExtraBold', letterSpacing: scaleFont(-1) },
+    successSub: { fontSize: scaleFont(15), color: '#64748B', marginBottom: scaleFont(48), textAlign: 'center', fontFamily: 'Outfit_400Regular', paddingHorizontal: scaleFont(20) },
+    codeCard: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: scaleFont(32), padding: scaleFont(36), alignItems: 'center', borderWidth: 1, borderColor: 'rgba(91, 45, 173, 0.1)', marginBottom: scaleFont(48), shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(12) }, shadowOpacity: 0.05, shadowRadius: scaleFont(20), elevation: scaleFont(4) },
+    codeLabel: { fontSize: scaleFont(12), fontWeight: '900', color: '#94A3B8', letterSpacing: scaleFont(2.5), marginBottom: scaleFont(16), fontFamily: 'Outfit_800ExtraBold' },
+    codeValue: { fontSize: scaleFont(52), fontWeight: '900', color: '#5B2DAD', letterSpacing: scaleFont(6), marginBottom: scaleFont(28), fontFamily: 'Outfit_800ExtraBold' },
+    copyBtn: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(10), backgroundColor: '#F5F3FF', paddingHorizontal: scaleFont(24), paddingVertical: scaleFont(14), borderRadius: scaleFont(16) },
+    copyBtnText: { color: '#5B2DAD', fontWeight: '800', fontSize: scaleFont(15), fontFamily: 'Outfit_800ExtraBold' },
+    doneBtn: { width: '65%', backgroundColor: '#0F172A', paddingVertical: scaleFont(18), borderRadius: scaleFont(24), alignItems: 'center', alignSelf: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(8) }, shadowOpacity: 0.2, shadowRadius: scaleFont(12), elevation: scaleFont(8) },
+    doneBtnText: { color: '#FFF', fontSize: scaleFont(16), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' }
 });

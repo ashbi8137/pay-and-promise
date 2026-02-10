@@ -533,26 +533,29 @@ export default function PromiseDetailScreen() {
                             if (!user) return;
 
                             const dateStr = new Date().toISOString().split('T')[0];
+
+                            // Insert daily_checkin (ignore conflict if already exists)
                             const { error: checkinError } = await supabase.from('daily_checkins').insert({
                                 promise_id: promiseData.id,
                                 user_id: user.id,
                                 date: dateStr,
                                 status: status
                             });
+                            if (checkinError && checkinError.code !== '23505') throw checkinError;
 
-                            if (checkinError) {
-                                if (checkinError.code !== '23505') throw checkinError;
-                            } else {
-                                await supabase.from('promise_submissions').insert({
-                                    promise_id: promiseData.id,
-                                    user_id: user.id,
-                                    date: dateStr,
-                                    image_url: 'manual_fail',
-                                    status: 'rejected'
-                                });
-                                await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
-                                setTodayStatus(status);
-                            }
+                            // ALWAYS ensure submission exists (upsert) — even if checkin had a conflict
+                            // This prevents the day from getting stuck when both users mark as failed
+                            const { error: subError } = await supabase.from('promise_submissions').upsert({
+                                promise_id: promiseData.id,
+                                user_id: user.id,
+                                date: dateStr,
+                                image_url: 'manual_fail',
+                                status: 'rejected'
+                            }, { onConflict: 'promise_id,user_id,date' });
+                            if (subError) throw subError;
+
+                            await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
+                            setTodayStatus(status);
                         } catch (e) {
                             console.error(e);
                             showAlert({ title: 'Error', message: 'Could not mark as failed.', type: 'error' });

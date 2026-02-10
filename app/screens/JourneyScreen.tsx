@@ -227,7 +227,7 @@ export default function JourneyScreen() {
                                         <View style={styles.impactDivider} />
                                         <View style={styles.impactItem}>
                                             <Text style={styles.impactVal}>₹{Math.abs(globalStats.totalNet).toFixed(0)}</Text>
-                                            <Text style={styles.impactSub}>{globalStats.totalNet >= 0 ? 'Surplus' : 'Deficit'}</Text>
+                                            <Text style={styles.impactSub}>{globalStats.totalNet >= 0 ? 'Gain' : 'Penalty'}</Text>
                                         </View>
                                         <View style={styles.impactDivider} />
                                         <View style={styles.impactItem}>

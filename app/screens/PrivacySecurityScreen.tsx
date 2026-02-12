@@ -5,7 +5,7 @@ import { Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, Touchabl
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 export default function PrivacySecurityScreen() {
     const router = useRouter();

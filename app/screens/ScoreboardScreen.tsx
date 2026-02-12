@@ -14,7 +14,7 @@ import {
 import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
 

@@ -28,7 +28,7 @@ import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
 const SLIDER_WIDTH = width - scaleFont(48);
@@ -206,9 +206,6 @@ export default function CreatePromiseScreen() {
                     }}>
                         <Text style={styles.nextBtnText}>Set Stake</Text>
                         <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => setCategory(null)} style={styles.backLink}>
-                        <Text style={styles.backLinkText}>Choose Template</Text>
                     </TouchableOpacity>
                 </View>
             ) : (

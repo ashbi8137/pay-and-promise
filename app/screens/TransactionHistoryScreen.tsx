@@ -17,7 +17,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { supabase } from '../../lib/supabase';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
 

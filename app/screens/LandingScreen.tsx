@@ -36,7 +36,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { supabase } from '../../lib/supabase';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

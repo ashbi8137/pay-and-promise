@@ -15,8 +15,8 @@ import Animated, {
     FadeInDown,
     FadeOut,
 } from 'react-native-reanimated';
-import { scaleFont } from '../../app/utils/layout';
 import { useAlert } from '../../context/AlertContext';
+import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
 

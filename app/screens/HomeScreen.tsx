@@ -22,7 +22,7 @@ import WalkthroughOverlay from '../../components/WalkthroughOverlay';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 // Data Interface matching Supabase Schema
 interface PromiseItem {

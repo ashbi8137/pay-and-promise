@@ -3,8 +3,8 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { scaleFont } from '../../app/utils/layout';
 import { GridOverlay } from '../../components/LuxuryVisuals';
+import { scaleFont } from '../../utils/layout';
 
 export default function SupportScreen() {
     const router = useRouter();

@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Image, Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { GridOverlay } from '../../components/LuxuryVisuals';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 export default function AboutScreen() {
     const router = useRouter();

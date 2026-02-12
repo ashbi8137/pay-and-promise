@@ -21,7 +21,7 @@ import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
 

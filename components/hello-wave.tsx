@@ -1,5 +1,5 @@
 import Animated from 'react-native-reanimated';
-import { scaleFont } from '../app/utils/layout';
+import { scaleFont } from '../utils/layout';
 
 export function HelloWave() {
   return (

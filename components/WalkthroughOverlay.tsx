@@ -9,7 +9,7 @@ import {
     View,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { scaleFont } from '../app/utils/layout';
+import { scaleFont } from '../utils/layout';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 

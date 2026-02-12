@@ -24,7 +24,7 @@ import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
-import { scaleFont } from '../utils/layout';
+import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
 
@@ -358,9 +358,10 @@ export default function PromiseDetailScreen() {
                 setCheckins(mappedCheckins);
 
                 const completedCount = mappedCheckins.filter(c => c.status === 'done' || c.status === 'failed').length;
-                if (completedCount >= duration) {
-                    await supabase.from('promises').update({ status: 'completed' }).eq('id', promiseData.id).eq('status', 'active');
-                }
+                // REMOVED: Status updates must be handled by backend settlement to ensure multi-user synchronization
+                // if (completedCount >= duration) {
+                //     await supabase.from('promises').update({ status: 'completed' }).eq('id', promiseData.id).eq('status', 'active');
+                // }
 
                 const todayStr = new Date().toISOString().split('T')[0];
                 const todayEntry = mappedCheckins.find(c => c.date === todayStr);

@@ -206,26 +206,26 @@ export default function LandingScreen() {
     const slides = [
         {
             id: 1,
-            title: "Stake Your Goal",
-            highlight: "Stake",
-            subtitle: "Put real money on your goals so you actually show up.",
-            icon: "wallet-outline",
+            title: "Make A Promise",
+            highlight: "Action",
+            subtitle: "Set a goal. Commit to it.",
+            icon: "flash-outline",
             color: "#5B2DAD",
         },
         {
             id: 2,
             title: "Friends Verify",
-            highlight: "Verify",
-            subtitle: "Your progress is confirmed by others.",
+            highlight: "Trust",
+            subtitle: "Your friends confirm your progress.",
             icon: "people-circle-outline",
             color: "#7C3AED",
         },
         {
             id: 3,
             title: "Build Trust",
-            highlight: "Trust",
-            subtitle: "Stay consistent, build trust, and grow stronger every day.",
-            icon: "star-outline",
+            highlight: "Legacy",
+            subtitle: "Keep promises. Earn points. Grow.",
+            icon: "ribbon-outline",
             color: "#6366F1",
         }
     ];

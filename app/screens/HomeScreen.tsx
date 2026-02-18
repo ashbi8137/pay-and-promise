@@ -31,8 +31,8 @@ interface PromiseItem {
     description?: string;
     duration_days: number;
     number_of_people: number;
-    amount_per_person: number;
-    total_amount: number;
+    commitment_level?: string;
+    locked_points?: number;
     participants: any[]; // jsonb 
     status: 'active' | 'completed' | 'failed' | 'active_waiting';
     days_completed: number;
@@ -55,6 +55,7 @@ export default function HomeScreen() {
     const [promiseListTab, setPromiseListTab] = useState<'in_progress' | 'completed'>('in_progress');
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [ppStats, setPpStats] = useState({ balance: 0, streak: 0, level: 1 });
 
     // Tooltip & Tutorial State
     const [showTooltip, setShowTooltip] = useState(false);
@@ -188,6 +189,20 @@ export default function HomeScreen() {
                     setFirstName(user.email.split('@')[0]);
                 }
 
+                // Fetch PP stats
+                const { data: ppData } = await supabase
+                    .from('profiles')
+                    .select('promise_points, current_streak, level')
+                    .eq('id', user.id)
+                    .single();
+                if (ppData) {
+                    setPpStats({
+                        balance: ppData.promise_points || 0,
+                        streak: ppData.current_streak || 0,
+                        level: ppData.level || 1,
+                    });
+                }
+
                 // 1. Fetch Promsie IDs where user is a participant
                 const { data: myParticipations, error: partError } = await supabase
                     .from('promise_participants')
@@ -227,23 +242,6 @@ export default function HomeScreen() {
 
                 if (checkinError) console.error('Checkin fetch error:', checkinError);
 
-                // 3. Fetch Today's Settlements (Group Status)
-                // If a promise is in this table for today, it means everyone is verified/accounted for.
-                let settledPromiseIds = new Set();
-                if (promises.length > 0) {
-                    const promiseIds = promises.map(p => p.id);
-                    const { data: settlements, error: settlementError } = await supabase
-                        .from('daily_settlements')
-                        .select('promise_id')
-                        .in('promise_id', promiseIds)
-                        .eq('date', today);
-
-                    if (settlementError) console.error('Settlement fetch error:', settlementError);
-                    if (settlements) {
-                        settledPromiseIds = new Set(settlements.map(s => s.promise_id));
-                    }
-                }
-
                 if (promises) {
                     const todayCheckinMap = new Map();
                     checkins?.forEach(c => todayCheckinMap.set(c.promise_id, c.status));
@@ -254,15 +252,12 @@ export default function HomeScreen() {
 
                     for (const p of promises) {
                         // 1. If Promise is finalized (Completed/Failed entirely), it goes to Completed Tab
-                        // NOTE: p.status comes from the 'promises' table (active/completed/failed)
                         if (p.status !== 'active') {
                             done.push(p);
-                            // Check if promise was completed recently (check created_at + duration)
                             const startDate = new Date(p.created_at);
                             const endDate = new Date(startDate);
                             endDate.setDate(startDate.getDate() + p.duration_days);
                             const now = new Date();
-                            // If promise ended within the last 24 hours, show congratulations
                             const hoursSinceEnd = (now.getTime() - endDate.getTime()) / (1000 * 60 * 60);
                             if (p.status === 'completed' && hoursSinceEnd >= 0 && hoursSinceEnd < 24) {
                                 justCompleted.push(p);
@@ -270,29 +265,22 @@ export default function HomeScreen() {
                             continue;
                         }
 
-                        // 2. If Active, check if the DAY is settled (Group Complete)
-                        if (settledPromiseIds.has(p.id)) {
-                            // The day is fully settled! Move to Completed Tab for today.
-                            // We use my personal status for the badge (completed/failed)
-                            const myStatus = todayCheckinMap.get(p.id);
-                            // If I didn't verify but day is settled, I must have been auto-failed or rejected
-                            done.push({ ...p, status: (myStatus === 'done' || myStatus === 'verified') ? 'completed' : 'failed' });
+                        // 1b. If promise is 'active' but past its duration, treat as expired/completed
+                        const startDate = new Date(p.created_at);
+                        const endDate = new Date(startDate);
+                        endDate.setDate(startDate.getDate() + (p.duration_days || 7));
+                        if (new Date() > endDate) {
+                            done.push({ ...p, status: 'completed' });
+                            continue;
+                        }
+
+                        // 2. Active promise — check if user already checked in today
+                        if (todayCheckinMap.has(p.id)) {
+                            // User checked in — waiting for peers
+                            pending.push({ ...p, status: 'active_waiting' });
                         } else {
-                            // Day is NOT settled yet. Stays in "In Progress".
-                            // But I might have finished my part.
-                            if (todayCheckinMap.has(p.id)) {
-                                const myStatus = todayCheckinMap.get(p.id);
-                                // I am done, but waiting for others.
-                                // We can use a special status string to show a different badge UI if needed, 
-                                // or just keep it 'active' but maybe show "Waiting..." text.
-                                // For now, let's keep it in pending.
-                                // We'll add a temporary property 'waitingForOthers' if we want to show a badge.
-                                // Effectively, it's still "Active" in the list.
-                                pending.push({ ...p, status: 'active_waiting' }); // active_waiting is a UI hint
-                            } else {
-                                // I haven't done it yet.
-                                pending.push(p);
-                            }
+                            // User hasn't checked in yet
+                            pending.push(p);
                         }
                     }
 
@@ -353,8 +341,8 @@ export default function HomeScreen() {
             ...item,
             duration: item.duration_days,
             numPeople: item.number_of_people,
-            amountPerPerson: item.amount_per_person,
-            totalAmount: item.total_amount,
+            commitmentLevel: item.commitment_level || 'medium',
+            lockedPoints: item.locked_points || 10,
         };
 
         router.push({
@@ -421,7 +409,9 @@ export default function HomeScreen() {
                                 </View>
                                 <View style={styles.metaItem}>
                                     <View style={[styles.dotSeparator, { backgroundColor: theme.border }]} />
-                                    <Text style={[styles.cardMeta, { color: theme.icon }]}>₹{item.amount_per_person}</Text>
+                                    <Text style={[styles.cardMeta, { color: (item.commitment_level || 'medium') === 'high' ? '#EF4444' : (item.commitment_level || 'medium') === 'low' ? '#10B981' : '#F59E0B' }]}>
+                                        {((item.commitment_level || 'medium').charAt(0).toUpperCase() + (item.commitment_level || 'medium').slice(1))}
+                                    </Text>
                                 </View>
                             </View>
 
@@ -483,6 +473,61 @@ export default function HomeScreen() {
                                 </Animated.View>
                             </View>
                         </View>
+                    </Animated.View>
+
+                    {/* PP STATS BANNER */}
+                    <Animated.View entering={FadeInDown.delay(150).springify()}>
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() => router.push('/(tabs)/profile')}
+                        >
+                            <LinearGradient
+                                colors={['#5B2DAD', '#7C3AED']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 1 }}
+                                style={{
+                                    borderRadius: scaleFont(20),
+                                    padding: scaleFont(18),
+                                    marginBottom: scaleFont(16),
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    overflow: 'hidden',
+                                    position: 'relative',
+                                }}
+                            >
+                                {/* Decorative circle */}
+                                <View style={{ position: 'absolute', top: -scaleFont(20), right: -scaleFont(20), width: scaleFont(80), height: scaleFont(80), borderRadius: scaleFont(40), backgroundColor: 'rgba(255,255,255,0.08)' }} />
+
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(12) }}>
+                                    <View style={{ width: scaleFont(42), height: scaleFont(42), borderRadius: scaleFont(21), backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' }}>
+                                        <Ionicons name="diamond" size={scaleFont(20)} color="#E0D4F5" />
+                                    </View>
+                                    <View>
+                                        <Text style={{ fontSize: scaleFont(22), fontWeight: '900', color: '#FFFFFF', fontFamily: 'Outfit_800ExtraBold' }}>
+                                            {ppStats.balance} PP
+                                        </Text>
+                                        <Text style={{ fontSize: scaleFont(10), color: 'rgba(255,255,255,0.5)', fontFamily: 'Outfit_700Bold', letterSpacing: scaleFont(1) }}>PROMISE POINTS</Text>
+                                    </View>
+                                </View>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(16) }}>
+                                    {ppStats.streak > 0 && (
+                                        <View style={{ alignItems: 'center' }}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(3) }}>
+                                                <Ionicons name="flame" size={scaleFont(16)} color="#FCA5A5" />
+                                                <Text style={{ fontSize: scaleFont(16), fontWeight: '900', color: '#FCA5A5', fontFamily: 'Outfit_800ExtraBold' }}>{ppStats.streak}</Text>
+                                            </View>
+                                            <Text style={{ fontSize: scaleFont(8), color: 'rgba(255,255,255,0.4)', fontFamily: 'Outfit_700Bold' }}>STREAK</Text>
+                                        </View>
+                                    )}
+                                    <View style={{ alignItems: 'center' }}>
+                                        <Text style={{ fontSize: scaleFont(16), fontWeight: '900', color: '#FDE68A', fontFamily: 'Outfit_800ExtraBold' }}>Lv.{ppStats.level}</Text>
+                                        <Text style={{ fontSize: scaleFont(8), color: 'rgba(255,255,255,0.4)', fontFamily: 'Outfit_700Bold' }}>LEVEL</Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={scaleFont(16)} color="rgba(255,255,255,0.3)" />
+                                </View>
+                            </LinearGradient>
+                        </TouchableOpacity>
                     </Animated.View>
 
                     {/* Hero Action Card */}

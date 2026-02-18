@@ -51,7 +51,9 @@ export default function PromiseDetailScreen() {
         );
     }
 
-    const { title, duration, numPeople, amountPerPerson, totalAmount, invite_code } = promiseData;
+    const { title, duration, numPeople, commitment_level, locked_points, invite_code } = promiseData;
+    const commitmentLevel = commitment_level || promiseData.commitmentLevel || 'medium';
+    const lockedPoints = locked_points || promiseData.lockedPoints || 10;
 
     const [updating, setUpdating] = React.useState(false);
     const [checkins, setCheckins] = React.useState<{ date: string, status: string }[]>([]);
@@ -394,8 +396,7 @@ export default function PromiseDetailScreen() {
 
         const result = await ImagePicker.launchCameraAsync({
             mediaTypes: ["images"],
-            allowsEditing: true, // Allow cropping/editing logic if needed
-            aspect: [4, 3],
+            allowsEditing: false, // Direct upload, no cropping
             quality: 0.5,
         });
 
@@ -487,6 +488,8 @@ export default function PromiseDetailScreen() {
 
                 showAlert({ title: "Submitted!", message: "Proof uploaded for verification.", type: "success" });
 
+                // PP distribution is handled by the backend check_and_finalize_verification RPC
+
                 // Refresh checks
                 fetchCheckins();
 
@@ -516,10 +519,9 @@ export default function PromiseDetailScreen() {
             return;
         }
 
-        const dailyStake = amountPerPerson / duration;
         showAlert({
             title: 'Mark as Failed?',
-            message: `You will lose ₹${dailyStake.toFixed(0)} to the pool.`,
+            message: `You will lose Promise Points for this day.`,
             type: 'warning',
             buttons: [
                 { text: 'Cancel', style: 'cancel' },
@@ -556,6 +558,9 @@ export default function PromiseDetailScreen() {
                             if (subError) throw subError;
 
                             await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
+
+                            // PP distribution is handled by the backend RPC
+
                             setTodayStatus(status);
                         } catch (e) {
                             console.error(e);
@@ -598,8 +603,8 @@ export default function PromiseDetailScreen() {
                     </View>
                     <View style={styles.heroBottom}>
                         <View style={styles.stakePill}>
-                            <Text style={styles.stakeLabel}>STAKE/PERSON</Text>
-                            <Text style={styles.stakeValue}>₹{amountPerPerson}</Text>
+                            <Text style={styles.stakeLabel}>COMMITMENT</Text>
+                            <Text style={styles.stakeValue}>{commitmentLevel.charAt(0).toUpperCase() + commitmentLevel.slice(1)}</Text>
                         </View>
                         {invite_code && (
                             <TouchableOpacity style={styles.stakePill} onPress={handleCopyCode}>
@@ -853,7 +858,7 @@ export default function PromiseDetailScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                     <Text style={styles.compTitle}>{isSuccess ? "Goal Achieved!" : "Promise Ended"}</Text>
-                    <Text style={styles.compSub}>{isSuccess ? "You've proven your commitment." : "Check the settlement to close out."}</Text>
+                    <Text style={styles.compSub}>{isSuccess ? "You've proven your commitment." : "View the report to see your results."}</Text>
                 </View>
                 <TouchableOpacity
                     style={styles.settleBtn}

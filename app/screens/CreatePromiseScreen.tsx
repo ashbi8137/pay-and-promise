@@ -16,13 +16,8 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-    FadeInDown,
-    runOnJS,
-    useAnimatedStyle,
-    useSharedValue,
-    withSpring
+    FadeInDown
 } from 'react-native-reanimated';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import { useAlert } from '../../context/AlertContext';
@@ -31,9 +26,13 @@ import { supabase } from '../../lib/supabase';
 import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
-const SLIDER_WIDTH = width - scaleFont(48);
-const KNOB_SIZE = scaleFont(44);
-const MAX_STAKE = 2000;
+
+// PP Commitment Level definitions
+const COMMITMENT_LEVELS = [
+    { id: 'low', label: 'Light', points: 5, earn: 10, icon: 'leaf-outline' as const, color: '#10B981', bgColor: '#ECFDF5', desc: 'Casual commitment' },
+    { id: 'medium', label: 'Steady', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge' },
+    { id: 'high', label: 'Intense', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes' },
+];
 
 export default function CreatePromiseScreen() {
     const router = useRouter();
@@ -41,15 +40,16 @@ export default function CreatePromiseScreen() {
     const [loading, setLoading] = useState(false);
 
     // Wizard State
-    const [step, setStep] = useState(0); // 0: Templates, 1: Stake, 2: Details, 3: Invite
+    const [step, setStep] = useState(0); // 0: Templates, 1: Commitment, 2: Details, 3: Invite
 
     // Form State
     const [title, setTitle] = useState('');
     const [duration, setDuration] = useState('7');
     const [numPeople, setNumPeople] = useState('2');
-    const [amountPerPerson, setAmountPerPerson] = useState('20');
+    const [commitmentLevel, setCommitmentLevel] = useState('medium');
     const [category, setCategory] = useState<string | null>(null);
     const [inviteCode, setInviteCode] = useState('');
+    const [userPP, setUserPP] = useState<number | null>(null);
 
     // Reset state when screen is focused
     useFocusEffect(
@@ -59,8 +59,9 @@ export default function CreatePromiseScreen() {
             setCategory(null);
             setDuration('7');
             setNumPeople('2');
-            setAmountPerPerson('20');
+            setCommitmentLevel('medium');
             setLoading(false);
+            fetchUserPP();
         }, [])
     );
 
@@ -70,8 +71,22 @@ export default function CreatePromiseScreen() {
         }
     }, [step]);
 
-    // Slider State
-    const translateX = useSharedValue(0);
+    const fetchUserPP = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data } = await supabase
+                .from('profiles')
+                .select('promise_points')
+                .eq('id', user.id)
+                .single();
+            if (data) setUserPP(data.promise_points);
+        } catch (e) {
+            console.error('Error fetching PP:', e);
+        }
+    };
+
+    const selectedLevel = COMMITMENT_LEVELS.find(l => l.id === commitmentLevel)!;
 
     const handleTemplateSelect = (selectedTitle: string, id: string) => {
         setCategory(id);
@@ -81,45 +96,8 @@ export default function CreatePromiseScreen() {
         } else {
             setTitle(selectedTitle);
             setStep(1);
-            setAmountPerPerson('500'); // Sync state with visual slider
-            const defaultX = (500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE);
-            translateX.value = withSpring(defaultX);
         }
     };
-
-    const updateStake = (x: number) => {
-        const percent = x / (SLIDER_WIDTH - KNOB_SIZE);
-        const rawValue = percent * MAX_STAKE;
-        const snapped = Math.round(rawValue / 20) * 20;
-        const final = Math.max(20, Math.min(snapped, MAX_STAKE));
-
-        if (final !== parseInt(amountPerPerson)) {
-            setAmountPerPerson(final.toString());
-            Haptics.selectionAsync();
-        }
-    };
-
-    const handleQuickSelect = (amount: number) => {
-        setAmountPerPerson(amount.toString());
-        const x = (amount / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE);
-        translateX.value = withSpring(x);
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    };
-
-    const context = useSharedValue(0);
-    const panGesture = Gesture.Pan()
-        .onStart(() => { context.value = translateX.value; })
-        .onUpdate((event) => {
-            let nextX = context.value + event.translationX;
-            if (nextX < 0) nextX = 0;
-            if (nextX > (SLIDER_WIDTH - KNOB_SIZE)) nextX = (SLIDER_WIDTH - KNOB_SIZE);
-            translateX.value = nextX;
-            // Debounce or optimize this if lagging, but for simple slider JS thread is fine usually
-            runOnJS(updateStake)(nextX);
-        });
-
-    const knobStyle = useAnimatedStyle(() => ({ transform: [{ translateX: translateX.value }] }));
-    const activeTrackStyle = useAnimatedStyle(() => ({ width: translateX.value + KNOB_SIZE / 2 }));
 
     const handleCreatePromiseReal = async () => {
         setLoading(true);
@@ -143,6 +121,13 @@ export default function CreatePromiseScreen() {
                 return;
             }
 
+            // Check user has enough PP
+            if (userPP !== null && userPP < selectedLevel.points) {
+                showAlert({ title: 'Not Enough Points', message: `You need ${selectedLevel.points} PP but only have ${userPP} PP.`, type: 'warning' });
+                setLoading(false);
+                return;
+            }
+
             const code = Math.random().toString(36).substring(2, 8).toUpperCase();
             setInviteCode(code);
 
@@ -153,9 +138,8 @@ export default function CreatePromiseScreen() {
                     description: category,
                     duration_days: parseInt(duration),
                     number_of_people: parseInt(numPeople),
-                    amount_per_person: parseInt(amountPerPerson),
-                    total_amount: parseInt(numPeople) * parseInt(amountPerPerson),
-                    stake_per_day: (parseInt(amountPerPerson) / parseInt(duration)),
+                    commitment_level: commitmentLevel,
+                    locked_points: selectedLevel.points,
                     participants: [{
                         name: user.user_metadata?.full_name || 'Creator',
                         id: user.id,
@@ -173,6 +157,15 @@ export default function CreatePromiseScreen() {
             await supabase.from('promise_participants').insert({
                 promise_id: promiseData.id,
                 user_id: user.id
+            });
+
+            // Lock PP: deduct from user balance and log in ledger
+            await supabase.rpc('award_promise_points', {
+                p_user_id: user.id,
+                p_promise_id: promiseData.id,
+                p_points: -selectedLevel.points,
+                p_reason: 'commitment_lock',
+                p_description: `PP locked for: ${title}`
             });
 
             setStep(3);
@@ -202,9 +195,8 @@ export default function CreatePromiseScreen() {
                     <TouchableOpacity style={styles.nextBtn} onPress={() => {
                         if (!title.trim()) return showAlert({ title: 'Missing Name', message: 'Please name your goal.', type: 'warning' });
                         setStep(1);
-                        translateX.value = withSpring((500 / MAX_STAKE) * (SLIDER_WIDTH - KNOB_SIZE));
                     }}>
-                        <Text style={styles.nextBtnText}>Set Stake</Text>
+                        <Text style={styles.nextBtnText}>Set Commitment</Text>
                         <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
                     </TouchableOpacity>
                 </View>
@@ -237,41 +229,67 @@ export default function CreatePromiseScreen() {
         </Animated.View>
     );
 
-    const renderStakeStep = () => (
+    const renderCommitmentStep = () => (
         <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
             <Text style={styles.wizardSubtitle}>STEP 2</Text>
-            <Text style={styles.wizardTitle}>Commit your share</Text>
-            <View style={styles.stakeDisplay}>
-                <Text style={styles.currency}>₹</Text>
-                <Text style={styles.stakeValue}>{amountPerPerson}</Text>
-            </View>
-            <View style={styles.quickSelectRow}>
-                {[50, 100, 200, 500].map(amt => (
-                    <TouchableOpacity
-                        key={amt}
-                        style={[styles.quickCard, amountPerPerson === amt.toString() && styles.quickCardActive]}
-                        onPress={() => handleQuickSelect(amt)}
-                    >
-                        <Text style={[styles.quickText, amountPerPerson === amt.toString() && styles.quickTextActive]}>
-                            ₹{amt}
-                        </Text>
-                    </TouchableOpacity>
-                ))}
+            <Text style={styles.wizardTitle}>Set your commitment</Text>
+
+            {/* PP Balance */}
+            {userPP !== null && (
+                <View style={styles.ppBalanceCard}>
+                    <Ionicons name="diamond" size={scaleFont(16)} color="#5B2DAD" />
+                    <Text style={styles.ppBalanceText}>Your Balance: <Text style={styles.ppBalanceValue}>{userPP} PP</Text></Text>
+                </View>
+            )}
+
+            {/* Commitment Level Cards */}
+            <View style={styles.commitmentGrid}>
+                {COMMITMENT_LEVELS.map((level) => {
+                    const isSelected = commitmentLevel === level.id;
+                    const isDisabled = userPP !== null && userPP < level.points;
+                    return (
+                        <TouchableOpacity
+                            key={level.id}
+                            style={[
+                                styles.commitmentCard,
+                                isSelected && { borderColor: level.color, borderWidth: 2, backgroundColor: level.bgColor },
+                                isDisabled && { opacity: 0.5 }
+                            ]}
+                            onPress={() => {
+                                if (isDisabled) {
+                                    showAlert({ title: 'Not Enough PP', message: `You need ${level.points} PP for this level.`, type: 'warning' });
+                                    return;
+                                }
+                                setCommitmentLevel(level.id);
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                            }}
+                            disabled={isDisabled}
+                        >
+                            <View style={[styles.commitmentIconBox, { backgroundColor: level.bgColor }]}>
+                                <Ionicons name={level.icon} size={scaleFont(28)} color={level.color} />
+                            </View>
+                            <Text style={styles.commitmentLabel}>{level.label}</Text>
+                            <Text style={styles.commitmentDesc}>{level.desc}</Text>
+                            <View style={styles.commitmentStats}>
+                                <View style={styles.commitmentStatRow}>
+                                    <Ionicons name="lock-closed" size={scaleFont(12)} color="#64748B" />
+                                    <Text style={styles.commitmentStatText}>Lock {level.points} PP</Text>
+                                </View>
+                                <View style={styles.commitmentStatRow}>
+                                    <Ionicons name="trending-up" size={scaleFont(12)} color="#10B981" />
+                                    <Text style={[styles.commitmentStatText, { color: '#10B981' }]}>Earn up to {level.earn} PP</Text>
+                                </View>
+                            </View>
+                            {isSelected && (
+                                <View style={[styles.selectedBadge, { backgroundColor: level.color }]}>
+                                    <Ionicons name="checkmark" size={scaleFont(14)} color="#FFF" />
+                                </View>
+                            )}
+                        </TouchableOpacity>
+                    );
+                })}
             </View>
 
-            <View style={styles.sliderContainer}>
-                <View style={styles.sliderTrack} />
-                <Animated.View style={[styles.sliderTrackActive, activeTrackStyle]} />
-                <GestureDetector gesture={panGesture}>
-                    <Animated.View style={[styles.sliderKnob, knobStyle]}>
-                        <View style={styles.knobInner} />
-                    </Animated.View>
-                </GestureDetector>
-            </View>
-            <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabel}>₹20</Text>
-                <Text style={styles.sliderLabel}>₹2000</Text>
-            </View>
             <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
                 <Text style={styles.nextBtnText}>Define Terms</Text>
                 <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
@@ -307,6 +325,18 @@ export default function CreatePromiseScreen() {
                 </View>
                 <Text style={styles.counterHint}>Min 2 • Max 10</Text>
             </View>
+
+            {/* Commitment Summary */}
+            <View style={styles.commitmentSummary}>
+                <View style={[styles.summaryIcon, { backgroundColor: selectedLevel.bgColor }]}>
+                    <Ionicons name={selectedLevel.icon} size={scaleFont(20)} color={selectedLevel.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                    <Text style={styles.summaryLabel}>{selectedLevel.label} Commitment</Text>
+                    <Text style={styles.summaryDetail}>Locking {selectedLevel.points} PP • Earn up to {selectedLevel.earn} PP</Text>
+                </View>
+            </View>
+
             <TouchableOpacity style={[styles.nextBtn, { backgroundColor: '#5B2DAD' }]} onPress={handleCreatePromiseReal} disabled={loading}>
                 {loading ? <ActivityIndicator color="#FFF" /> : (
                     <>
@@ -327,7 +357,7 @@ export default function CreatePromiseScreen() {
             </View>
 
             <Text style={styles.successTitle}>Promise Active</Text>
-            <Text style={styles.successSub}>Your commitment is now live on the chain.</Text>
+            <Text style={styles.successSub}>Your commitment is now live. {selectedLevel.points} PP locked.</Text>
 
             <View style={styles.codeCard}>
                 <Text style={styles.codeLabel}>INVITE YOUR CREW</Text>
@@ -348,8 +378,6 @@ export default function CreatePromiseScreen() {
     return (
         <View style={styles.container}>
             <GridOverlay />
-
-            {/* Ambient Depth removed for focus */}
 
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
@@ -372,9 +400,9 @@ export default function CreatePromiseScreen() {
                         <Animated.View style={[styles.progressFill, { width: `${(step + 1) * 33.3}%` }]} />
                     </View>
                 </View>
-                <ScrollView contentContainerStyle={styles.scrollContent} scrollEnabled={step !== 1} showsVerticalScrollIndicator={false}>
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                     {step === 0 && renderTemplateSelector()}
-                    {step === 1 && renderStakeStep()}
+                    {step === 1 && renderCommitmentStep()}
                     {step === 2 && renderDetailsStep()}
                     {step === 3 && renderSuccessStep()}
                 </ScrollView>
@@ -390,18 +418,17 @@ const styles = StyleSheet.create({
     progressContainer: { flex: 1, marginLeft: scaleFont(20), height: scaleFont(4), borderRadius: scaleFont(2), overflow: 'hidden' },
     progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(79, 70, 229, 0.1)' },
     progressFill: { height: '100%', backgroundColor: '#5B2DAD', borderRadius: scaleFont(2) },
-    scrollContent: { flexGrow: 1, paddingHorizontal: scaleFont(24), paddingBottom: scaleFont(40) },
+    scrollContent: { flexGrow: 1, paddingHorizontal: scaleFont(24), paddingBottom: scaleFont(100) },
     wizardContainer: { flex: 1, paddingTop: scaleFont(20) },
     wizardSubtitle: { fontSize: scaleFont(12), fontWeight: '800', color: '#5B2DAD', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(8), fontFamily: 'Outfit_800ExtraBold' },
     wizardTitle: { fontSize: scaleFont(32), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(32), letterSpacing: scaleFont(-1), fontFamily: 'Outfit_800ExtraBold' },
     gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
     templateCard: {
-        width: '30%', // Three cards per row for a more compact look
+        width: '30%',
         alignItems: 'center',
         marginBottom: scaleFont(32),
         padding: scaleFont(10),
     },
-    tplGradient: { ...StyleSheet.absoluteFillObject },
     tplIconCircle: {
         width: scaleFont(64),
         height: scaleFont(64),
@@ -441,44 +468,73 @@ const styles = StyleSheet.create({
         shadowRadius: scaleFont(15)
     },
     nextBtnText: { color: '#FFF', fontSize: scaleFont(18), fontWeight: '800', letterSpacing: scaleFont(0.5), fontFamily: 'Outfit_800ExtraBold' },
-    backLink: { alignSelf: 'center', marginTop: scaleFont(12) },
-    backLinkText: { fontSize: scaleFont(14), color: '#64748B', fontWeight: '600', fontFamily: 'Outfit_400Regular' },
-    // STAKE
-    stakeDisplay: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginVertical: scaleFont(40) },
-    currency: { fontSize: scaleFont(32), fontWeight: '700', color: '#94A3B8', marginRight: scaleFont(4), marginTop: scaleFont(12), fontFamily: 'Outfit_700Bold' },
-    stakeValue: { fontSize: scaleFont(80), fontWeight: '900', color: '#1E293B', letterSpacing: scaleFont(-2), fontFamily: 'Outfit_800ExtraBold' },
-    sliderContainer: { height: scaleFont(44), justifyContent: 'center', width: '100%' },
-    sliderTrack: { height: scaleFont(8), backgroundColor: '#F1F5F9', borderRadius: scaleFont(4), width: '100%' },
-    sliderTrackActive: { height: scaleFont(8), backgroundColor: '#5B2DAD', borderRadius: scaleFont(4), position: 'absolute' },
-    sliderKnob: { width: KNOB_SIZE, height: KNOB_SIZE, borderRadius: KNOB_SIZE / 2, backgroundColor: '#FFF', position: 'absolute', alignItems: 'center', justifyContent: 'center', elevation: 4, shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(4) }, shadowOpacity: 0.3, shadowRadius: scaleFont(8), borderWidth: 1, borderColor: '#F1F5F9' },
-    knobInner: { width: scaleFont(14), height: scaleFont(14), borderRadius: scaleFont(7), backgroundColor: '#5B2DAD' },
-    sliderLabels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: scaleFont(12), marginBottom: scaleFont(40) },
-    sliderLabel: { fontSize: scaleFont(12), fontWeight: '700', color: '#94A3B8', fontFamily: 'Outfit_700Bold' },
-    // QUICK SELECT
-    quickSelectRow: { flexDirection: 'row', justifyContent: 'center', gap: scaleFont(12), marginBottom: scaleFont(40) },
-    quickCard: {
+    // COMMITMENT STEP
+    ppBalanceCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scaleFont(8),
+        backgroundColor: '#F5F3FF',
         paddingHorizontal: scaleFont(16),
         paddingVertical: scaleFont(12),
         borderRadius: scaleFont(16),
-        backgroundColor: '#F1F5F9',
+        marginBottom: scaleFont(24),
+    },
+    ppBalanceText: { fontSize: scaleFont(14), fontWeight: '600', color: '#64748B', fontFamily: 'Outfit_700Bold' },
+    ppBalanceValue: { color: '#5B2DAD', fontWeight: '800' },
+    commitmentGrid: { gap: scaleFont(16), marginBottom: scaleFont(32) },
+    commitmentCard: {
+        backgroundColor: '#FFF',
+        borderRadius: scaleFont(24),
+        padding: scaleFont(20),
         borderWidth: 1,
-        borderColor: 'transparent',
-        minWidth: scaleFont(70),
-        alignItems: 'center'
+        borderColor: '#F1F5F9',
+        position: 'relative',
+        overflow: 'hidden',
     },
-    quickCardActive: {
-        backgroundColor: '#EEF2FF',
-        borderColor: '#5B2DAD',
+    commitmentIconBox: {
+        width: scaleFont(48),
+        height: scaleFont(48),
+        borderRadius: scaleFont(16),
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: scaleFont(12),
     },
-    quickText: {
-        fontSize: scaleFont(14),
-        fontWeight: '800',
-        color: '#64748B',
-        fontFamily: 'Outfit_700Bold'
+    commitmentLabel: { fontSize: scaleFont(20), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(4), fontFamily: 'Outfit_800ExtraBold' },
+    commitmentDesc: { fontSize: scaleFont(13), color: '#94A3B8', marginBottom: scaleFont(12), fontFamily: 'Outfit_400Regular' },
+    commitmentStats: { gap: scaleFont(6) },
+    commitmentStatRow: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(6) },
+    commitmentStatText: { fontSize: scaleFont(12), fontWeight: '700', color: '#64748B', fontFamily: 'Outfit_700Bold' },
+    selectedBadge: {
+        position: 'absolute',
+        top: scaleFont(16),
+        right: scaleFont(16),
+        width: scaleFont(28),
+        height: scaleFont(28),
+        borderRadius: scaleFont(14),
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    quickTextActive: {
-        color: '#5B2DAD',
+    // COMMITMENT SUMMARY (in details step)
+    commitmentSummary: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scaleFont(12),
+        backgroundColor: '#FFF',
+        borderRadius: scaleFont(16),
+        padding: scaleFont(16),
+        marginBottom: scaleFont(24),
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
+    summaryIcon: {
+        width: scaleFont(40),
+        height: scaleFont(40),
+        borderRadius: scaleFont(12),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    summaryLabel: { fontSize: scaleFont(15), fontWeight: '800', color: '#1E293B', fontFamily: 'Outfit_800ExtraBold' },
+    summaryDetail: { fontSize: scaleFont(12), color: '#64748B', fontFamily: 'Outfit_400Regular', marginTop: scaleFont(2) },
     // DETAILS
     detailBox: { marginBottom: scaleFont(32) },
     boxLabel: { fontSize: scaleFont(11), fontWeight: '800', color: '#94A3B8', letterSpacing: scaleFont(1.5), marginBottom: scaleFont(16), fontFamily: 'Outfit_800ExtraBold' },
@@ -496,7 +552,6 @@ const styles = StyleSheet.create({
     successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: scaleFont(140) },
     successIconBox: { width: scaleFont(120), height: scaleFont(120), borderRadius: scaleFont(60), alignItems: 'center', justifyContent: 'center', marginBottom: scaleFont(32), elevation: scaleFont(15), shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(12) }, shadowOpacity: 0.3, shadowRadius: scaleFont(20), overflow: 'hidden' },
     successIconInner: { width: scaleFont(90), height: scaleFont(90), borderRadius: scaleFont(45), backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)' },
-    successIconRing: { position: 'absolute', width: scaleFont(140), height: scaleFont(140), borderRadius: scaleFont(70), borderWidth: 2, borderColor: 'rgba(91, 45, 173, 0.2)', opacity: 0.5 },
     successTitle: { fontSize: scaleFont(34), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(12), fontFamily: 'Outfit_800ExtraBold', letterSpacing: scaleFont(-1) },
     successSub: { fontSize: scaleFont(15), color: '#64748B', marginBottom: scaleFont(48), textAlign: 'center', fontFamily: 'Outfit_400Regular', paddingHorizontal: scaleFont(20) },
     codeCard: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: scaleFont(32), padding: scaleFont(36), alignItems: 'center', borderWidth: 1, borderColor: 'rgba(91, 45, 173, 0.1)', marginBottom: scaleFont(48), shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(12) }, shadowOpacity: 0.05, shadowRadius: scaleFont(20), elevation: scaleFont(4) },
@@ -504,6 +559,4 @@ const styles = StyleSheet.create({
     codeValue: { fontSize: scaleFont(52), fontWeight: '900', color: '#5B2DAD', letterSpacing: scaleFont(6), marginBottom: scaleFont(28), fontFamily: 'Outfit_800ExtraBold' },
     copyBtn: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(10), backgroundColor: '#F5F3FF', paddingHorizontal: scaleFont(24), paddingVertical: scaleFont(14), borderRadius: scaleFont(16) },
     copyBtnText: { color: '#5B2DAD', fontWeight: '800', fontSize: scaleFont(15), fontFamily: 'Outfit_800ExtraBold' },
-    doneBtn: { width: '65%', backgroundColor: '#0F172A', paddingVertical: scaleFont(18), borderRadius: scaleFont(24), alignItems: 'center', alignSelf: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(8) }, shadowOpacity: 0.2, shadowRadius: scaleFont(12), elevation: scaleFont(8) },
-    doneBtnText: { color: '#FFF', fontSize: scaleFont(16), fontWeight: '800', fontFamily: 'Outfit_800ExtraBold' }
 });

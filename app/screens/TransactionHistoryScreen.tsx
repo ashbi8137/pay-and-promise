@@ -38,16 +38,21 @@ export default function TransactionHistoryScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            const { data: ledger, error } = await supabase
-                .from('ledger')
-                .select('amount, type, description, created_at, promise_id')
+            // Fetch from promise_point_ledger (PP system)
+            const { data: ppLedger, error: ppError } = await supabase
+                .from('promise_point_ledger')
+                .select('points, reason, description, created_at, promise_id')
                 .eq('user_id', user.id)
                 .order('created_at', { ascending: false });
 
-            if (error) throw error;
+            if (ppError) {
+                console.error('PP Ledger error:', ppError);
+                setHistory([]);
+                return;
+            }
 
-            if (ledger && ledger.length > 0) {
-                const promiseIds = [...new Set(ledger.map(l => l.promise_id).filter(Boolean))];
+            if (ppLedger && ppLedger.length > 0) {
+                const promiseIds = [...new Set(ppLedger.map(l => l.promise_id).filter(Boolean))];
 
                 let promiseTitles: Record<string, string> = {};
                 if (promiseIds.length > 0) {
@@ -63,9 +68,12 @@ export default function TransactionHistoryScreen() {
                     }
                 }
 
-                const enrichedHistory = ledger.map(item => ({
+                const enrichedHistory = ppLedger.map(item => ({
                     ...item,
-                    promise_title: item.promise_id ? promiseTitles[item.promise_id] : null
+                    amount: item.points,
+                    type: item.reason, // Map reason -> type for getTypeConfig
+                    promise_title: item.promise_id ? promiseTitles[item.promise_id] : null,
+                    description: item.description || getDefaultDescription(item.reason),
                 }));
 
                 setHistory(enrichedHistory);
@@ -80,18 +88,64 @@ export default function TransactionHistoryScreen() {
         }
     };
 
+    const getDefaultDescription = (reason: string): string => {
+        switch (reason) {
+            case 'commitment_lock': return 'Points locked for promise';
+            case 'commitment_unlock': return 'Points unlocked';
+            case 'daily_success': return 'Daily check-in success';
+            case 'daily_failure': return 'Missed daily check-in';
+            case 'daily_redistribution': return 'Redistribution bonus';
+            case 'daily_bonus': return 'Team completion bonus';
+            case 'signup_bonus': return 'Welcome bonus';
+            case 'streak_bonus': return 'Streak milestone bonus';
+            case 'daily_checkin': return 'Daily check-in reward';
+            default: return reason.replace(/_/g, ' ');
+        }
+    };
+
     const onRefresh = React.useCallback(() => {
         setRefreshing(true);
         fetchHistory();
     }, []);
 
-    const formatCurrency = (amount: number) => {
-        return '₹' + Math.abs(amount).toFixed(0);
+    const formatPoints = (amount: number) => {
+        return Math.abs(amount) + ' PP';
     };
 
     const formatDate = (dateString: string) => {
         const d = new Date(dateString);
         return d.toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+
+    const getTypeConfig = (type: string) => {
+        switch (type) {
+            case 'daily_success':
+            case 'daily_checkin':
+            case 'earned':
+            case 'winnings':
+                return { icon: 'arrow-up-circle' as const, color: '#10B981', bg: '#ECFDF5', label: 'EARNED', prefix: '+' };
+            case 'daily_bonus':
+            case 'streak_bonus':
+            case 'signup_bonus':
+            case 'level_up_bonus':
+            case 'bonus':
+                return { icon: 'star' as const, color: '#F59E0B', bg: '#FEF3C7', label: 'BONUS', prefix: '+' };
+            case 'daily_redistribution':
+                return { icon: 'gift' as const, color: '#8B5CF6', bg: '#F5F3FF', label: 'REDISTRIBUTION', prefix: '+' };
+            case 'commitment_lock':
+            case 'locked':
+                return { icon: 'lock-closed' as const, color: '#D97706', bg: '#FEF3C7', label: 'LOCKED', prefix: '-' };
+            case 'commitment_unlock':
+            case 'unlocked':
+            case 'refund':
+                return { icon: 'lock-open' as const, color: '#6366F1', bg: '#EEF2FF', label: 'UNLOCKED', prefix: '+' };
+            case 'daily_failure':
+            case 'penalty':
+            case 'lost':
+                return { icon: 'arrow-down-circle' as const, color: '#EF4444', bg: '#FEF2F2', label: 'LOST', prefix: '-' };
+            default:
+                return { icon: 'swap-horizontal' as const, color: '#64748B', bg: '#F8FAFC', label: type?.toUpperCase().replace(/_/g, ' ') || 'OTHER', prefix: '' };
+        }
     };
 
     const handleBack = () => {
@@ -107,7 +161,7 @@ export default function TransactionHistoryScreen() {
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                         <Ionicons name="chevron-back" size={scaleFont(24)} color="#1E293B" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Ledger Logs</Text>
+                    <Text style={styles.headerTitle}>Activity Log</Text>
                     <View style={{ width: scaleFont(44) }} />
                 </View>
 
@@ -126,47 +180,51 @@ export default function TransactionHistoryScreen() {
                         {history.length === 0 ? (
                             <View style={styles.emptyState}>
                                 <View style={styles.emptyIconCircle}>
-                                    <Ionicons name="receipt-outline" size={scaleFont(32)} color="#94A3B8" />
+                                    <Ionicons name="time-outline" size={scaleFont(32)} color="#94A3B8" />
                                 </View>
-                                <Text style={styles.emptyText}>No financial records captured yet.</Text>
+                                <Text style={styles.emptyText}>No activity recorded yet.</Text>
+                                <Text style={styles.emptySubtext}>Complete promises to earn Promise Points!</Text>
                             </View>
                         ) : (
-                            history.map((item, index) => (
-                                <Animated.View
-                                    key={index}
-                                    entering={FadeInDown.delay(index * 50).duration(400)}
-                                    style={styles.historyCard}
-                                >
-                                    <View style={styles.cardTop}>
-                                        <View style={[styles.typeBadge, { backgroundColor: item.type === 'winnings' ? '#ECFDF5' : '#FEF2F2' }]}>
-                                            <Ionicons
-                                                name={item.type === 'winnings' ? 'trending-up' : 'trending-down'}
-                                                size={scaleFont(12)}
-                                                color={item.type === 'winnings' ? '#10B981' : '#EF4444'}
-                                            />
-                                            <Text style={[styles.typeText, { color: item.type === 'winnings' ? '#10B981' : '#EF4444' }]}>
-                                                {item.type.toUpperCase()}
+                            history.map((item, index) => {
+                                const config = getTypeConfig(item.type);
+                                return (
+                                    <Animated.View
+                                        key={index}
+                                        entering={FadeInDown.delay(index * 50).duration(400)}
+                                        style={styles.historyCard}
+                                    >
+                                        <View style={styles.cardTop}>
+                                            <View style={[styles.typeBadge, { backgroundColor: config.bg }]}>
+                                                <Ionicons
+                                                    name={config.icon}
+                                                    size={scaleFont(12)}
+                                                    color={config.color}
+                                                />
+                                                <Text style={[styles.typeText, { color: config.color }]}>
+                                                    {config.label}
+                                                </Text>
+                                            </View>
+                                            <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+                                        </View>
+
+                                        <View style={styles.cardMain}>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.description}>{item.description}</Text>
+                                                {item.promise_title && (
+                                                    <Text style={styles.promiseRef}>Ref: {item.promise_title}</Text>
+                                                )}
+                                            </View>
+                                            <Text style={[
+                                                styles.amount,
+                                                { color: config.color }
+                                            ]}>
+                                                {config.prefix}{formatPoints(item.amount)}
                                             </Text>
                                         </View>
-                                        <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
-                                    </View>
-
-                                    <View style={styles.cardMain}>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.description}>{item.description}</Text>
-                                            {item.promise_title && (
-                                                <Text style={styles.promiseRef}>Ref: {item.promise_title}</Text>
-                                            )}
-                                        </View>
-                                        <Text style={[
-                                            styles.amount,
-                                            { color: item.type === 'winnings' ? '#10B981' : '#1E293B' }
-                                        ]}>
-                                            {item.type === 'winnings' ? '+' : '-'}{formatCurrency(item.amount)}
-                                        </Text>
-                                    </View>
-                                </Animated.View>
-                            ))
+                                    </Animated.View>
+                                );
+                            })
                         )}
                     </ScrollView>
                 )}
@@ -222,8 +280,9 @@ const styles = StyleSheet.create({
     cardMain: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: scaleFont(12) },
     description: { fontSize: scaleFont(15), fontWeight: '700', color: '#1E293B', marginBottom: scaleFont(4), lineHeight: scaleFont(20), fontFamily: 'Outfit_700Bold' },
     promiseRef: { fontSize: scaleFont(12), color: '#6366F1', fontWeight: '600', fontFamily: 'Outfit_700Bold' },
-    amount: { fontSize: scaleFont(18), fontWeight: '900', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
+    amount: { fontSize: scaleFont(16), fontWeight: '900', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
     emptyState: { paddingVertical: scaleFont(100), alignItems: 'center' },
     emptyIconCircle: { width: scaleFont(64), height: scaleFont(64), borderRadius: scaleFont(32), backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', marginBottom: scaleFont(16) },
-    emptyText: { fontSize: scaleFont(14), color: '#94A3B8', fontWeight: '600', fontFamily: 'Outfit_700Bold' }
+    emptyText: { fontSize: scaleFont(14), color: '#94A3B8', fontWeight: '600', fontFamily: 'Outfit_700Bold' },
+    emptySubtext: { fontSize: scaleFont(12), color: '#CBD5E1', fontWeight: '500', marginTop: scaleFont(4), fontFamily: 'Outfit_600SemiBold' },
 });

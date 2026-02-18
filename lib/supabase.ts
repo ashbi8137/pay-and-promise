@@ -41,8 +41,8 @@ export const cleanupOldProofImages = async (): Promise<{ deleted: number; errors
             .not('image_url', 'is', null);
 
         if (fetchError) {
-            console.error('Cleanup: Error fetching old submissions:', fetchError);
-            return { deleted: 0, errors: 1 };
+            console.log('Cleanup: Skipped - could not fetch old submissions:', fetchError.message);
+            return { deleted: 0, errors: 0 };
         }
 
         if (!oldSubmissions || oldSubmissions.length === 0) {

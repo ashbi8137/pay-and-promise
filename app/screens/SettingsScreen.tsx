@@ -67,15 +67,15 @@ export default function SettingsScreen() {
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <Text style={styles.sectionTitle}>General</Text>
 
-                    {/* Payments */}
-                    <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/PaymentsScreen')}>
+                    {/* Promise Points */}
+                    <TouchableOpacity style={styles.row} onPress={() => navigateTo('/(tabs)/ledger')}>
                         <View style={styles.rowLeft}>
                             <View style={[styles.iconContainer, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="card" size={scaleFont(22)} color="#5B2DAD" />
+                                <Ionicons name="diamond" size={scaleFont(22)} color="#5B2DAD" />
                             </View>
                             <View>
-                                <Text style={styles.rowLabel}>Payments</Text>
-                                <Text style={styles.rowSubLabel}>Manage methods and transactions</Text>
+                                <Text style={styles.rowLabel}>Promise Points</Text>
+                                <Text style={styles.rowSubLabel}>View activity log and PP history</Text>
                             </View>
                         </View>
                         <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" />

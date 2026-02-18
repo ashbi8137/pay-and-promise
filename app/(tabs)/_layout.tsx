@@ -78,7 +78,8 @@ export default function TabLayout() {
                         headerShown: false,
                         tabBarShowLabel: false,
                         tabBarActiveTintColor: '#5B2DAD',
-                        tabBarInactiveTintColor: '#94A3B8',
+                        tabBarInactiveTintColor: '#B0B8C8',
+                        animation: 'shift',
                         tabBarStyle: {
                             position: 'absolute',
                             bottom: 24,
@@ -97,7 +98,7 @@ export default function TabLayout() {
                             justifyContent: 'center',
                             alignItems: 'center',
                             height: 72,
-                            paddingTop: 6.5, // Move icons down to visual center
+                            paddingTop: 6.5,
                         },
                         tabBarIconStyle: {
                             width: 48,
@@ -205,7 +206,7 @@ export default function TabLayout() {
                     <Tabs.Screen
                         name="ledger"
                         options={{
-                            title: 'Ledger',
+                            title: 'Activity',
                             tabBarIcon: ({ color, focused }) => (
                                 <View style={{
                                     alignItems: 'center',
@@ -215,7 +216,7 @@ export default function TabLayout() {
                                     borderRadius: 24,
                                     backgroundColor: focused ? 'rgba(79, 70, 229, 0.1)' : 'transparent',
                                 }}>
-                                    <Ionicons name={focused ? "wallet" : "wallet-outline"} size={26} color={color} />
+                                    <Ionicons name={focused ? "time" : "time-outline"} size={26} color={color} />
                                 </View>
                             ),
                         }}

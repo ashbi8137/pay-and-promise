@@ -95,6 +95,20 @@ export default function JoinPromiseScreen() {
                 return;
             }
 
+            // 3. Check user has enough PP to lock
+            const ppRequired = promise.locked_points || 10;
+            const { data: ppData } = await supabase
+                .from('profiles')
+                .select('promise_points')
+                .eq('id', user.id)
+                .single();
+
+            if ((ppData?.promise_points || 0) < ppRequired) {
+                showAlert({ title: 'Not Enough PP', message: `You need ${ppRequired} PP to join but only have ${ppData?.promise_points || 0} PP.`, type: 'warning' });
+                setLoading(false);
+                return;
+            }
+
             // 3. Insert into participants table
             const { error: joinError } = await supabase
                 .from('promise_participants')
@@ -142,6 +156,16 @@ export default function JoinPromiseScreen() {
             }
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Lock PP: deduct from user balance and log in ledger
+            await supabase.rpc('award_promise_points', {
+                p_user_id: user.id,
+                p_promise_id: promise.id,
+                p_points: -(promise.locked_points || 10),
+                p_reason: 'commitment_lock',
+                p_description: `PP locked for: ${promise.title || 'Promise'}`
+            });
+
             showAlert({ title: 'Success', message: 'You have joined the promise!', type: 'success' });
 
             // Navigate home/tabs
@@ -217,8 +241,13 @@ export default function JoinPromiseScreen() {
 
                                 <View style={styles.statsRow}>
                                     <View style={styles.stat}>
-                                        <Text style={styles.statVal}>₹{promise.amount_per_person}</Text>
-                                        <Text style={styles.statLabel}>STAKE</Text>
+                                        <Text style={styles.statVal}>{(promise.commitment_level || 'Medium').charAt(0).toUpperCase() + (promise.commitment_level || 'medium').slice(1)}</Text>
+                                        <Text style={styles.statLabel}>COMMITMENT</Text>
+                                    </View>
+                                    <View style={styles.divider} />
+                                    <View style={styles.stat}>
+                                        <Text style={styles.statVal}>{promise.locked_points || 10}</Text>
+                                        <Text style={styles.statLabel}>PP LOCKED</Text>
                                     </View>
                                     <View style={styles.divider} />
                                     <View style={styles.stat}>

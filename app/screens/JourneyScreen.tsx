@@ -35,10 +35,11 @@ interface JourneyItem {
     duration_days: number;
     status: string;
     days_data: string[];
-    winnings: number;
-    penalties: number;
-    net: number;
-    amount_per_person: number;
+    pp_earned: number;
+    pp_lost: number;
+    pp_net: number;
+    commitment_level: string;
+    locked_points: number;
     failed_days_count: number;
 }
 
@@ -94,12 +95,6 @@ export default function JourneyScreen() {
                 .in('promise_id', promiseIds)
                 .eq('user_id', user.id);
 
-            const { data: ledger } = await supabase
-                .from('ledger')
-                .select('amount, type, promise_id')
-                .eq('user_id', user.id)
-                .in('promise_id', promiseIds);
-
             const processed: JourneyItem[] = promises.map((p: any) => {
                 const pCheckins = checkins?.filter((c: Checkin) => c.promise_id === p.id) || [];
                 const daysData: string[] = [];
@@ -115,26 +110,16 @@ export default function JourneyScreen() {
                     daysData.push('empty');
                 }
 
-                let winnings = 0;
-                let penalties = 0;
-                const pLedger = ledger?.filter((l: { promise_id: string; amount: number; type: string }) => l.promise_id === p.id) || [];
-                pLedger.forEach((l: { promise_id: string; amount: number; type: string }) => {
-                    const amt = Number(l.amount);
-                    if (l.type === 'winnings') winnings += amt;
-                    if (l.type === 'penalty') penalties += Math.abs(amt);
-                    if (l.type === 'refund') penalties -= Math.abs(amt);
-                });
-
+                const lockedPoints = p.locked_points || 10;
+                const commitmentLevel = p.commitment_level || 'medium';
                 const failedDaysCount = daysData.filter(d => d === 'failed').length;
-                const stakePerDay = (p.amount_per_person || 0) / (p.duration_days || 1);
+                const doneDaysCount = daysData.filter(d => d === 'done').length;
 
-                if (penalties === 0 && failedDaysCount > 0) {
-                    penalties = failedDaysCount * stakePerDay;
-                }
-
-                winnings = Math.round(winnings * 100) / 100;
-                penalties = Math.round(penalties * 100) / 100;
-                const net = Math.round((winnings - penalties) * 100) / 100;
+                // Calculate PP based on check-in performance
+                const ppPerDay = lockedPoints / (p.duration_days || 1);
+                const ppEarned = Math.round(doneDaysCount * ppPerDay * 2);
+                const ppLost = Math.round(failedDaysCount * ppPerDay);
+                const ppNet = ppEarned - ppLost;
 
                 return {
                     id: p.id,
@@ -143,10 +128,11 @@ export default function JourneyScreen() {
                     duration_days: p.duration_days,
                     status: p.status,
                     days_data: daysData,
-                    winnings,
-                    penalties,
-                    net,
-                    amount_per_person: p.amount_per_person || 0,
+                    pp_earned: ppEarned,
+                    pp_lost: ppLost,
+                    pp_net: ppNet,
+                    commitment_level: commitmentLevel,
+                    locked_points: lockedPoints,
                     failed_days_count: failedDaysCount
                 };
             });
@@ -161,18 +147,18 @@ export default function JourneyScreen() {
     };
 
     const globalStats = useMemo(() => {
-        let totalNet = 0;
+        let totalPPNet = 0;
         let totalDone = 0;
         let totalFailed = 0;
         history.forEach(item => {
-            totalNet += item.net;
+            totalPPNet += item.pp_net;
             totalDone += item.days_data.filter(d => d === 'done').length;
             totalFailed += item.days_data.filter(d => d === 'failed').length;
         });
         const totalAttempts = totalDone + totalFailed;
         const successRate = totalAttempts > 0 ? Math.round((totalDone / totalAttempts) * 100) : 0;
 
-        return { totalNet, successRate, totalPromises: history.length };
+        return { totalPPNet, successRate, totalPromises: history.length };
     }, [history]);
 
     const formatDate = (dateString: string) => {
@@ -226,8 +212,8 @@ export default function JourneyScreen() {
                                         </View>
                                         <View style={styles.impactDivider} />
                                         <View style={styles.impactItem}>
-                                            <Text style={styles.impactVal}>₹{Math.abs(globalStats.totalNet).toFixed(0)}</Text>
-                                            <Text style={styles.impactSub}>{globalStats.totalNet >= 0 ? 'Gain' : 'Penalty'}</Text>
+                                            <Text style={styles.impactVal}>{globalStats.totalPPNet >= 0 ? '+' : ''}{globalStats.totalPPNet} PP</Text>
+                                            <Text style={styles.impactSub}>{globalStats.totalPPNet >= 0 ? 'Net Gained' : 'Net Lost'}</Text>
                                         </View>
                                         <View style={styles.impactDivider} />
                                         <View style={styles.impactItem}>
@@ -250,7 +236,7 @@ export default function JourneyScreen() {
                                             <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
                                             <View style={styles.lineTrack}>
                                                 <LinearGradient
-                                                    colors={item.net >= 0 ? ['#10B981', '#34D399'] : ['#EF4444', '#F87171']}
+                                                    colors={item.pp_net >= 0 ? ['#10B981', '#34D399'] : ['#EF4444', '#F87171']}
                                                     style={styles.lineNode}
                                                 />
                                                 {index !== history.length - 1 && <View style={styles.lineConnector} />}
@@ -307,8 +293,8 @@ export default function JourneyScreen() {
                                                     </View>
                                                     <View style={styles.statBox}>
                                                         <Text style={styles.statLabel}>OUTCOME</Text>
-                                                        <Text style={[styles.statValue, { color: item.net >= 0 ? '#10B981' : '#EF4444' }]}>
-                                                            {item.net >= 0 ? '+' : '-'}₹{Math.abs(item.net).toFixed(0)}
+                                                        <Text style={[styles.statValue, { color: item.pp_net >= 0 ? '#10B981' : '#EF4444' }]}>
+                                                            {item.pp_net >= 0 ? '+' : ''}{item.pp_net} PP
                                                         </Text>
                                                     </View>
                                                     <View style={styles.statBox}>

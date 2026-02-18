@@ -31,7 +31,7 @@ const COACH_MARKS = [
         id: 'join',
         text: 'Join a promise using a code shared by friends.',
         // Join Promise card is around top third (~35% from top)
-        top: SCREEN_HEIGHT * 0.57,
+        top: SCREEN_HEIGHT * 0.615,
         horizontalAlign: 'center',
         arrowDirection: 'up',
         arrowOffset: scaleFont(-200),
@@ -40,7 +40,7 @@ const COACH_MARKS = [
         id: 'tabs',
         text: 'View your active promises and past history here.',
         // Active/History tabs are around mid screen (~50%)
-        top: SCREEN_HEIGHT * 0.67,
+        top: SCREEN_HEIGHT * 0.75,
         horizontalAlign: 'center',
         arrowDirection: 'up',
         arrowOffset: scaleFont(-200),
@@ -56,7 +56,7 @@ const COACH_MARKS = [
     },
     {
         id: 'ledger',
-        text: 'Check payments and settlements here.',
+        text: 'Check your Promise Points balance.',
         // Ledger icon is 2nd from right in navbar
         bottom: scaleFont(110),
         right: scaleFont(20),
@@ -65,7 +65,7 @@ const COACH_MARKS = [
     },
     {
         id: 'profile',
-        text: 'Manage your profile and settings here.',
+        text: 'View your Promise Points and Level.',
         // Profile icon is rightmost
         bottom: scaleFont(110),
         right: scaleFont(10),

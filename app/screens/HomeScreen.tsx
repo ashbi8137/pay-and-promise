@@ -19,6 +19,7 @@ import Animated, { Easing, FadeInDown, useAnimatedStyle, useSharedValue, withRep
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GridOverlay } from '../../components/LuxuryVisuals';
 import WalkthroughOverlay from '../../components/WalkthroughOverlay';
+import WelcomeBonusModal from '../../components/WelcomeBonusModal';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
@@ -106,16 +107,23 @@ export default function HomeScreen() {
         await AsyncStorage.setItem(HAS_SEEN_TOOLTIP_KEY, 'true');
     };
 
+    const [showWelcomeBonus, setShowWelcomeBonus] = useState(false);
+
     const handleTutorialComplete = async () => {
         setShouldShowTutorial(false);
         try {
             await supabase.auth.updateUser({
                 data: { has_seen_tutorial: true }
             });
+            // Show celebration after tutorial
+            setTimeout(() => {
+                setShowWelcomeBonus(true);
+            }, 500);
         } catch (e) {
             console.log('Error updating tutorial flag:', e);
         }
     };
+
 
     const startPulse = () => {
         RNAnimated.loop(
@@ -684,6 +692,11 @@ export default function HomeScreen() {
             <WalkthroughOverlay
                 initialVisible={shouldShowTutorial}
                 onComplete={handleTutorialComplete}
+            />
+            {/* Celebration Modal */}
+            <WelcomeBonusModal
+                visible={showWelcomeBonus}
+                onClose={() => setShowWelcomeBonus(false)}
             />
         </View>
     );

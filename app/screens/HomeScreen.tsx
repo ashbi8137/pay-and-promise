@@ -523,42 +523,6 @@ export default function HomeScreen() {
                         </LinearGradient>
                     </Animated.View>
 
-                    {/* Congratulations Banner for Recently Completed Promises */}
-                    {/* {recentlyCompleted.length > 0 && (
-                        <Animated.View entering={FadeInDown.delay(150).springify()}>
-                            {recentlyCompleted.map(promise => (
-                                <TouchableOpacity
-                                    key={`congrats-${promise.id}`}
-                                    style={[styles.congratsBanner, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-                                    onPress={() => router.push({
-                                        pathname: '/screens/PromiseReportScreen',
-                                        params: { promiseId: promise.id }
-                                    })}
-                                    activeOpacity={0.8}
-                                >
-                                    <View style={styles.congratsContent}>
-                                        <Text style={styles.congratsEmoji}>🎉</Text>
-                                        <View style={styles.congratsTextContainer}>
-                                            <Text style={styles.congratsTitle}>Congratulations!</Text>
-                                            <Text style={styles.congratsSubtitle} numberOfLines={1}>
-                                                You have successfully completed "{promise.title}"
-                                            </Text>
-                                        </View>
-                                    </View>
-                                    <View style={styles.congratsArrow}>
-                                        <Text style={styles.congratsLink}>View report</Text>
-                                        <Ionicons name="arrow-forward" size={16} color="#059669" />
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </Animated.View>
-                    )} */}
-
-                    {/* ACTION SURFACE REMOVED - Replaced by FAB */}
-
-                    {/* STATS ROW (If Data Exists) */}
-
-
                     {/* Promise List Section with "Editorial" Tabs */}
                     <View style={styles.promiseListSection}>
 
@@ -604,9 +568,8 @@ export default function HomeScreen() {
                                 activePromises.map(item => renderCard(item, false))
                             ) : (
                                 <View style={[styles.emptyStateContainer]}>
-                                    <Text style={[styles.emptyStateTitleLuxury, { color: theme.text }]}>No active promises</Text>
                                     <Text style={[styles.emptyStateTextLuxury, { color: theme.icon }]}>
-                                        Integrity is chosen, not given.
+                                        No active promises
                                     </Text>
                                 </View>
                             )

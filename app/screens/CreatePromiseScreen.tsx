@@ -234,6 +234,14 @@ export default function CreatePromiseScreen() {
             <Text style={styles.wizardSubtitle}>STEP 2</Text>
             <Text style={styles.wizardTitle}>Set your commitment</Text>
 
+            {/* Teaching Message */}
+            <View style={styles.teachingMessageContainer}>
+                <Ionicons name="information-circle" size={scaleFont(18)} color="#64748B" />
+                <Text style={styles.teachingMessageText}>
+                    Selected PP will be deducted from your balance and from all friends who join this promise.
+                </Text>
+            </View>
+
             {/* PP Balance */}
             {userPP !== null && (
                 <View style={styles.ppBalanceCard}>
@@ -553,4 +561,21 @@ const styles = StyleSheet.create({
     codeValue: { fontSize: scaleFont(52), fontWeight: '900', color: '#5B2DAD', letterSpacing: scaleFont(6), marginBottom: scaleFont(28), fontFamily: 'Outfit_800ExtraBold' },
     copyBtn: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(10), backgroundColor: '#F5F3FF', paddingHorizontal: scaleFont(24), paddingVertical: scaleFont(14), borderRadius: scaleFont(16) },
     copyBtnText: { color: '#5B2DAD', fontWeight: '800', fontSize: scaleFont(15), fontFamily: 'Outfit_800ExtraBold' },
+    // TEACHING MESSAGE
+    teachingMessageContainer: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: scaleFont(10),
+        backgroundColor: '#F1F5F9', // Subtle grey
+        padding: scaleFont(16),
+        borderRadius: scaleFont(16),
+        marginBottom: scaleFont(24),
+    },
+    teachingMessageText: {
+        flex: 1,
+        fontSize: scaleFont(13),
+        color: '#64748B',
+        fontFamily: 'Outfit_400Regular',
+        lineHeight: scaleFont(18),
+    },
 });

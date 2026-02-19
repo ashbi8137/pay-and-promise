@@ -299,23 +299,6 @@ export default function ProfileScreen() {
                     <Animated.View entering={FadeInDown.delay(300).duration(500)} style={styles.section}>
                         <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
                         <View style={styles.actionsCard}>
-                            <TouchableOpacity style={styles.actionRow} onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                router.push('/screens/TransactionHistoryScreen');
-                            }}>
-                                <View style={styles.actionLeft}>
-                                    <View style={[styles.actionIconBg, { backgroundColor: '#F0EBFF' }]}>
-                                        <Ionicons name="receipt-outline" size={20} color="#5B2DAD" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.actionLabel}>Activity Log</Text>
-                                        <Text style={styles.actionDesc}>View your PP history</Text>
-                                    </View>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                            </TouchableOpacity>
-
-                            <View style={styles.actionDivider} />
 
                             <TouchableOpacity style={styles.actionRow} onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -328,6 +311,24 @@ export default function ProfileScreen() {
                                     <View>
                                         <Text style={styles.actionLabel}>Leaderboard</Text>
                                         <Text style={styles.actionDesc}>See top performers</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
+                            </TouchableOpacity>
+
+                            <View style={styles.actionDivider} />
+
+                            <TouchableOpacity style={styles.actionRow} onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.push('/screens/TransactionHistoryScreen');
+                            }}>
+                                <View style={styles.actionLeft}>
+                                    <View style={[styles.actionIconBg, { backgroundColor: '#F0EBFF' }]}>
+                                        <Ionicons name="receipt-outline" size={20} color="#5B2DAD" />
+                                    </View>
+                                    <View>
+                                        <Text style={styles.actionLabel}>Activity Log</Text>
+                                        <Text style={styles.actionDesc}>View your PP history</Text>
                                     </View>
                                 </View>
                                 <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />

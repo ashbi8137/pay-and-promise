@@ -5,15 +5,13 @@ import { Tabs, useRouter, useSegments } from 'expo-router';
 import { useRef } from 'react';
 import { Dimensions, TouchableOpacity, useColorScheme, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
 
 const { width } = Dimensions.get('window');
 
-// Custom Background Component (Standard View to avoid native crashes)
-// Custom Background Component
 // Custom Background Component
 const TabBackground = ({ colorScheme }: { colorScheme: 'light' | 'dark' }) => {
     const theme = Colors[colorScheme];
@@ -24,7 +22,7 @@ const TabBackground = ({ colorScheme }: { colorScheme: 'light' | 'dark' }) => {
             left: 0,
             right: 0,
             height: 72,
-            backgroundColor: 'rgba(255, 255, 255, 0.95)', // Slightly more opaque for better legibility
+            backgroundColor: 'rgba(255, 255, 255, 0.95)',
             borderRadius: 36,
             borderWidth: 1,
             borderColor: 'rgba(255, 255, 255, 0.5)',
@@ -34,6 +32,71 @@ const TabBackground = ({ colorScheme }: { colorScheme: 'light' | 'dark' }) => {
             shadowRadius: 15,
             elevation: 10,
         }} />
+    );
+};
+
+const TabBarFab = ({ onPress }: { onPress: () => void }) => {
+    const scale = useSharedValue(1);
+
+    const animatedStyle = useAnimatedStyle(() => {
+        return {
+            transform: [{ scale: scale.value }],
+        };
+    });
+
+    const handlePressIn = () => {
+        scale.value = withSpring(0.9, { damping: 10, stiffness: 300 });
+    };
+
+    const handlePressOut = () => {
+        scale.value = withSpring(1, { damping: 10, stiffness: 300 });
+    };
+
+    return (
+        <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onPress();
+            }}
+            onPressIn={handlePressIn}
+            onPressOut={handlePressOut}
+            style={{
+                top: -30, // Adjusted for larger size
+                justifyContent: 'center',
+                alignItems: 'center',
+            }}
+        >
+            <Animated.View style={[
+                animatedStyle,
+                {
+                    width: 74,
+                    height: 74,
+                    borderRadius: 37,
+                    shadowColor: '#5B2DAD',
+                    shadowOffset: { width: 0, height: 10 },
+                    shadowOpacity: 0.5,
+                    shadowRadius: 20,
+                    elevation: 20,
+                }
+            ]}>
+                <LinearGradient
+                    colors={['#5B2DAD', '#7C3AED']}
+                    style={{
+                        flex: 1,
+                        borderRadius: 37,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        borderWidth: 2,
+                        borderColor: 'rgba(255,255,255,0.4)', // Slightly stronger border
+                    }}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                >
+                    <Ionicons name="add" size={38} color="#FFFFFF" />
+                </LinearGradient>
+            </Animated.View>
+        </TouchableOpacity>
     );
 };
 
@@ -155,51 +218,9 @@ export default function TabLayout() {
                         name="create"
                         options={{
                             title: 'Create',
-                            tabBarButton: (props) => {
-                                const { delayLongPress, ...otherProps } = props as any;
-                                return (
-                                    <TouchableOpacity
-                                        {...otherProps}
-                                        style={[
-                                            otherProps.style,
-                                            {
-                                                top: -24, // Adjusted to match the newly centered icons
-                                                justifyContent: 'center',
-                                                alignItems: 'center',
-                                            }
-                                        ]}
-                                        onPress={() => router.push('/(tabs)/create')}
-                                        activeOpacity={0.8}
-                                    >
-                                        <View style={{
-                                            width: 68,
-                                            height: 68,
-                                            borderRadius: 34,
-                                            shadowColor: '#5B2DAD',
-                                            shadowOffset: { width: 0, height: 12 },
-                                            shadowOpacity: 0.4,
-                                            shadowRadius: 18,
-                                            elevation: 15,
-                                        }}>
-                                            <LinearGradient
-                                                colors={['#5B2DAD', '#7C3AED']}
-                                                style={{
-                                                    flex: 1,
-                                                    borderRadius: 34,
-                                                    justifyContent: 'center',
-                                                    alignItems: 'center',
-                                                    borderWidth: 2,
-                                                    borderColor: 'rgba(255,255,255,0.3)',
-                                                }}
-                                                start={{ x: 0, y: 0 }}
-                                                end={{ x: 1, y: 1 }}
-                                            >
-                                                <Ionicons name="add" size={36} color="#FFFFFF" />
-                                            </LinearGradient>
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            },
+                            tabBarButton: (props) => (
+                                <TabBarFab onPress={() => router.push('/(tabs)/create')} />
+                            ),
                         }}
                     />
 

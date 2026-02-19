@@ -1,110 +1,120 @@
-# Pay & Promise - Project Documentation
+# Pay & Promise: The Integrity Protocol — Project Documentation
 
-**Tagline:** Where Discipline Begins  
-**Version:** 1.0.0  
-**Stack:** React Native (Expo), TypeScript, Supabase
+**Tagline:** Promises Kept. Trust Earned.
+**Version:** 1.0.3 (Release)
+**Stack:** React Native (Expo SDK 52), TypeScript, Supabase, PostgreSQL
 
 ---
 
-## 1. Project Overview
+## 1. Project Overview & Core Idea
 
-**Pay & Promise** is a high-stakes accountability application designed to help users build habits through financial incentives and social pressure. The core concept is simple: users make a "Promise" (a goal), stake money on it, and invite peers to join. If a user fails to complete their daily tasks, they forfeit their stake to the peers who succeeded.
+**Pay & Promise** has evolved from a financial stakes app into a **Social Accountability Protocol** centered on **Integrity**. The core currency is no longer money, but **Promise Points (PP)**.
 
-The app features a "Luxury" design aesthetic, emphasizing discipline and premium user experience with smooth animations, gradients, and haptic feedback.
+### The Mission
+To gamify discipline and build personal integrity through social verification. Users stake their reputation (PP) on their goals. Success earns trust and levels; failure costs points and status.
+
+### The Economy (Promise Points)
+*   **Starting Balance:** Every user starts with **100 PP** (Welcome Bonus).
+*   **Daily Login:** Earn small amounts for consistency.
+*   **Staking:** To make a Promise, you must stake PP (e.g., 50 PP).
+*   **The Wager:**
+    *   **Success:** You get your Stake back + Bonus PP + Integrity Score increase.
+    *   **Failure:** You lose your Stake. Integrity Score drops.
+*   **Levels:** Accumulating PP unlocks new Levels (e.g., Novice, Keeper, Guardian).
 
 ---
 
 ## 2. Technical Architecture
 
-### Frontend
-*   **Framework:** React Native with **Expo SDK 52**.
-*   **Language:** TypeScript.
-*   **Navigation:** `expo-router` for file-based routing.
-*   **Styling:** Custom "Luxury" design system using `StyleSheet`, `expo-linear-gradient`, and `react-native-reanimated` for complex animations.
-*   **Fonts:** Google Fonts "Outfit" (Light, Regular, Bold, ExtraBold).
-*   **State Management:** React Context (AlertContext) and local state with extensive usage of Supabase real-time data fetching.
+### Frontend (Mobile App)
+*   **Framework:** React Native with **Expo Router** (File-based routing).
+*   **Language:** TypeScript (Strict typing for robustness).
+*   **Design System:**
+    *   **"Luxury Glassmorphism":** Deep purple gradients (`#3B0E8A` to `#7C3AED`), glass-like cards with translucent borders, and white text.
+    *   **Animations:** Powered by `react-native-reanimated` (FadeIn, Layout Transitions, Pulse effects).
+    *   **Fonts:** "Outfit" (Google Font) for a modern, clean look.
+*   **State Management:** React Context (`AlertContext`) + Local State + Supabase Real-time subscriptions.
 
 ### Backend (Supabase)
 *   **Database:** PostgreSQL.
-*   **Authentication:** Google OAuth via Supabase Auth.
-*   **Storage:** Supabase Storage buckets (e.g., `proofs`) for user-uploaded verification images.
-*   **Logic:** Heavily relies on PostgreSQL Row Level Security (RLS) and custom RPC (Remote Procedure Calls) for complex logic like stats calculation and settlement distribution.
+*   **Auth:** Google OAuth (managed by Supabase Auth).
+*   **Logic:**
+    *   **PostgreSQL Functions (RPC):** Complex logic like "Calculate PP", "Distribute Rewards", and "Reset Data" lives in SQL functions for security and atomicity.
+    *   **Row Level Security (RLS):** Ensures users can only see their own data or promises they are part of.
+    *   **Real-time:** The app subscribes to database changes (e.g., new checks, status updates) to update the UI instantly.
 
 ---
 
-## 3. Core Features & User Flow
+## 3. Project Structure
 
-### 3.1. Onboarding & Authentication
-*   **Landing Experience:** A cinematically animated landing screen introduces the "Protocol" and "Discipline" concepts.
-*   **Google Sign-In:** The app uses a strictly Google-only authentication flow for simplicity and security.
-*   **Profile Creation:** User profiles (Name, Email) are automatically synchronized from Google metadata upon first login.
+The project follows a standard Expo Router structure, organized for scalability.
 
-### 3.2. Promise Ecosystem
-The central feature of the app.
-*   **Create Promise:** Users define a Title (Goal), Duration (in days), and Stake Amount (₹).
-*   **Lobby/Join:** Creating a promise opens a lobby. Other users can join via invite codes or deep links.
-*   **The Stake:** Money is logically "staked" at the beginning (tracked in a ledger).
-
-### 3.3. Verification System
-*   **Daily Action:** Participants must verify their adherence to the promise daily.
-*   **Proof Upload:** Users upload photo evidence of their habit completion.
-*   **Peer Verification:** Other participants in the promise group review and verify these proofs.
-*   **Strict Verification:** The system enforces cut-off times (e.g., midnight).
-
-### 3.4. The Financial Engine (Ledger & Settlements)
-*   **Internal Ledger:** A database table (`ledger`) records all potential winnings (credits) and penalties (debits) throughout the promise duration.
-*   **Settlement Algorithm:**
-    *   At the end of a promise cycle, the app calculates the "Net Result" for each user.
-    *   **Winners** (Positive Net) and **Losers** (Negative Net) are matched.
-    *   **Settlement Generation:** The system generates specific "Pay To" instructions (e.g., "User A needs to pay ₹500 to User B").
-*   **The Wash Rule:** Ideally, if *everyone* in a group fails, the house doesn't take the money. Instead, the "Wash Rule" triggers, refunding penalties so that no one profits from collective failure.
-
-### 3.5. Payments & Wallet
-*   **Manual UPI Settlement:** Currently, the app facilitates Peer-to-Peer (P2P) payments via UPI (Unified Payments Interface).
-    *   The app displays the recipient's UPI ID.
-    *   The payer copies the ID, pays via their preferred app (GPay, PhonePe), and clicks "Mark as Paid".
-    *   The receiver gets a notification/prompt to "Confirm" receipt.
-*   **Transaction History:** A dedicated screen tracks all past settlements, payments made, and earnings received.
-
-### 3.6. Gamification
-*   **Journey:** A visual timeline showing the user's streak and history of promises.
-*   **Scoreboard:** A leaderboard ranking users based on their reliability score (integrity) and total earnings.
-*   **Badges/Status:** Visual indicators (Success/Failure tags) on promises.
+*   **`app/`**: The core application logic.
+    *   `_layout.tsx`: Root layout (Providers, Theme, Auth check).
+    *   `(tabs)/`: Main navigation tabs.
+        *   `index.tsx`: **Home Dashboard** (Stats, Active Promises, Daily Overview).
+        *   `create.tsx`: **Create Promise** implementation.
+        *   `activity.tsx`: **Feed/History** (Social updates).
+        *   `ledger.tsx`: **Wallet** (PP History).
+        *   `profile.tsx`: **User Profile** (Level, Stats).
+    *   `screens/`: specific feature screens (Landing, Auth, PromiseDetails, Report, etc.).
+*   **`components/`**: Reusable UI blocks.
+    *   `LuxuryVisuals.tsx`: Gradients, Backgrounds, Glass Cards.
+    *   `WalkthroughOverlay.tsx`: The "Teaching Mode" tutorial.
+    *   `WelcomeBonusModal.tsx`: The celebration modal for new users.
+*   **`sql/`**: **Critical Backend Logic.** Contains migration scripts (numbered `00_` to `36_`) defining tables, RPCs, and RLS policies.
+*   **`assets/`**: Images, Icons, Fonts.
+*   **`utils/`**: Helper functions (Layout scaling, Date formatting).
 
 ---
 
-## 4. Folder Structure Map
+## 4. Key Workflows (The "Flow")
 
-*   **`app/`**: Main application code (Expo Router structure).
-    *   `_layout.tsx`: Root provider setup (Auth checks, Theme).
-    *   **(tabs)/`: Bottom tab navigator logic.
-        *   `index.tsx`: Home Dashboard.
-        *   `create.tsx`: Create Promise flow.
-        *   `activity.tsx`: Journey/History.
-        *   `ledger.tsx`: Financial history.
-        *   `profile.tsx`: User settings.
-    *   `screens/`: Individual feature screens (Auth, PromiseDetails, Report, etc.).
-*   **`components/`**: Reusable UI components (`LuxuryVisuals`, `GridOverlay`, etc.).
-*   **`lib/`**: External services configuration (`supabase.ts`).
-*   **`hooks/`**: Custom React hooks.
-*   **`assets/`**: Images, icons, and fonts.
-*   **`app.json`**: Expo configuration.
+### 4.1. Onboarding & "Teaching Mode"
+1.  **Landing:** User sees 3 simple slides: "Make a Promise", "Friends Verify", "Build Trust".
+2.  **Auth:** User signs in with Google.
+3.  **Tutorial:** `WalkthroughOverlay` highlights key UI elements (Create, Ledger, Profile).
+4.  **Welcome Bonus:** Upon finishing the tutorial, `WelcomeBonusModal` appears, awarding **100 PP**.
 
----
+### 4.2. Creating a Promise (The "Contract")
+1.  **Define:** User sets a Title (e.g., "Gym at 6AM"), Duration (7 Days), and invites friends.
+2.  **Stake:** User must pledge **Promise Points** to activate the contract.
+3.  **Invite:** A unique code is generated to share with friends.
 
-## 5. Implementation History (Key Milestones)
+### 4.3. Daily Action & Verification
+1.  **Check-in:** Every day, the user must "Check In".
+2.  **Proof:** User uploads a photo (e.g., Gym selfie).
+3.  **Social Validation:** Friends (Validators) receive a notification/feed item. They verify the proof.
+    *   **Valid:** Streak continues.
+    *   **Invalid:** Streak breaks (potential penalty).
 
-1.  **Foundation:** Setup of Expo + Supabase + TypeScript.
-2.  **Auth Integration:** Implemented Google OAuth and secured RLS policies.
-3.  **Promise Logic:** Built the database schema for promises, participants, and submissions.
-4.  **Verification Flow:** Created the image upload and peer verification UI.
-5.  **Financial Logic:** Developed the `ledger` system and `settlement` algorithm (including the "Wash Rule" logic).
-6.  **Refinement:** "Luxury" UI overhaul, adding animations, gradients, and ensuring responsiveness.
-7.  **Release Prep:** configuration for APK builds, splash screen customization, and icon generation.
+### 4.4. Scoring & Leveling
+*   **Integrity Score:** A calculated metric (0-100%) based on consistency.
+*   **Leaderboard:** Users are ranked globally or mostly among friends based on PP and Integrity.
 
 ---
 
-## 6. Future Roadmap (implied from code)
-*   Direct constraints for "Strict Verification".
-*   Enhanced "Multiplayer" features.
-*   In-app payment gateway integration (replacing manual UPI).
+## 5. Major Features
+
+| Feature | Description | Status |
+| :--- | :--- | :--- |
+| **Glass UI** | Premium, dark-themed UI with blur effects and gradients. | ✅ Implemented |
+| **Promise Points** | Virtual currency replacing money. Earned by integrity. | ✅ Implemented |
+| **Social Feed** | Real-time updates of friends' progress. | ✅ Implemented |
+| **Teaching Mode** | Interactive overlay tutorial for new users. | ✅ Implemented |
+| **Charts/Stats** | Visual graphs of PP growth and consistency. | ✅ Implemented |
+| **Notifications** | Alerts for check-ins and validations. | 🚧 In Progress |
+
+---
+
+## 6. How to Run & Build
+
+### Development
+1.  `npm install` - Install dependencies.
+2.  `npx expo start` - Run local server.
+3.  **Supabase:** Ensure local/remote Supabase instance is linked and SQL migrations (`sql/`) are applied.
+
+### Release Build (Android)
+1.  Update version in `app.json`.
+2.  Run: `cd android && ./gradlew assembleRelease`
+3.  APK Location: `android/app/build/outputs/apk/release/app-release.apk`

@@ -24,6 +24,7 @@ import { GridOverlay } from '../../components/LuxuryVisuals';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { getLocalTodayDate } from '../../utils/dateUtils';
 import { scaleFont } from '../../utils/layout';
 
 const { width } = Dimensions.get('window');
@@ -152,7 +153,7 @@ export default function PromiseDetailScreen() {
         if (!user) return;
         setUserId(user.id);
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = getLocalTodayDate();
 
         const { data: subs } = await supabase
             .from('promise_submissions')
@@ -196,7 +197,7 @@ export default function PromiseDetailScreen() {
             if (error) throw error;
 
             setMyVotes(prev => [...prev, submissionId]);
-            const dateStr = new Date().toISOString().split('T')[0];
+            const dateStr = getLocalTodayDate();
             await supabase.rpc('check_and_finalize_verification', {
                 p_promise_id: promiseData.id,
                 p_date: dateStr
@@ -365,7 +366,7 @@ export default function PromiseDetailScreen() {
                 //     await supabase.from('promises').update({ status: 'completed' }).eq('id', promiseData.id).eq('status', 'active');
                 // }
 
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = getLocalTodayDate();
                 const todayEntry = mappedCheckins.find(c => c.date === todayStr);
                 if (todayEntry) {
                     if (todayEntry.status === 'done' || todayEntry.status === 'failed') {
@@ -432,7 +433,7 @@ export default function PromiseDetailScreen() {
 
                 const { data: { publicUrl } } = supabase.storage.from('proofs').getPublicUrl(fileName);
                 console.log('[Debug] New Image URL:', publicUrl);
-                const dateStr = new Date().toISOString().split('T')[0];
+                const dateStr = getLocalTodayDate();
 
                 // 2. CHECK / UPSERT SUBMISSION
                 // We want to handle "pending" submissions too - allowing REPLACEMENT
@@ -535,7 +536,7 @@ export default function PromiseDetailScreen() {
                             const { data: { user } } = await supabase.auth.getUser();
                             if (!user) return;
 
-                            const dateStr = new Date().toISOString().split('T')[0];
+                            const dateStr = getLocalTodayDate();
 
                             // Insert daily_checkin (ignore conflict if already exists)
                             const { error: checkinError } = await supabase.from('daily_checkins').insert({
@@ -625,19 +626,26 @@ export default function PromiseDetailScreen() {
         const totalDuration = duration || 7;
         const days = [];
 
-        // Start Date Logic - Fallback to created_at if actualStartDate not set (though if we are showing map, it should be set)
-        let start = actualStartDate ? new Date(actualStartDate) : (promiseData.created_at ? new Date(promiseData.created_at) : new Date());
+        // Start Date Logic - Fallback to created_at if actualStartDate not set 
+        const startRaw = actualStartDate ? new Date(actualStartDate) : (promiseData.created_at ? new Date(promiseData.created_at) : new Date());
 
-        const today = new Date();
-        const todayStr = today.toISOString().split('T')[0];
-        // Reset time for strictly date comparison
-        const todayNoTime = new Date();
-        todayNoTime.setHours(0, 0, 0, 0);
+        // Normalize to Local Midnight logic (Same as dateUtils)
+        const startLocal = new Date(startRaw.getFullYear(), startRaw.getMonth(), startRaw.getDate());
+
+        const todayLocal = new Date();
+        todayLocal.setHours(0, 0, 0, 0);
+        const todayStr = getLocalTodayDate();
 
         for (let i = 0; i < totalDuration; i++) {
-            const d = new Date(start);
-            d.setDate(start.getDate() + i);
-            const dateStr = d.toISOString().split('T')[0];
+            const d = new Date(startLocal);
+            d.setDate(startLocal.getDate() + i);
+
+            // Format manually to match getLocalTodayDate (YYYY-MM-DD)
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const dayStr = String(d.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${dayStr}`;
+
             const checkin = checkins.find(c => c.date === dateStr);
 
             let status = 'pending';
@@ -646,10 +654,7 @@ export default function PromiseDetailScreen() {
             // RED DAY LOGIC:
             // If this date is strictly before today (in the past) AND status is still 'pending',
             // it means we missed it. Mark clearly as 'failed'.
-            const dTime = new Date(d);
-            dTime.setHours(0, 0, 0, 0);
-
-            if (dTime < todayNoTime && status === 'pending') {
+            if (d < todayLocal && status === 'pending') {
                 status = 'failed';
             }
 
@@ -903,7 +908,7 @@ export default function PromiseDetailScreen() {
                     {/* MEETING ROOM */}
                     <View style={styles.section}>
                         <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Meeting Room</Text>
+                            <Text style={styles.sectionTitle}>Participants</Text>
                             <Text style={styles.sectionSub}>Member Status ({joinedParticipants.length}/{numPeople})</Text>
                         </View>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: scaleFont(12), paddingHorizontal: scaleFont(4) }}>

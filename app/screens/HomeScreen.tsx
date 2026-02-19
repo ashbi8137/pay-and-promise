@@ -453,7 +453,7 @@ export default function HomeScreen() {
                         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4F46E5" colors={['#4F46E5']} />
                     }
                 >
-                    <Animated.View entering={FadeInDown.delay(100).springify()}>
+                    <View>
                         {/* TYPOGRAPHIC HERO HEADER */}
                         <View style={styles.heroHeaderContainer}>
                             <View style={styles.typographyBlock}>
@@ -470,73 +470,25 @@ export default function HomeScreen() {
                                 {/* The String */}
                                 <View style={styles.hangingThread} />
                                 {/* The Tag */}
-                                <Animated.View style={[styles.swingingTag, animatedSwingStyle]}>
+                                <View style={styles.swingingTag}>
                                     <View style={styles.tagHole} />
-                                    <Text style={styles.tagDayNum} allowFontScaling={false}>
-                                        {new Date().getDate().toString().padStart(2, '0')}
+
+                                    <Text style={styles.tagNumber} allowFontScaling={false}>
+                                        {ppStats.balance}
                                     </Text>
-                                    <Text style={styles.tagMonth} allowFontScaling={false}>
-                                        {new Date().toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
-                                    </Text>
-                                </Animated.View>
+                                    <Text style={styles.tagUnit} allowFontScaling={false}>PP</Text>
+
+                                    <View style={styles.tagLevelBadge}>
+                                        <Text style={styles.tagLevelText} allowFontScaling={false}>
+                                            LVL {ppStats.level}
+                                        </Text>
+                                    </View>
+                                </View>
                             </View>
                         </View>
-                    </Animated.View>
+                    </View>
 
-                    {/* PP STATS BANNER */}
-                    <Animated.View entering={FadeInDown.delay(150).springify()}>
-                        <TouchableOpacity
-                            activeOpacity={0.85}
-                            onPress={() => router.push('/(tabs)/profile')}
-                        >
-                            <LinearGradient
-                                colors={['#5B2DAD', '#7C3AED']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 1 }}
-                                style={{
-                                    borderRadius: scaleFont(20),
-                                    padding: scaleFont(18),
-                                    marginBottom: scaleFont(16),
-                                    flexDirection: 'row',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    overflow: 'hidden',
-                                    position: 'relative',
-                                }}
-                            >
-                                {/* Decorative circle */}
-                                <View style={{ position: 'absolute', top: -scaleFont(20), right: -scaleFont(20), width: scaleFont(80), height: scaleFont(80), borderRadius: scaleFont(40), backgroundColor: 'rgba(255,255,255,0.08)' }} />
-
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(12) }}>
-                                    <View style={{ width: scaleFont(42), height: scaleFont(42), borderRadius: scaleFont(21), backgroundColor: 'rgba(255,255,255,0.15)', justifyContent: 'center', alignItems: 'center' }}>
-                                        <Ionicons name="diamond" size={scaleFont(20)} color="#E0D4F5" />
-                                    </View>
-                                    <View>
-                                        <Text style={{ fontSize: scaleFont(22), fontWeight: '900', color: '#FFFFFF', fontFamily: 'Outfit_800ExtraBold' }}>
-                                            {ppStats.balance} PP
-                                        </Text>
-                                        <Text style={{ fontSize: scaleFont(10), color: 'rgba(255,255,255,0.5)', fontFamily: 'Outfit_700Bold', letterSpacing: scaleFont(1) }}>PROMISE POINTS</Text>
-                                    </View>
-                                </View>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(16) }}>
-                                    {ppStats.streak > 0 && (
-                                        <View style={{ alignItems: 'center' }}>
-                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: scaleFont(3) }}>
-                                                <Ionicons name="flame" size={scaleFont(16)} color="#FCA5A5" />
-                                                <Text style={{ fontSize: scaleFont(16), fontWeight: '900', color: '#FCA5A5', fontFamily: 'Outfit_800ExtraBold' }}>{ppStats.streak}</Text>
-                                            </View>
-                                            <Text style={{ fontSize: scaleFont(8), color: 'rgba(255,255,255,0.4)', fontFamily: 'Outfit_700Bold' }}>STREAK</Text>
-                                        </View>
-                                    )}
-                                    <View style={{ alignItems: 'center' }}>
-                                        <Text style={{ fontSize: scaleFont(16), fontWeight: '900', color: '#FDE68A', fontFamily: 'Outfit_800ExtraBold' }}>Lv.{ppStats.level}</Text>
-                                        <Text style={{ fontSize: scaleFont(8), color: 'rgba(255,255,255,0.4)', fontFamily: 'Outfit_700Bold' }}>LEVEL</Text>
-                                    </View>
-                                    <Ionicons name="chevron-forward" size={scaleFont(16)} color="rgba(255,255,255,0.3)" />
-                                </View>
-                            </LinearGradient>
-                        </TouchableOpacity>
-                    </Animated.View>
+                    {/* PP STATS BANNER REMOVED */}
 
                     {/* Hero Action Card */}
                     <Animated.View entering={FadeInDown.delay(200).springify()}>
@@ -696,7 +648,25 @@ export default function HomeScreen() {
             {/* Celebration Modal */}
             <WelcomeBonusModal
                 visible={showWelcomeBonus}
-                onClose={() => setShowWelcomeBonus(false)}
+                onClose={() => {
+                    setShowWelcomeBonus(false);
+                    fetchData(); // Refresh data to show updated points
+                }}
+                onClaim={async () => {
+                    const { error } = await supabase.rpc('claim_signup_bonus');
+                    if (error) {
+                        console.error('Bonus Claim Error:', error);
+                        // Optional: Show alert, but simplest is to just log for now or let sticky retry?
+                        // If it fails, modal closes and they get 0. They might need a retry button?
+                        // For now, assume success or transient error.
+                        showAlert({
+                            title: 'Claim Failed',
+                            message: 'Could not claim bonus. Please check connection.',
+                            type: 'error'
+                        });
+                        throw error;
+                    }
+                }}
             />
         </View>
     );
@@ -721,57 +691,75 @@ const styles = StyleSheet.create({
         alignItems: 'flex-start',
     },
     // SWING DATE TAG
+    // CUSTOM WHITE TAG DESIGN
     hangingContainer: {
         alignItems: 'center',
-        marginRight: scaleFont(28), // Moved toward left (away from edge)
-        marginTop: scaleFont(-60), // Pull up significantly so rope starts off-screen
+        marginRight: scaleFont(24),
+        marginTop: scaleFont(-70), // Pull up higher for the longer chain
+        zIndex: 10,
     },
     hangingThread: {
         width: scaleFont(2),
-        height: scaleFont(100), // Long rope
-        backgroundColor: '#CBD5E1', // Slightly darker thread for visibility
-        marginBottom: scaleFont(-8), // Overlap with tag
+        height: scaleFont(110),
+        backgroundColor: '#CBD5E1', // Light grey thread
+        marginBottom: scaleFont(-12), // Overlap deep into tag
     },
     swingingTag: {
         backgroundColor: '#FFFFFF',
-        width: scaleFont(68), // Bigger
-        paddingVertical: scaleFont(14),
-        borderRadius: scaleFont(14), // Slightly softer
+        width: scaleFont(72),
+        paddingTop: scaleFont(20), // Space for hole
+        paddingBottom: scaleFont(16),
+        borderRadius: scaleFont(16),
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: '#CBD5E1',
         // Shadow for depth
-        shadowColor: '#475569',
-        shadowOffset: { width: 0, height: scaleFont(8) },
+        shadowColor: '#64748B',
+        shadowOffset: { width: 0, height: scaleFont(4) },
         shadowOpacity: 0.15,
-        shadowRadius: scaleFont(10),
-        elevation: scaleFont(6),
+        shadowRadius: scaleFont(8),
+        elevation: scaleFont(5),
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
     },
     tagHole: {
-        width: scaleFont(10), // Bigger hole
+        width: scaleFont(10),
         height: scaleFont(10),
         borderRadius: scaleFont(5),
-        backgroundColor: '#CBD5E1',
+        backgroundColor: '#CBD5E1', // Grey hole
         position: 'absolute',
-        top: scaleFont(8),
+        top: scaleFont(10),
+        alignSelf: 'center',
     },
-    tagDayNum: {
-        fontSize: scaleFont(28), // Bigger number
-        fontWeight: '800',
-        color: '#1E293B',
-        marginTop: scaleFont(8),
-        lineHeight: scaleFont(28),
+    tagNumber: {
+        fontSize: scaleFont(32),
+        fontWeight: '800', // Heavy weight
+        color: '#4C1D95', // Deep Purple
+        lineHeight: scaleFont(34),
         fontFamily: 'Outfit_800ExtraBold',
+        letterSpacing: -1,
+        marginTop: scaleFont(4),
     },
-    tagMonth: {
-        fontSize: scaleFont(12), // Bigger month
-        fontWeight: '700',
-        color: '#64748B',
+    tagUnit: {
+        fontSize: scaleFont(12),
+        fontWeight: '800',
+        color: '#5B21B6', // Slightly lighter purple
+        fontFamily: 'Outfit_800ExtraBold',
+        marginBottom: scaleFont(8),
         textTransform: 'uppercase',
-        marginTop: scaleFont(3),
-        letterSpacing: scaleFont(1),
-        fontFamily: 'Outfit_700Bold',
+    },
+    tagLevelBadge: {
+        backgroundColor: '#FDE68A', // Light Yellow
+        paddingHorizontal: scaleFont(10),
+        paddingVertical: scaleFont(4),
+        borderRadius: scaleFont(6),
+    },
+    tagLevelText: {
+        fontSize: scaleFont(12),
+        fontWeight: '800',
+        color: '#713F12', // Dark Brown/Gold text
+        fontFamily: 'Outfit_800ExtraBold',
+        letterSpacing: scaleFont(0.5),
+        textTransform: 'uppercase',
     },
     typographyBlock: {
         gap: scaleFont(-5),

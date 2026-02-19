@@ -29,9 +29,9 @@ const { width } = Dimensions.get('window');
 
 // PP Commitment Level definitions
 const COMMITMENT_LEVELS = [
-    { id: 'low', label: 'Light', points: 5, earn: 10, icon: 'leaf-outline' as const, color: '#10B981', bgColor: '#ECFDF5', desc: 'Casual commitment' },
-    { id: 'medium', label: 'Steady', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge' },
-    { id: 'high', label: 'Intense', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes' },
+    { id: 'low', label: 'Low', points: 5, earn: 10, icon: 'leaf-outline' as const, color: '#10B981', bgColor: '#ECFDF5', desc: 'Casual commitment' },
+    { id: 'medium', label: 'Medium', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge' },
+    { id: 'high', label: 'High', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes' },
 ];
 
 export default function CreatePromiseScreen() {
@@ -266,23 +266,14 @@ export default function CreatePromiseScreen() {
                             disabled={isDisabled}
                         >
                             <View style={[styles.commitmentIconBox, { backgroundColor: level.bgColor }]}>
-                                <Ionicons name={level.icon} size={scaleFont(28)} color={level.color} />
+                                <Ionicons name={level.icon} size={scaleFont(24)} color={level.color} />
                             </View>
+                            <Text style={[styles.commitmentPoints, { color: level.color }]}>{level.points} PP</Text>
                             <Text style={styles.commitmentLabel}>{level.label}</Text>
-                            <Text style={styles.commitmentDesc}>{level.desc}</Text>
-                            <View style={styles.commitmentStats}>
-                                <View style={styles.commitmentStatRow}>
-                                    <Ionicons name="lock-closed" size={scaleFont(12)} color="#64748B" />
-                                    <Text style={styles.commitmentStatText}>Lock {level.points} PP</Text>
-                                </View>
-                                <View style={styles.commitmentStatRow}>
-                                    <Ionicons name="trending-up" size={scaleFont(12)} color="#10B981" />
-                                    <Text style={[styles.commitmentStatText, { color: '#10B981' }]}>Earn up to {level.earn} PP</Text>
-                                </View>
-                            </View>
+
                             {isSelected && (
                                 <View style={[styles.selectedBadge, { backgroundColor: level.color }]}>
-                                    <Ionicons name="checkmark" size={scaleFont(14)} color="#FFF" />
+                                    <Ionicons name="checkmark" size={scaleFont(10)} color="#FFF" />
                                 </View>
                             )}
                         </TouchableOpacity>
@@ -481,25 +472,28 @@ const styles = StyleSheet.create({
     },
     ppBalanceText: { fontSize: scaleFont(14), fontWeight: '600', color: '#64748B', fontFamily: 'Outfit_700Bold' },
     ppBalanceValue: { color: '#5B2DAD', fontWeight: '800' },
-    commitmentGrid: { gap: scaleFont(16), marginBottom: scaleFont(32) },
+    commitmentGrid: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: scaleFont(32) },
     commitmentCard: {
+        width: '30%',
         backgroundColor: '#FFF',
-        borderRadius: scaleFont(24),
-        padding: scaleFont(20),
+        borderRadius: scaleFont(16),
+        padding: scaleFont(12),
         borderWidth: 1,
         borderColor: '#F1F5F9',
+        alignItems: 'center',
         position: 'relative',
         overflow: 'hidden',
     },
     commitmentIconBox: {
-        width: scaleFont(48),
-        height: scaleFont(48),
-        borderRadius: scaleFont(16),
+        width: scaleFont(40),
+        height: scaleFont(40),
+        borderRadius: scaleFont(20),
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: scaleFont(12),
+        marginBottom: scaleFont(8),
     },
-    commitmentLabel: { fontSize: scaleFont(20), fontWeight: '900', color: '#1E293B', marginBottom: scaleFont(4), fontFamily: 'Outfit_800ExtraBold' },
+    commitmentPoints: { fontSize: scaleFont(15), fontWeight: '900', fontFamily: 'Outfit_800ExtraBold', marginBottom: scaleFont(2) },
+    commitmentLabel: { fontSize: scaleFont(12), fontWeight: '700', color: '#64748B', fontFamily: 'Outfit_700Bold' },
     commitmentDesc: { fontSize: scaleFont(13), color: '#94A3B8', marginBottom: scaleFont(12), fontFamily: 'Outfit_400Regular' },
     commitmentStats: { gap: scaleFont(6) },
     commitmentStatRow: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(6) },

@@ -203,8 +203,8 @@ BEGIN
     -- Losers don't lose extra (PP already locked). Winners claim the unclaimed pool.
     ELSE
         -- Losers' UNCLAIMED daily portions become the redistribution pool
+        -- Fix: Handle remainder distribution so points aren't lost
         v_losers_pool := v_daily_stake * array_length(v_losers, 1);
-        v_winner_share := v_losers_pool / array_length(v_winners, 1);
         
         -- Losers: no extra deduction, just record the miss
         FOREACH v_loser_uuid IN ARRAY v_losers LOOP
@@ -214,16 +214,40 @@ BEGIN
         END LOOP;
         
         -- Winners: get their own daily_stake refunded + split of losers' unclaimed pool
-        FOREACH v_winner_uuid IN ARRAY v_winners LOOP
-            PERFORM award_promise_points(v_winner_uuid, p_promise_id, v_daily_stake, 'daily_success',
-                'Daily success: ' || COALESCE(v_promise_title, 'Promise'));
-            IF v_winner_share > 0 THEN
-                PERFORM award_promise_points(v_winner_uuid, p_promise_id, v_winner_share, 'daily_redistribution',
-                    'Bonus from ' || COALESCE(v_promise_title, 'Promise') || ' (from missed members)');
-            END IF;
-            PERFORM update_streak(v_winner_uuid, true);
-            PERFORM calculate_user_level(v_winner_uuid);
-        END LOOP;
+        DECLARE
+            v_winner_count int;
+            v_base_share int;
+            v_remainder int;
+            v_idx int;
+            v_bonus int;
+        BEGIN
+            v_winner_count := array_length(v_winners, 1);
+            v_base_share := v_losers_pool / v_winner_count;
+            v_remainder := v_losers_pool % v_winner_count;
+            
+            -- We can't easily iterate array with index using FOREACH, so we use a loop 1..N
+            FOR v_idx IN 1..v_winner_count LOOP
+                v_winner_uuid := v_winners[v_idx];
+                
+                -- Refund Daily Stake
+                PERFORM award_promise_points(v_winner_uuid, p_promise_id, v_daily_stake, 'daily_success',
+                    'Daily success: ' || COALESCE(v_promise_title, 'Promise'));
+                
+                -- Calculate Bonus (Base + 1 if lucky to get remainder)
+                v_bonus := v_base_share;
+                IF v_idx <= v_remainder THEN
+                    v_bonus := v_bonus + 1;
+                END IF;
+                
+                IF v_bonus > 0 THEN
+                    PERFORM award_promise_points(v_winner_uuid, p_promise_id, v_bonus, 'daily_redistribution',
+                        'Bonus from ' || COALESCE(v_promise_title, 'Promise') || ' (from missed members)');
+                END IF;
+                
+                PERFORM update_streak(v_winner_uuid, true);
+                PERFORM calculate_user_level(v_winner_uuid);
+            END LOOP;
+        END;
     END IF;
 
     -- F. Check for Promise Completion

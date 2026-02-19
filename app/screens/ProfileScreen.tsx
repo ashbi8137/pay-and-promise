@@ -78,7 +78,10 @@ export default function ProfileScreen() {
                 .eq('id', user.id)
                 .single();
             if (profileData?.avatar_url) {
+                console.log('Profile Loaded - Avatar:', profileData.avatar_url);
                 setAvatarUrl(profileData.avatar_url);
+            } else {
+                console.log('Profile Loaded - No Avatar URL found in DB');
             }
 
             // Fetch PP stats from profiles table
@@ -96,6 +99,8 @@ export default function ProfileScreen() {
                     level: ppData.level || 1,
                 });
             }
+
+            console.log('Profile Loaded - Name:', metadataName || 'Executive Member');
         } catch (error) {
             console.error('Error loading profile:', error);
         } finally {

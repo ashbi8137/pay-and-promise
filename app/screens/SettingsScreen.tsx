@@ -67,19 +67,7 @@ export default function SettingsScreen() {
                 <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                     <Text style={styles.sectionTitle}>General</Text>
 
-                    {/* Promise Points */}
-                    <TouchableOpacity style={styles.row} onPress={() => navigateTo('/(tabs)/ledger')}>
-                        <View style={styles.rowLeft}>
-                            <View style={[styles.iconContainer, { backgroundColor: '#EEF2FF' }]}>
-                                <Ionicons name="diamond" size={scaleFont(22)} color="#5B2DAD" />
-                            </View>
-                            <View>
-                                <Text style={styles.rowLabel}>Promise Points</Text>
-                                <Text style={styles.rowSubLabel}>View activity log and PP history</Text>
-                            </View>
-                        </View>
-                        <Ionicons name="chevron-forward" size={scaleFont(20)} color="#CBD5E1" />
-                    </TouchableOpacity>
+
 
                     {/* Privacy & Security */}
                     <TouchableOpacity style={styles.row} onPress={() => navigateTo('/screens/PrivacySecurityScreen')}>

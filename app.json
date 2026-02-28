@@ -7,7 +7,6 @@
     "icon": "./assets/images/splash.png",
     "scheme": "payandpromise",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -63,6 +62,7 @@
         "expo-build-properties",
         {
           "android": {
+            "newArchEnabled": true,
             "kotlinVersion": "2.1.20"
           }
         }

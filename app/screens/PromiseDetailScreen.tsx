@@ -516,44 +516,61 @@ export default function PromiseDetailScreen() {
             return;
         }
 
-        // Self promise: direct completion without photo
+        // Self promise: confirmation before marking completed
         if (isSelfPromise && status === 'done') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            setUpdating(true);
-            try {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (!user) return;
+            showAlert({
+                title: 'Mark as Completed?',
+                message: 'Confirm that you completed your commitment for today.',
+                type: 'info',
+                buttons: [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Yes, I Did It!',
+                        style: 'default',
+                        onPress: async () => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                            setUpdating(true);
+                            try {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                if (!user) return;
 
-                const dateStr = getLocalTodayDate();
+                                const dateStr = getLocalTodayDate();
 
-                // Insert daily_checkin
-                const { error: checkinError } = await supabase.from('daily_checkins').insert({
-                    promise_id: promiseData.id,
-                    user_id: user.id,
-                    date: dateStr,
-                    status: 'done'
-                });
-                if (checkinError && checkinError.code !== '23505') throw checkinError;
+                                // Insert daily_checkin
+                                const { error: checkinError } = await supabase.from('daily_checkins').insert({
+                                    promise_id: promiseData.id,
+                                    user_id: user.id,
+                                    date: dateStr,
+                                    status: 'done'
+                                });
+                                if (checkinError && checkinError.code !== '23505') throw checkinError;
 
-                // Insert submission as verified directly (no peer review)
-                const { error: subError } = await supabase.from('promise_submissions').upsert({
-                    promise_id: promiseData.id,
-                    user_id: user.id,
-                    date: dateStr,
-                    image_url: 'self_completed',
-                    status: 'verified'
-                }, { onConflict: 'promise_id,user_id,date' });
-                if (subError) throw subError;
+                                // Insert submission as verified directly (no peer review)
+                                const { error: subError } = await supabase.from('promise_submissions').upsert({
+                                    promise_id: promiseData.id,
+                                    user_id: user.id,
+                                    date: dateStr,
+                                    image_url: 'self_completed',
+                                    status: 'verified'
+                                }, { onConflict: 'promise_id,user_id,date' });
+                                if (subError) throw subError;
 
-                setTodayStatus('done');
-                showAlert({ title: "Done!", message: "Great job! Day marked as completed.", type: "success" });
-                fetchCheckins();
-            } catch (e) {
-                console.error(e);
-                showAlert({ title: 'Error', message: 'Could not mark as completed.', type: 'error' });
-            } finally {
-                setUpdating(false);
-            }
+                                // Trigger the verification RPC to evaluate end-of-promise redistribution
+                                await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
+
+                                setTodayStatus('done');
+                                showAlert({ title: "Done!", message: "Great job! Day marked as completed.", type: "success" });
+                                fetchCheckins();
+                            } catch (e) {
+                                console.error(e);
+                                showAlert({ title: 'Error', message: 'Could not mark as completed.', type: 'error' });
+                            } finally {
+                                setUpdating(false);
+                            }
+                        }
+                    }
+                ]
+            });
             return;
         }
 
@@ -562,6 +579,62 @@ export default function PromiseDetailScreen() {
             return;
         }
 
+        // Self promise: failure with confirmation (skip verification RPC)
+        if (isSelfPromise) {
+            showAlert({
+                title: 'Mark as Missed?',
+                message: 'Are you sure? You missed today\'s commitment.',
+                type: 'warning',
+                buttons: [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Confirm',
+                        style: 'destructive',
+                        onPress: async () => {
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                            setUpdating(true);
+                            try {
+                                const { data: { user } } = await supabase.auth.getUser();
+                                if (!user) return;
+
+                                const dateStr = getLocalTodayDate();
+
+                                const { error: checkinError } = await supabase.from('daily_checkins').insert({
+                                    promise_id: promiseData.id,
+                                    user_id: user.id,
+                                    date: dateStr,
+                                    status: 'failed'
+                                });
+                                if (checkinError && checkinError.code !== '23505') throw checkinError;
+
+                                const { error: subError } = await supabase.from('promise_submissions').upsert({
+                                    promise_id: promiseData.id,
+                                    user_id: user.id,
+                                    date: dateStr,
+                                    image_url: 'manual_fail',
+                                    status: 'rejected'
+                                }, { onConflict: 'promise_id,user_id,date' });
+                                if (subError) throw subError;
+
+                                // Trigger the verification RPC to evaluate end-of-promise redistribution
+                                await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
+
+                                setTodayStatus('failed');
+                                fetchCheckins();
+                            } catch (e) {
+                                console.error(e);
+                                showAlert({ title: 'Error', message: 'Could not mark as failed.', type: 'error' });
+                            } finally {
+                                setUpdating(false);
+                            }
+                        }
+                    }
+                ]
+            });
+            return;
+        }
+
+        // Group promise: failure with verification RPC
         showAlert({
             title: 'Mark as Failed?',
             message: `You will lose Promise Points for this day.`,
@@ -590,7 +663,6 @@ export default function PromiseDetailScreen() {
                             if (checkinError && checkinError.code !== '23505') throw checkinError;
 
                             // ALWAYS ensure submission exists (upsert) — even if checkin had a conflict
-                            // This prevents the day from getting stuck when both users mark as failed
                             const { error: subError } = await supabase.from('promise_submissions').upsert({
                                 promise_id: promiseData.id,
                                 user_id: user.id,
@@ -653,7 +725,7 @@ export default function PromiseDetailScreen() {
                     <View style={styles.heroBottom}>
                         <View style={styles.stakePill}>
                             <Text style={styles.stakeLabel}>COMMITMENT</Text>
-                            <Text style={styles.stakeValue}>{commitmentLevel.charAt(0).toUpperCase() + commitmentLevel.slice(1)}</Text>
+                            <Text style={styles.stakeValue}>{commitmentLevel === 'self_fixed' ? 'Personal' : commitmentLevel.charAt(0).toUpperCase() + commitmentLevel.slice(1)}</Text>
                         </View>
                         {!isSelfPromise && invite_code && (
                             <TouchableOpacity style={styles.stakePill} onPress={handleCopyCode}>

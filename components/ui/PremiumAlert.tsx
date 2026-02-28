@@ -91,10 +91,11 @@ const PremiumAlert: React.FC = () => {
                 >
                     <View style={styles.iconContainer}>
                         <View style={[styles.iconBg, { backgroundColor: getIconColor() + '15' }]}>
-                            <Ionicons name={getIcon() as any} size={32} color={getIconColor()} />
+                            <Ionicons name={getIcon() as any} size={36} color={getIconColor()} />
                         </View>
                     </View>
 
+                    <View style={styles.titleAccent} />
                     <Text style={styles.title}>{title}</Text>
                     <Text style={styles.message}>{message}</Text>
 
@@ -163,30 +164,42 @@ const styles = StyleSheet.create({
         elevation: scaleFont(10),
     },
     iconContainer: {
-        marginBottom: scaleFont(16),
+        marginBottom: scaleFont(20),
     },
     iconBg: {
-        width: scaleFont(64),
-        height: scaleFont(64),
-        borderRadius: scaleFont(22),
+        width: scaleFont(72),
+        height: scaleFont(72),
+        borderRadius: scaleFont(36),
         justifyContent: 'center',
         alignItems: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.05)',
+    },
+    titleAccent: {
+        width: scaleFont(30),
+        height: scaleFont(3),
+        backgroundColor: '#E2E8F0',
+        borderRadius: scaleFont(2),
+        marginBottom: scaleFont(12),
     },
     title: {
-        fontSize: scaleFont(20),
+        fontSize: scaleFont(24),
         fontWeight: '900',
         color: '#0F172A',
         textAlign: 'center',
-        marginBottom: scaleFont(8),
+        marginBottom: scaleFont(12),
         letterSpacing: scaleFont(-0.5),
+        fontFamily: 'Outfit_800ExtraBold',
     },
     message: {
         fontSize: scaleFont(15),
         fontWeight: '500',
-        color: '#64748B',
+        color: '#475569', // Slightly darker for better contrast
         textAlign: 'center',
-        lineHeight: scaleFont(22),
-        marginBottom: scaleFont(24),
+        lineHeight: scaleFont(24), // Increased line height for breathability
+        marginBottom: scaleFont(28),
+        fontFamily: 'Outfit_400Regular',
+        paddingHorizontal: scaleFont(10), // Prevent text from hitting edges
     },
     buttonContainer: {
         width: '100%',
@@ -215,6 +228,8 @@ const styles = StyleSheet.create({
     buttonText: {
         fontSize: scaleFont(15),
         fontWeight: '800',
+        fontFamily: 'Outfit_800ExtraBold',
+        letterSpacing: scaleFont(0.5),
     },
     primaryBtnText: {
         color: '#FFFFFF',

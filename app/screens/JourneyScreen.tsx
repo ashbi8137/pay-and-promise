@@ -270,7 +270,7 @@ export default function JourneyScreen() {
                                                     </View>
                                                 </View>
 
-                                                <Text style={styles.sectionLabel}>Carbon Grid Progress</Text>
+                                                <Text style={styles.sectionLabel}>Progress</Text>
                                                 <View style={styles.storyGraph}>
                                                     {item.days_data.map((dayStatus, i) => (
                                                         <View

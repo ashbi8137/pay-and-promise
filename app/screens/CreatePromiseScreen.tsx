@@ -28,11 +28,17 @@ import { scaleFont } from '../../utils/layout';
 const { width } = Dimensions.get('window');
 
 // PP Commitment Level definitions
-const COMMITMENT_LEVELS = [
+const COMMITMENT_LEVELS_GROUP = [
     { id: 'low', label: 'Low', points: 5, earn: 10, icon: 'leaf-outline' as const, color: '#10B981', bgColor: '#ECFDF5', desc: 'Casual commitment' },
-    { id: 'medium', label: 'Medium', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge' },
-    { id: 'high', label: 'High', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes' },
+    { id: 'medium', label: 'Medium', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge', requiresGroupCompleted: 4 },
+    { id: 'high', label: 'High', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes', requiresGroupCompleted: 4 },
 ];
+
+// Self mode: Fixed 2 PP (uses low tier internally but shown as "Self Stake")
+const SELF_PP_COST = 2;
+const SELF_COMMITMENT_LEVEL = { id: 'self_fixed', label: 'Self Stake', points: SELF_PP_COST, earn: 2, icon: 'shield-checkmark-outline' as const, color: '#7C3AED', bgColor: '#F5F3FF', desc: 'Fixed personal stake' };
+
+const MIN_DURATION_DAYS = 3;
 
 export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: string } = {}) {
     const router = useRouter();
@@ -49,10 +55,12 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
     const [title, setTitle] = useState('');
     const [duration, setDuration] = useState('7');
     const [numPeople, setNumPeople] = useState(isSelfMode ? '1' : '2');
-    const [commitmentLevel, setCommitmentLevel] = useState('medium');
+    const [commitmentLevel, setCommitmentLevel] = useState(isSelfMode ? 'self_fixed' : 'low');
     const [category, setCategory] = useState<string | null>(null);
     const [inviteCode, setInviteCode] = useState('');
     const [userPP, setUserPP] = useState<number | null>(null);
+    const [dailyCreatesRemaining, setDailyCreatesRemaining] = useState<number | null>(null);
+    const [groupCompletions, setGroupCompletions] = useState<number>(0);
 
     // Reset state when screen is focused
     useFocusEffect(
@@ -62,10 +70,12 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
             setCategory(null);
             setDuration('7');
             setNumPeople(isSelfMode ? '1' : '2');
-            setCommitmentLevel('medium');
+            setCommitmentLevel(isSelfMode ? 'self_fixed' : 'low');
             setLoading(false);
             fetchUserPP();
-        }, [])
+            fetchDailyLimit();
+            if (!isSelfMode) fetchGroupCompletions();
+        }, [isSelfMode])
     );
 
     useEffect(() => {
@@ -89,7 +99,37 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
         }
     };
 
-    const selectedLevel = COMMITMENT_LEVELS.find(l => l.id === commitmentLevel)!;
+    const fetchDailyLimit = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data, error } = await supabase.rpc('check_daily_create_limit', {
+                p_user_id: user.id,
+                p_mode: isSelfMode ? 'self' : 'group'
+            });
+            if (!error && data !== null) setDailyCreatesRemaining(data);
+        } catch (e) {
+            console.error('Error fetching daily limit:', e);
+        }
+    };
+
+    const fetchGroupCompletions = async () => {
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+            const { data, error } = await supabase.rpc('get_user_group_completions', {
+                p_user_id: user.id
+            });
+            if (!error && data !== null) setGroupCompletions(data);
+        } catch (e) {
+            console.error('Error fetching group completions:', e);
+        }
+    };
+
+    // Use the correct level object based on mode
+    const selectedLevel = isSelfMode
+        ? SELF_COMMITMENT_LEVEL
+        : (COMMITMENT_LEVELS_GROUP.find(l => l.id === commitmentLevel) || COMMITMENT_LEVELS_GROUP[0]);
 
     const handleTemplateSelect = (selectedTitle: string, id: string) => {
         setCategory(id);
@@ -118,8 +158,27 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                 return;
             }
 
+            if (parseInt(duration) < MIN_DURATION_DAYS) {
+                showAlert({ title: 'Minimum Duration', message: `Promises must be at least ${MIN_DURATION_DAYS} days long.`, type: 'warning' });
+                setLoading(false);
+                return;
+            }
+
             if (parseInt(duration) > 30) {
                 showAlert({ title: 'Attention', message: 'Duration must be less than 30 days.', type: 'warning' });
+                setLoading(false);
+                return;
+            }
+
+            // Check daily creation limit
+            if (dailyCreatesRemaining !== null && dailyCreatesRemaining <= 0) {
+                showAlert({
+                    title: 'Daily Limit Reached',
+                    message: isSelfMode
+                        ? 'You can create max 2 self promises per day. Try again tomorrow!'
+                        : 'You can create max 1 group promise per day. Try again tomorrow!',
+                    type: 'warning'
+                });
                 setLoading(false);
                 return;
             }
@@ -173,6 +232,12 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                 p_points: -selectedLevel.points,
                 p_reason: 'commitment_lock',
                 p_description: `PP locked for: ${title}`
+            });
+
+            // Increment daily creation counter
+            await supabase.rpc('increment_daily_create', {
+                p_user_id: user.id,
+                p_mode: isSelfMode ? 'self' : 'group'
             });
 
             setStep(3);
@@ -236,72 +301,130 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
         </Animated.View>
     );
 
-    const renderCommitmentStep = () => (
-        <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
-            <Text style={styles.wizardSubtitle}>STEP 2</Text>
-            <Text style={styles.wizardTitle}>Set your commitment</Text>
+    const renderCommitmentStep = () => {
+        // Self mode: show fixed 2 PP card, no selection needed
+        if (isSelfMode) {
+            return (
+                <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
+                    <Text style={styles.wizardSubtitle}>STEP 2</Text>
+                    <Text style={styles.wizardTitle}>Your Self Stake</Text>
 
-            {/* Teaching Message */}
-            <View style={styles.teachingMessageContainer}>
-                <Ionicons name="information-circle" size={scaleFont(18)} color="#64748B" />
-                <Text style={styles.teachingMessageText}>
-                    Selected PP will be deducted from your balance and from all friends who join this promise.
-                </Text>
-            </View>
 
-            {/* PP Balance */}
-            {userPP !== null && (
-                <View style={styles.ppBalanceCard}>
-                    <Ionicons name="diamond" size={scaleFont(16)} color="#5B2DAD" />
-                    <Text style={styles.ppBalanceText}>Your Balance: <Text style={styles.ppBalanceValue}>{userPP} PP</Text></Text>
-                </View>
-            )}
 
-            {/* Commitment Level Cards */}
-            <View style={styles.commitmentGrid}>
-                {COMMITMENT_LEVELS.map((level) => {
-                    const isSelected = commitmentLevel === level.id;
-                    const isDisabled = userPP !== null && userPP < level.points;
-                    return (
-                        <TouchableOpacity
-                            key={level.id}
-                            style={[
-                                styles.commitmentCard,
-                                isSelected && { borderColor: level.color, borderWidth: 2, backgroundColor: level.bgColor },
-                                isDisabled && { opacity: 0.5 }
-                            ]}
-                            onPress={() => {
-                                if (isDisabled) {
-                                    showAlert({ title: 'Not Enough PP', message: `You need ${level.points} PP for this level.`, type: 'warning' });
-                                    return;
-                                }
-                                setCommitmentLevel(level.id);
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            }}
-                            disabled={isDisabled}
-                        >
-                            <View style={[styles.commitmentIconBox, { backgroundColor: level.bgColor }]}>
-                                <Ionicons name={level.icon} size={scaleFont(24)} color={level.color} />
-                            </View>
-                            <Text style={[styles.commitmentPoints, { color: level.color }]}>{level.points} PP</Text>
-                            <Text style={styles.commitmentLabel}>{level.label}</Text>
+                    {userPP !== null && (
+                        <View style={styles.ppBalanceCard}>
+                            <Ionicons name="diamond" size={scaleFont(16)} color="#5B2DAD" />
+                            <Text style={styles.ppBalanceText}>Your Balance: <Text style={styles.ppBalanceValue}>{userPP} PP</Text></Text>
+                        </View>
+                    )}
 
-                            {isSelected && (
-                                <View style={[styles.selectedBadge, { backgroundColor: level.color }]}>
-                                    <Ionicons name="checkmark" size={scaleFont(10)} color="#FFF" />
-                                </View>
-                            )}
+                    {/* Fixed Self PP Card */}
+                    <View style={[styles.commitmentCard, { borderColor: '#7C3AED', borderWidth: 2, backgroundColor: '#F5F3FF', width: '100%', flexDirection: 'row', gap: scaleFont(12), padding: scaleFont(20), marginBottom: scaleFont(32) }]}>
+                        <View style={[styles.commitmentIconBox, { backgroundColor: '#EDE9FE' }]}>
+                            <Ionicons name="shield-checkmark-outline" size={scaleFont(24)} color="#7C3AED" />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.commitmentPoints, { color: '#7C3AED' }]}>{SELF_PP_COST} PP Locked</Text>
+                            <Text style={styles.commitmentLabel}>Fixed personal stake • Earn up to {SELF_PP_COST} PP back</Text>
+                        </View>
+                        <View style={[styles.selectedBadge, { backgroundColor: '#7C3AED', position: 'relative', top: 0, right: 0 }]}>
+                            <Ionicons name="checkmark" size={scaleFont(10)} color="#FFF" />
+                        </View>
+                    </View>
+
+                    {userPP !== null && userPP < SELF_PP_COST ? (
+                        <View style={[styles.nextBtn, { backgroundColor: '#94A3B8', opacity: 0.6 }]}>
+                            <Text style={styles.nextBtnText}>Not Enough PP</Text>
+                        </View>
+                    ) : (
+                        <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
+                            <Text style={styles.nextBtnText}>Define Terms</Text>
+                            <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
                         </TouchableOpacity>
-                    );
-                })}
-            </View>
+                    )}
+                </Animated.View>
+            );
+        }
 
-            <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
-                <Text style={styles.nextBtnText}>Define Terms</Text>
-                <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
-            </TouchableOpacity>
-        </Animated.View>
-    );
+        // Group mode: show tier cards with lock logic
+        return (
+            <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
+                <Text style={styles.wizardSubtitle}>STEP 2</Text>
+                <Text style={styles.wizardTitle}>Set your commitment</Text>
+
+                <View style={styles.teachingMessageContainer}>
+                    <Ionicons name="information-circle" size={scaleFont(18)} color="#64748B" />
+                    <Text style={styles.teachingMessageText}>
+                        Selected PP will be deducted from your balance and from all friends who join this promise.
+                    </Text>
+                </View>
+
+                {userPP !== null && (
+                    <View style={styles.ppBalanceCard}>
+                        <Ionicons name="diamond" size={scaleFont(16)} color="#5B2DAD" />
+                        <Text style={styles.ppBalanceText}>Your Balance: <Text style={styles.ppBalanceValue}>{userPP} PP</Text></Text>
+                    </View>
+                )}
+
+                <View style={styles.commitmentGrid}>
+                    {COMMITMENT_LEVELS_GROUP.map((level) => {
+                        const isSelected = commitmentLevel === level.id;
+                        const notEnoughPP = userPP !== null && userPP < level.points;
+                        const tierLocked = (level as any).requiresGroupCompleted !== undefined && groupCompletions < (level as any).requiresGroupCompleted;
+                        const isDisabled = notEnoughPP || tierLocked;
+
+                        return (
+                            <TouchableOpacity
+                                key={level.id}
+                                style={[
+                                    styles.commitmentCard,
+                                    isSelected && { borderColor: level.color, borderWidth: 2, backgroundColor: level.bgColor },
+                                    isDisabled && { opacity: 0.45 }
+                                ]}
+                                onPress={() => {
+                                    if (tierLocked) {
+                                        showAlert({
+                                            title: '🔒 Tier Locked',
+                                            message: `Complete ${(level as any).requiresGroupCompleted} group promises to unlock the ${level.label} tier (${level.points} PP). You have completed ${groupCompletions} so far.`,
+                                            type: 'warning'
+                                        });
+                                        return;
+                                    }
+                                    if (notEnoughPP) {
+                                        showAlert({ title: 'Not Enough PP', message: `You need ${level.points} PP for this level.`, type: 'warning' });
+                                        return;
+                                    }
+                                    setCommitmentLevel(level.id);
+                                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                }}
+                            >
+                                <View style={[styles.commitmentIconBox, { backgroundColor: level.bgColor }]}>
+                                    {tierLocked ? (
+                                        <Ionicons name="lock-closed" size={scaleFont(24)} color="#94A3B8" />
+                                    ) : (
+                                        <Ionicons name={level.icon} size={scaleFont(24)} color={level.color} />
+                                    )}
+                                </View>
+                                <Text style={[styles.commitmentPoints, { color: tierLocked ? '#94A3B8' : level.color }]}>{level.points} PP</Text>
+                                <Text style={styles.commitmentLabel}>{tierLocked ? 'Locked' : level.label}</Text>
+
+                                {isSelected && !isDisabled && (
+                                    <View style={[styles.selectedBadge, { backgroundColor: level.color }]}>
+                                        <Ionicons name="checkmark" size={scaleFont(10)} color="#FFF" />
+                                    </View>
+                                )}
+                            </TouchableOpacity>
+                        );
+                    })}
+                </View>
+
+                <TouchableOpacity style={styles.nextBtn} onPress={() => setStep(2)}>
+                    <Text style={styles.nextBtnText}>Define Terms</Text>
+                    <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
+                </TouchableOpacity>
+            </Animated.View>
+        );
+    };
 
     const renderDetailsStep = () => (
         <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
@@ -310,7 +433,7 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
             <View style={styles.detailBox}>
                 <Text style={styles.boxLabel}>DURATION</Text>
                 <View style={styles.chipRow}>
-                    {['1', '7', '14', '21'].map(d => (
+                    {['3', '7', '14', '21'].map(d => (
                         <TouchableOpacity key={d} style={[styles.chip, duration === d && styles.chipActive]} onPress={() => setDuration(d)}>
                             <Text style={[styles.chipText, duration === d && styles.chipTextActive]}>{d} Days</Text>
                         </TouchableOpacity>
@@ -336,16 +459,7 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                 </View>
             )}
 
-            {/* Commitment Summary */}
-            <View style={styles.commitmentSummary}>
-                <View style={[styles.summaryIcon, { backgroundColor: selectedLevel.bgColor }]}>
-                    <Ionicons name={selectedLevel.icon} size={scaleFont(20)} color={selectedLevel.color} />
-                </View>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.summaryLabel}>{selectedLevel.label} Commitment</Text>
-                    <Text style={styles.summaryDetail}>Locking {selectedLevel.points} PP • Earn up to {selectedLevel.earn} PP</Text>
-                </View>
-            </View>
+
 
             <TouchableOpacity style={[styles.nextBtn, { backgroundColor: '#5B2DAD' }]} onPress={handleCreatePromiseReal} disabled={loading}>
                 {loading ? <ActivityIndicator color="#FFF" /> : (

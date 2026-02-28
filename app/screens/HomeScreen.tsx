@@ -60,6 +60,7 @@ export default function HomeScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [ppStats, setPpStats] = useState({ balance: 0, streak: 0, level: 1 });
     const [activeMode, setActiveMode] = useState<'self' | 'group'>('group');
+    const [modeLoaded, setModeLoaded] = useState(false);
 
     // Tooltip & Tutorial State
     const [showTooltip, setShowTooltip] = useState(false);
@@ -73,7 +74,7 @@ export default function HomeScreen() {
     useEffect(() => {
         AsyncStorage.getItem(PROMISE_MODE_KEY).then(mode => {
             if (mode === 'self' || mode === 'group') setActiveMode(mode);
-        }).catch(() => { });
+        }).catch(() => { }).finally(() => setModeLoaded(true));
     }, []);
 
     const handleModeSwitch = async (mode: 'self' | 'group') => {
@@ -159,7 +160,9 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            fetchData(activeMode);
+            if (modeLoaded) {
+                fetchData(activeMode);
+            }
 
             const onBackPress = () => {
                 showAlert({
@@ -185,7 +188,7 @@ export default function HomeScreen() {
             const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
 
             return () => subscription.remove();
-        }, [])
+        }, [activeMode, modeLoaded])
     );
 
 
@@ -199,9 +202,7 @@ export default function HomeScreen() {
 
     const fetchData = async (mode?: 'self' | 'group') => {
         const currentMode = mode || activeMode;
-        // Don't set loading=true here to avoid flashing the empty state/spinner on every focus
-        // Only use strict loading for initial mount if needed, or rely on existing data
-        // setLoading(true); 
+        setLoading(true);
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
@@ -386,9 +387,18 @@ export default function HomeScreen() {
     };
 
     const renderCard = (item: PromiseItem, isHistory: boolean) => {
-        const currentDay = 1; // Logic placeholder - ideally calculate from created_at
-        const totalDays = item.duration_days;
-        const progressPercent = isHistory ? 100 : (currentDay / totalDays) * 100;
+        const startRaw = item.created_at ? new Date(item.created_at) : new Date();
+        const startLocal = new Date(startRaw.getFullYear(), startRaw.getMonth(), startRaw.getDate());
+        const todayLocal = new Date();
+        todayLocal.setHours(0, 0, 0, 0);
+
+        // Calculate days elapsed
+        let daysElapsed = Math.floor((todayLocal.getTime() - startLocal.getTime()) / (1000 * 60 * 60 * 24));
+        if (daysElapsed < 0) daysElapsed = 0;
+
+        const totalDays = item.duration_days || 1;
+        const rawProgress = isHistory ? 100 : (daysElapsed / totalDays) * 100;
+        const progressPercent = Math.min(Math.max(rawProgress, 0), 100);
         const isFailed = item.status === 'failed';
 
         return (
@@ -443,8 +453,15 @@ export default function HomeScreen() {
                                 </View>
                                 <View style={styles.metaItem}>
                                     <View style={[styles.dotSeparator, { backgroundColor: theme.border }]} />
-                                    <Text style={[styles.cardMeta, { color: (item.commitment_level || 'medium') === 'high' ? '#EF4444' : (item.commitment_level || 'medium') === 'low' ? '#10B981' : '#F59E0B' }]}>
-                                        {((item.commitment_level || 'medium').charAt(0).toUpperCase() + (item.commitment_level || 'medium').slice(1))}
+                                    <Text style={[styles.cardMeta, {
+                                        color:
+                                            ((item.promise_type || 'group') === 'self' || item.commitment_level === 'self_fixed') ? '#7C3AED' :
+                                                (item.commitment_level || 'medium') === 'high' ? '#EF4444' :
+                                                    (item.commitment_level || 'medium') === 'low' ? '#10B981' : '#F59E0B'
+                                    }]}>
+                                        {((item.promise_type || 'group') === 'self' || item.commitment_level === 'self_fixed')
+                                            ? 'Personal'
+                                            : ((item.commitment_level || 'medium').charAt(0).toUpperCase() + (item.commitment_level || 'medium').slice(1))}
                                     </Text>
                                 </View>
                             </View>
@@ -504,11 +521,6 @@ export default function HomeScreen() {
                                     </Text>
                                     <Text style={styles.tagUnit} allowFontScaling={false}>PP</Text>
 
-                                    <View style={styles.tagLevelBadge}>
-                                        <Text style={styles.tagLevelText} allowFontScaling={false}>
-                                            LVL {ppStats.level}
-                                        </Text>
-                                    </View>
                                 </View>
                             </View>
                         </View>
@@ -714,7 +726,7 @@ const styles = StyleSheet.create({
     },
     // HERO TYPOGRAPHY HEADER
     heroHeaderContainer: {
-        marginBottom: scaleFont(32),
+        marginBottom: scaleFont(12),
         paddingTop: scaleFont(10),
         flexDirection: 'row', // Side by side
         justifyContent: 'space-between',
@@ -725,7 +737,7 @@ const styles = StyleSheet.create({
     hangingContainer: {
         alignItems: 'center',
         marginRight: scaleFont(24),
-        marginTop: scaleFont(-70), // Pull up higher for the longer chain
+        marginTop: scaleFont(-85), // Pull up higher to align with left content
         zIndex: 10,
     },
     hangingThread: {
@@ -777,20 +789,7 @@ const styles = StyleSheet.create({
         marginBottom: scaleFont(8),
         textTransform: 'uppercase',
     },
-    tagLevelBadge: {
-        backgroundColor: '#FDE68A', // Light Yellow
-        paddingHorizontal: scaleFont(10),
-        paddingVertical: scaleFont(4),
-        borderRadius: scaleFont(6),
-    },
-    tagLevelText: {
-        fontSize: scaleFont(12),
-        fontWeight: '800',
-        color: '#713F12', // Dark Brown/Gold text
-        fontFamily: 'Outfit_800ExtraBold',
-        letterSpacing: scaleFont(0.5),
-        textTransform: 'uppercase',
-    },
+
     typographyBlock: {
         gap: scaleFont(-5),
         flex: 1,
@@ -822,7 +821,7 @@ const styles = StyleSheet.create({
     taglineContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: scaleFont(14),
+        marginTop: scaleFont(6),
         gap: scaleFont(10),
     },
     taglineAccent: {

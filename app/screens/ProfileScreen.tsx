@@ -263,100 +263,58 @@ export default function ProfileScreen() {
                     </Animated.View>
 
                     {/* ═══════════════ LEVEL PROGRESS ═══════════════ */}
+                    {/* ═══════════════ REWARDS & COMMUNITY ═══════════════ */}
                     <Animated.View entering={FadeInDown.delay(200).duration(500)} style={styles.section}>
-                        <Text style={styles.sectionTitle}>YOUR LEVEL</Text>
-                        <View style={styles.levelCard}>
-                            <View style={styles.levelHeader}>
-                                <View style={[styles.levelIconBg, { backgroundColor: levelConfig.bg }]}>
-                                    <Ionicons name={levelConfig.icon as any} size={22} color={levelConfig.color} />
+                        <Text style={styles.sectionTitle}>REWARDS & COMMUNITY</Text>
+
+                        <TouchableOpacity
+                            style={[styles.redeemCard, { marginBottom: scaleFont(12) }]}
+                            onPress={() => {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                                showAlert({
+                                    title: "Hold Tight! 🎁",
+                                    message: "Redemption feature coming soon",
+                                    type: 'info',
+                                    buttons: [{ text: "I'm Ready", onPress: () => null }]
+                                });
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <View style={styles.redeemContent}>
+                                <View style={styles.redeemIconBg}>
+                                    <Ionicons name="gift" size={24} color="#10B981" />
                                 </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.levelName}>Level {ppStats.level} — {levelConfig.title}</Text>
-                                    {nextLevelPP ? (
-                                        <Text style={styles.levelProgress}>{ppStats.lifetime} / {nextLevelPP} Lifetime PP</Text>
-                                    ) : (
-                                        <Text style={[styles.levelProgress, { color: '#F59E0B' }]}>MAX LEVEL REACHED ✨</Text>
-                                    )}
+                                    <Text style={styles.redeemTitle}>Redeem Your PP</Text>
+                                    <Text style={styles.redeemSubtitle}>Exchange points for exclusive discounts</Text>
                                 </View>
-                                <Ionicons name="ribbon" size={24} color={levelConfig.color} />
+                                <Ionicons name="chevron-forward" size={20} color="#10B981" />
                             </View>
+                        </TouchableOpacity>
 
-                            {/* Progress bar */}
-                            {nextLevelPP && (
-                                <View style={styles.progressBarTrack}>
-                                    <LinearGradient
-                                        colors={[levelConfig.color, levelConfig.color + '99']}
-                                        style={[styles.progressBarFill, { width: `${levelProgress * 100}%` as any }]}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                    />
-                                </View>
-                            )}
-                        </View>
-                    </Animated.View>
-
-                    {/* ═══════════════ QUICK ACTIONS ═══════════════ */}
-                    <Animated.View entering={FadeInDown.delay(300).duration(500)} style={styles.section}>
-                        <Text style={styles.sectionTitle}>QUICK ACTIONS</Text>
-                        <View style={styles.actionsCard}>
-
-                            <TouchableOpacity style={styles.actionRow} onPress={() => {
+                        <TouchableOpacity
+                            style={styles.leaderboardCard}
+                            onPress={() => {
                                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                                 router.push('/screens/ScoreboardScreen');
-                            }}>
-                                <View style={styles.actionLeft}>
-                                    <View style={[styles.actionIconBg, { backgroundColor: '#FEF3C7' }]}>
-                                        <Ionicons name="podium-outline" size={20} color="#D97706" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.actionLabel}>Leaderboard</Text>
-                                        <Text style={styles.actionDesc}>See top performers</Text>
-                                    </View>
+                            }}
+                            activeOpacity={0.8}
+                        >
+                            <View style={styles.redeemContent}>
+                                <View style={[styles.redeemIconBg, { backgroundColor: '#FEF3C7' }]}>
+                                    <Ionicons name="podium-outline" size={24} color="#D97706" />
                                 </View>
-                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                            </TouchableOpacity>
-
-                            <View style={styles.actionDivider} />
-
-                            <TouchableOpacity style={styles.actionRow} onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                router.push('/screens/TransactionHistoryScreen');
-                            }}>
-                                <View style={styles.actionLeft}>
-                                    <View style={[styles.actionIconBg, { backgroundColor: '#F0EBFF' }]}>
-                                        <Ionicons name="receipt-outline" size={20} color="#5B2DAD" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.actionLabel}>Activity Log</Text>
-                                        <Text style={styles.actionDesc}>View your PP history</Text>
-                                    </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={[styles.redeemTitle, { color: '#B45309' }]}>Global Leaderboard</Text>
+                                    <Text style={[styles.redeemSubtitle, { color: '#D97706' }]}>See who's staying consistent</Text>
                                 </View>
-                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                            </TouchableOpacity>
-
-                            <View style={styles.actionDivider} />
-
-                            <TouchableOpacity style={styles.actionRow} onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                                router.push('/screens/SupportScreen');
-                            }}>
-                                <View style={styles.actionLeft}>
-                                    <View style={[styles.actionIconBg, { backgroundColor: '#ECFDF5' }]}>
-                                        <Ionicons name="help-circle-outline" size={20} color="#10B981" />
-                                    </View>
-                                    <View>
-                                        <Text style={styles.actionLabel}>Help & Support</Text>
-                                        <Text style={styles.actionDesc}>Get assistance</Text>
-                                    </View>
-                                </View>
-                                <Ionicons name="chevron-forward" size={16} color="#CBD5E1" />
-                            </TouchableOpacity>
-                        </View>
+                                <Ionicons name="chevron-forward" size={20} color="#D97706" />
+                            </View>
+                        </TouchableOpacity>
                     </Animated.View>
 
                     {/* ═══════════════ FOOTER ═══════════════ */}
                     <View style={styles.footer}>
-                        <View style={styles.footerDot} />
                         <Text style={styles.footerText}>
                             {memberSince ? `Member since ${memberSince}` : 'Pay & Promise'}
                         </Text>
@@ -456,69 +414,41 @@ const styles = StyleSheet.create({
         width: 1, height: scaleFont(30), backgroundColor: 'rgba(255,255,255,0.15)',
     },
 
-    // ── Level Progress ──
+    // ── Redeem Section ──
     section: { paddingHorizontal: scaleFont(24), marginBottom: scaleFont(20) },
     sectionTitle: {
         fontSize: scaleFont(10), fontWeight: '900', color: '#94A3B8',
         letterSpacing: scaleFont(2), marginBottom: scaleFont(12),
         fontFamily: 'Outfit_800ExtraBold',
     },
-    levelCard: {
-        backgroundColor: '#FFF', borderRadius: scaleFont(24), padding: scaleFont(20),
-        borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(4) },
-        shadowOpacity: 0.03, shadowRadius: scaleFont(12), elevation: scaleFont(2),
+    redeemCard: {
+        backgroundColor: '#ECFDF5', // Soft emerald
+        borderRadius: scaleFont(24), padding: scaleFont(20),
+        borderWidth: 1, borderColor: '#A7F3D0',
+        shadowColor: '#10B981', shadowOffset: { width: 0, height: scaleFont(4) },
+        shadowOpacity: 0.1, shadowRadius: scaleFont(12), elevation: scaleFont(2),
     },
-    levelHeader: {
+    redeemContent: {
         flexDirection: 'row', alignItems: 'center', gap: scaleFont(14),
-        marginBottom: scaleFont(16),
     },
-    levelIconBg: {
+    redeemIconBg: {
         width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(14),
-        alignItems: 'center', justifyContent: 'center',
+        backgroundColor: '#D1FAE5', alignItems: 'center', justifyContent: 'center',
     },
-    levelName: {
-        fontSize: scaleFont(16), fontWeight: '800', color: '#1E293B',
+    redeemTitle: {
+        fontSize: scaleFont(16), fontWeight: '800', color: '#065F46',
         fontFamily: 'Outfit_800ExtraBold', marginBottom: scaleFont(2),
     },
-    levelProgress: {
-        fontSize: scaleFont(11), fontWeight: '600', color: '#94A3B8',
-        fontFamily: 'Outfit_700Bold',
+    redeemSubtitle: {
+        fontSize: scaleFont(11), fontWeight: '600', color: '#059669',
+        fontFamily: 'Outfit_400Regular',
     },
-    progressBarTrack: {
-        height: scaleFont(6), backgroundColor: '#F1F5F9',
-        borderRadius: scaleFont(3), overflow: 'hidden',
-    },
-    progressBarFill: {
-        height: '100%', borderRadius: scaleFont(3),
-    },
-
-    // ── Quick Actions ──
-    actionsCard: {
-        backgroundColor: '#FFF', borderRadius: scaleFont(24), overflow: 'hidden',
-        borderWidth: 1, borderColor: '#F1F5F9',
-        shadowColor: '#000', shadowOffset: { width: 0, height: scaleFont(4) },
-        shadowOpacity: 0.03, shadowRadius: scaleFont(12), elevation: scaleFont(2),
-    },
-    actionRow: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(20), paddingVertical: scaleFont(16),
-    },
-    actionLeft: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(14) },
-    actionIconBg: {
-        width: scaleFont(42), height: scaleFont(42), borderRadius: scaleFont(13),
-        alignItems: 'center', justifyContent: 'center',
-    },
-    actionLabel: {
-        fontSize: scaleFont(15), fontWeight: '700', color: '#1E293B',
-        fontFamily: 'Outfit_700Bold',
-    },
-    actionDesc: {
-        fontSize: scaleFont(11), color: '#94A3B8', fontFamily: 'Outfit_400Regular',
-        marginTop: scaleFont(1),
-    },
-    actionDivider: {
-        height: 1, backgroundColor: '#F8FAFC', marginHorizontal: scaleFont(20),
+    leaderboardCard: {
+        backgroundColor: '#FFFBEB', // Soft amber
+        borderRadius: scaleFont(24), padding: scaleFont(20),
+        borderWidth: 1, borderColor: '#FDE68A',
+        shadowColor: '#D97706', shadowOffset: { width: 0, height: scaleFont(4) },
+        shadowOpacity: 0.1, shadowRadius: scaleFont(12), elevation: scaleFont(2),
     },
 
     // ── Footer ──

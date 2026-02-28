@@ -1,6 +1,6 @@
 # Pay & Promise: The Integrity Protocol — Project Documentation
 
-**Tagline:** Promises Kept. Trust Earned.
+**Tagline:** Where Discipline Begins
 **Version:** 1.0.3 (Release)
 **Stack:** React Native (Expo SDK 52), TypeScript, Supabase, PostgreSQL
 

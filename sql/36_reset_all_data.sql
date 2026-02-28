@@ -34,7 +34,7 @@ SET
 
 -- 8. Re-insert signup bonus ledger entries for all existing users
 INSERT INTO public.promise_point_ledger (user_id, points, reason, description)
-SELECT id, 100, 'signup_bonus', 'Welcome bonus (data reset)'
+SELECT id, 100, 'signup_bonus', 'Welcome bonus 🎉'
 FROM public.profiles;
 
 -- Done! All data cleared. Each user starts with 100 PP.

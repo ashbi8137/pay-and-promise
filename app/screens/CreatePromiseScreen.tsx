@@ -2,7 +2,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -34,8 +34,11 @@ const COMMITMENT_LEVELS = [
     { id: 'high', label: 'High', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes' },
 ];
 
-export default function CreatePromiseScreen() {
+export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: string } = {}) {
     const router = useRouter();
+    const params = useLocalSearchParams();
+    const promiseMode = overrideMode || (params.mode as string) || 'group';
+    const isSelfMode = promiseMode === 'self';
     const { showAlert } = useAlert();
     const [loading, setLoading] = useState(false);
 
@@ -45,7 +48,7 @@ export default function CreatePromiseScreen() {
     // Form State
     const [title, setTitle] = useState('');
     const [duration, setDuration] = useState('7');
-    const [numPeople, setNumPeople] = useState('2');
+    const [numPeople, setNumPeople] = useState(isSelfMode ? '1' : '2');
     const [commitmentLevel, setCommitmentLevel] = useState('medium');
     const [category, setCategory] = useState<string | null>(null);
     const [inviteCode, setInviteCode] = useState('');
@@ -58,7 +61,7 @@ export default function CreatePromiseScreen() {
             setTitle('');
             setCategory(null);
             setDuration('7');
-            setNumPeople('2');
+            setNumPeople(isSelfMode ? '1' : '2');
             setCommitmentLevel('medium');
             setLoading(false);
             fetchUserPP();
@@ -109,7 +112,7 @@ export default function CreatePromiseScreen() {
                 return;
             }
 
-            if (parseInt(numPeople) < 2) {
+            if (!isSelfMode && parseInt(numPeople) < 2) {
                 showAlert({ title: 'Attention', message: 'At least 2 people required.', type: 'warning' });
                 setLoading(false);
                 return;
@@ -128,27 +131,31 @@ export default function CreatePromiseScreen() {
                 return;
             }
 
-            const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-            setInviteCode(code);
+            const code = isSelfMode ? null : Math.random().toString(36).substring(2, 8).toUpperCase();
+            if (code) setInviteCode(code);
+
+            const insertData: any = {
+                title,
+                description: category,
+                duration_days: parseInt(duration),
+                number_of_people: isSelfMode ? 1 : parseInt(numPeople),
+                commitment_level: commitmentLevel,
+                locked_points: selectedLevel.points,
+                participants: [{
+                    name: user.user_metadata?.full_name || 'Creator',
+                    id: user.id,
+                    avatar_url: user.user_metadata?.avatar_url || null
+                }],
+                created_by: user.id,
+                status: 'active',
+                promise_type: isSelfMode ? 'self' : 'group',
+            };
+
+            if (code) insertData.invite_code = code;
 
             const { data: promiseData, error: promiseError } = await supabase
                 .from('promises')
-                .insert({
-                    title,
-                    description: category,
-                    duration_days: parseInt(duration),
-                    number_of_people: parseInt(numPeople),
-                    commitment_level: commitmentLevel,
-                    locked_points: selectedLevel.points,
-                    participants: [{
-                        name: user.user_metadata?.full_name || 'Creator',
-                        id: user.id,
-                        avatar_url: user.user_metadata?.avatar_url || null
-                    }],
-                    created_by: user.id,
-                    status: 'active',
-                    invite_code: code
-                })
+                .insert(insertData)
                 .select()
                 .single();
 
@@ -298,7 +305,7 @@ export default function CreatePromiseScreen() {
 
     const renderDetailsStep = () => (
         <Animated.View entering={FadeInDown} style={styles.wizardContainer}>
-            <Text style={styles.wizardSubtitle}>STEP 3</Text>
+            <Text style={styles.wizardSubtitle}>{isSelfMode ? 'STEP 3' : 'STEP 3'}</Text>
             <Text style={styles.wizardTitle}>The Fine Print</Text>
             <View style={styles.detailBox}>
                 <Text style={styles.boxLabel}>DURATION</Text>
@@ -311,19 +318,23 @@ export default function CreatePromiseScreen() {
                 </View>
                 <TextInput style={styles.daysInput} placeholder="Custom Days" keyboardType="numeric" value={duration} onChangeText={setDuration} />
             </View>
-            <View style={styles.detailBox}>
-                <Text style={styles.boxLabel}>PARTICIPANTS</Text>
-                <View style={styles.counter}>
-                    <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.max(2, parseInt(numPeople) - 1).toString())}>
-                        <Ionicons name="remove" size={scaleFont(20)} color="#1E293B" />
-                    </TouchableOpacity>
-                    <Text style={styles.counterVal}>{numPeople}</Text>
-                    <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.min(10, parseInt(numPeople) + 1).toString())}>
-                        <Ionicons name="add" size={scaleFont(20)} color="#1E293B" />
-                    </TouchableOpacity>
+
+            {/* Only show participants for group mode */}
+            {!isSelfMode && (
+                <View style={styles.detailBox}>
+                    <Text style={styles.boxLabel}>PARTICIPANTS</Text>
+                    <View style={styles.counter}>
+                        <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.max(2, parseInt(numPeople) - 1).toString())}>
+                            <Ionicons name="remove" size={scaleFont(20)} color="#1E293B" />
+                        </TouchableOpacity>
+                        <Text style={styles.counterVal}>{numPeople}</Text>
+                        <TouchableOpacity style={styles.counterAction} onPress={() => setNumPeople(Math.min(10, parseInt(numPeople) + 1).toString())}>
+                            <Ionicons name="add" size={scaleFont(20)} color="#1E293B" />
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.counterHint}>Min 2 • Max 10</Text>
                 </View>
-                <Text style={styles.counterHint}>Min 2 • Max 10</Text>
-            </View>
+            )}
 
             {/* Commitment Summary */}
             <View style={styles.commitmentSummary}>
@@ -339,7 +350,7 @@ export default function CreatePromiseScreen() {
             <TouchableOpacity style={[styles.nextBtn, { backgroundColor: '#5B2DAD' }]} onPress={handleCreatePromiseReal} disabled={loading}>
                 {loading ? <ActivityIndicator color="#FFF" /> : (
                     <>
-                        <Text style={styles.nextBtnText}>Launch Promise</Text>
+                        <Text style={styles.nextBtnText}>{isSelfMode ? 'Launch Self Promise' : 'Launch Promise'}</Text>
                     </>
                 )}
             </TouchableOpacity>
@@ -355,21 +366,40 @@ export default function CreatePromiseScreen() {
                 </View>
             </View>
 
-            <Text style={styles.successTitle}>Promise Active</Text>
-            <Text style={styles.successSub}>Your commitment is now live. {selectedLevel.points} PP locked.</Text>
+            <Text style={styles.successTitle}>{isSelfMode ? 'Self Promise Active' : 'Promise Active'}</Text>
+            <Text style={styles.successSub}>
+                {isSelfMode
+                    ? `Your personal commitment is now live. ${selectedLevel.points} PP locked. Stay disciplined!`
+                    : `Your commitment is now live. ${selectedLevel.points} PP locked.`
+                }
+            </Text>
 
-            <View style={styles.codeCard}>
-                <Text style={styles.codeLabel}>INVITE YOUR CREW</Text>
-                <Text style={styles.codeValue}>{inviteCode}</Text>
-                <TouchableOpacity style={styles.copyBtn} onPress={async () => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    await Clipboard.setStringAsync(inviteCode);
-                    showAlert({ title: 'Copied', message: 'Invite code copied!', type: 'success' });
-                }}>
-                    <Ionicons name="copy-outline" size={scaleFont(18)} color="#5B2DAD" />
-                    <Text style={styles.copyBtnText}>Copy Code</Text>
+            {/* Only show invite code for group mode */}
+            {!isSelfMode && (
+                <View style={styles.codeCard}>
+                    <Text style={styles.codeLabel}>INVITE YOUR CREW</Text>
+                    <Text style={styles.codeValue}>{inviteCode}</Text>
+                    <TouchableOpacity style={styles.copyBtn} onPress={async () => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        await Clipboard.setStringAsync(inviteCode);
+                        showAlert({ title: 'Copied', message: 'Invite code copied!', type: 'success' });
+                    }}>
+                        <Ionicons name="copy-outline" size={scaleFont(18)} color="#5B2DAD" />
+                        <Text style={styles.copyBtnText}>Copy Code</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {/* Self mode: Go to Home button */}
+            {isSelfMode && (
+                <TouchableOpacity
+                    style={[styles.nextBtn, { backgroundColor: '#5B2DAD', width: '100%' }]}
+                    onPress={() => router.replace('/(tabs)')}
+                >
+                    <Text style={styles.nextBtnText}>Go to Home</Text>
+                    <Ionicons name="arrow-forward" size={scaleFont(20)} color="#FFF" />
                 </TouchableOpacity>
-            </View>
+            )}
 
         </View>
     );

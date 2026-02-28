@@ -55,6 +55,7 @@ export default function PromiseDetailScreen() {
     const { title, duration, numPeople, commitment_level, locked_points, invite_code } = promiseData;
     const commitmentLevel = commitment_level || promiseData.commitmentLevel || 'medium';
     const lockedPoints = locked_points || promiseData.lockedPoints || 10;
+    const isSelfPromise = (promiseData.promise_type || 'group') === 'self';
 
     const [updating, setUpdating] = React.useState(false);
     const [checkins, setCheckins] = React.useState<{ date: string, status: string }[]>([]);
@@ -384,7 +385,7 @@ export default function PromiseDetailScreen() {
     };
 
     const handlePhotoCheckIn = async () => {
-        if (realParticipantCount < numPeople) {
+        if (!isSelfPromise && realParticipantCount < numPeople) {
             showAlert({ title: "Wait for others", message: "All peers must join first.", type: "warning" });
             return;
         }
@@ -510,8 +511,49 @@ export default function PromiseDetailScreen() {
     const handleCheckIn = async (status: 'done' | 'failed') => {
         if (updating) return;
 
-        if (realParticipantCount < numPeople) {
+        if (!isSelfPromise && realParticipantCount < numPeople) {
             showAlert({ title: "Wait for others", message: "All peers must join first.", type: "warning" });
+            return;
+        }
+
+        // Self promise: direct completion without photo
+        if (isSelfPromise && status === 'done') {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setUpdating(true);
+            try {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) return;
+
+                const dateStr = getLocalTodayDate();
+
+                // Insert daily_checkin
+                const { error: checkinError } = await supabase.from('daily_checkins').insert({
+                    promise_id: promiseData.id,
+                    user_id: user.id,
+                    date: dateStr,
+                    status: 'done'
+                });
+                if (checkinError && checkinError.code !== '23505') throw checkinError;
+
+                // Insert submission as verified directly (no peer review)
+                const { error: subError } = await supabase.from('promise_submissions').upsert({
+                    promise_id: promiseData.id,
+                    user_id: user.id,
+                    date: dateStr,
+                    image_url: 'self_completed',
+                    status: 'verified'
+                }, { onConflict: 'promise_id,user_id,date' });
+                if (subError) throw subError;
+
+                setTodayStatus('done');
+                showAlert({ title: "Done!", message: "Great job! Day marked as completed.", type: "success" });
+                fetchCheckins();
+            } catch (e) {
+                console.error(e);
+                showAlert({ title: 'Error', message: 'Could not mark as completed.', type: 'error' });
+            } finally {
+                setUpdating(false);
+            }
             return;
         }
 
@@ -600,6 +642,12 @@ export default function PromiseDetailScreen() {
                                 <Ionicons name="calendar-outline" size={14} color="#FFF" opacity={0.7} />
                                 <Text style={styles.heroStatText}>{duration} Days</Text>
                             </View>
+                            {isSelfPromise && (
+                                <View style={styles.heroStatItem}>
+                                    <Ionicons name="person-outline" size={14} color="#FFF" opacity={0.7} />
+                                    <Text style={styles.heroStatText}>Solo</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
                     <View style={styles.heroBottom}>
@@ -607,7 +655,7 @@ export default function PromiseDetailScreen() {
                             <Text style={styles.stakeLabel}>COMMITMENT</Text>
                             <Text style={styles.stakeValue}>{commitmentLevel.charAt(0).toUpperCase() + commitmentLevel.slice(1)}</Text>
                         </View>
-                        {invite_code && (
+                        {!isSelfPromise && invite_code && (
                             <TouchableOpacity style={styles.stakePill} onPress={handleCopyCode}>
                                 <Text style={[styles.stakeLabel, { textAlign: 'right' }]}>INVITE CODE</Text>
                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -700,6 +748,58 @@ export default function PromiseDetailScreen() {
     const renderDailyActions = () => {
         const mySub = submissions.find(s => s.user_id === userId);
         const othersSubmissions = submissions.filter(s => s.user_id !== userId);
+
+        // Self promise: simple check-in UI
+        if (isSelfPromise) {
+            return (
+                <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Daily Check-In</Text>
+                    </View>
+
+                    {todayStatus === 'done' ? (
+                        <Animated.View entering={FadeInDown} style={[styles.actionCard, { alignItems: 'center' }]}>
+                            <Ionicons name="checkmark-circle" size={48} color="#10B981" />
+                            <Text style={{ fontSize: scaleFont(16), fontWeight: '700', color: '#10B981', marginTop: 8, fontFamily: 'Outfit_700Bold' }}>Completed for Today!</Text>
+                        </Animated.View>
+                    ) : todayStatus === 'failed' ? (
+                        <View style={[styles.actionCard, { alignItems: 'center' }]}>
+                            <Ionicons name="close-circle" size={48} color="#EF4444" />
+                            <Text style={{ fontSize: scaleFont(16), fontWeight: '700', color: '#EF4444', marginTop: 8, fontFamily: 'Outfit_700Bold' }}>Missed for Today</Text>
+                        </View>
+                    ) : (
+                        <Animated.View entering={FadeInDown} style={styles.uploadCard}>
+                            <Text style={styles.uploadTitle}>How did today go?</Text>
+                            <Text style={styles.uploadSub}>Mark your progress honestly.</Text>
+                            <TouchableOpacity
+                                style={[styles.mainActionBtn, { backgroundColor: '#10B981' }]}
+                                onPress={() => handleCheckIn('done')}
+                                disabled={updating}
+                            >
+                                {updating ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                        <ActivityIndicator color="#FFF" />
+                                        <Text style={styles.mainActionText}>Marking...</Text>
+                                    </View>
+                                ) : (
+                                    <>
+                                        <Ionicons name="checkmark-circle" size={24} color="#FFF" />
+                                        <Text style={styles.mainActionText}>Mark as Completed</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.mainActionBtn, { backgroundColor: '#FEF2F2', marginTop: 12, elevation: 0, shadowOpacity: 0 }]}
+                                onPress={() => handleCheckIn('failed')}
+                            >
+                                <Ionicons name="close-circle" size={24} color="#EF4444" />
+                                <Text style={[styles.mainActionText, { color: '#EF4444' }]}>Mark as Missed</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    )}
+                </View>
+            );
+        }
 
         return (
             <View style={styles.section}>
@@ -875,6 +975,58 @@ export default function PromiseDetailScreen() {
         );
     };
 
+    // Progress Overview for Self Promises
+    const renderProgressOverview = () => {
+        if (!isSelfPromise) return null;
+
+        const totalDays = duration || 7;
+        const completedDays = checkins.filter(c => c.status === 'done').length;
+        const missedDays = checkins.filter(c => c.status === 'failed').length;
+        const startRaw = actualStartDate ? new Date(actualStartDate) : (promiseData.created_at ? new Date(promiseData.created_at) : new Date());
+        const startLocal = new Date(startRaw.getFullYear(), startRaw.getMonth(), startRaw.getDate());
+        const todayLocal = new Date();
+        todayLocal.setHours(0, 0, 0, 0);
+        const daysSinceStart = Math.floor((todayLocal.getTime() - startLocal.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        const currentDay = Math.min(daysSinceStart, totalDays);
+
+        return (
+            <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Progress Overview</Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: scaleFont(12) }}>
+                    {[
+                        { label: 'Total Days', value: totalDays, icon: 'calendar-outline', color: '#4F46E5' },
+                        { label: 'Current Day', value: currentDay, icon: 'today-outline', color: '#7C3AED' },
+                        { label: 'Completed', value: completedDays, icon: 'checkmark-circle-outline', color: '#10B981' },
+                        { label: 'Missed', value: missedDays, icon: 'close-circle-outline', color: '#EF4444' },
+                    ].map((stat, idx) => (
+                        <Animated.View key={idx} entering={FadeInDown.delay(idx * 80)} style={{
+                            width: '47%',
+                            backgroundColor: '#FFF',
+                            borderRadius: scaleFont(16),
+                            padding: scaleFont(16),
+                            borderWidth: 1,
+                            borderColor: '#F1F5F9',
+                        }}>
+                            <Ionicons name={stat.icon as any} size={20} color={stat.color} />
+                            <Text style={{ fontSize: scaleFont(24), fontWeight: '800', color: stat.color, marginTop: 8, fontFamily: 'Outfit_800ExtraBold' }}>{stat.value}</Text>
+                            <Text style={{ fontSize: scaleFont(12), color: '#64748B', fontFamily: 'Outfit_400Regular', marginTop: 2 }}>{stat.label}</Text>
+                        </Animated.View>
+                    ))}
+                    {/* Points Locked */}
+                    <View style={{ width: '100%', backgroundColor: '#F5F3FF', borderRadius: scaleFont(16), padding: scaleFont(16), flexDirection: 'row', alignItems: 'center', gap: scaleFont(12) }}>
+                        <Ionicons name="diamond" size={20} color="#5B2DAD" />
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: scaleFont(14), fontWeight: '700', color: '#5B2DAD', fontFamily: 'Outfit_700Bold' }}>Points Locked</Text>
+                            <Text style={{ fontSize: scaleFont(12), color: '#64748B', fontFamily: 'Outfit_400Regular' }}>{lockedPoints} PP at stake</Text>
+                        </View>
+                    </View>
+                </View>
+            </View>
+        );
+    };
+
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
@@ -894,7 +1046,7 @@ export default function PromiseDetailScreen() {
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                         <Ionicons name="chevron-back" size={24} color="#1E293B" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitleMain}>Promise Detail</Text>
+                    <Text style={styles.headerTitleMain}>{isSelfPromise ? 'Self Promise' : 'Promise Detail'}</Text>
                     <View style={{ width: scaleFont(44) }} />
                 </View>
 
@@ -905,39 +1057,44 @@ export default function PromiseDetailScreen() {
                 >
                     {renderHero()}
 
-                    {/* MEETING ROOM */}
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Participants</Text>
-                            <Text style={styles.sectionSub}>Member Status ({joinedParticipants.length}/{numPeople})</Text>
-                        </View>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: scaleFont(12), paddingHorizontal: scaleFont(4) }}>
-                            {joinedParticipants.map((p, i) => (
-                                <Animated.View key={`participant-${i}`} entering={FadeInRight.delay(i * 100)} style={{ alignItems: 'center', gap: 6 }}>
-                                    <View style={{ width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#DBEAFE', overflow: 'hidden' }}>
-                                        {p.avatar_url ? (
-                                            <Image source={{ uri: p.avatar_url }} style={{ width: '100%', height: '100%' }} />
-                                        ) : (
-                                            <Text style={{ fontSize: scaleFont(18), fontWeight: '800', color: '#3B82F6' }}>{p.name.charAt(0).toUpperCase()}</Text>
-                                        )}
-                                    </View>
-                                    <Text style={{ fontSize: scaleFont(11), color: '#475569', fontWeight: '600' }}>{p.name}</Text>
-                                </Animated.View>
-                            ))}
-                            {/* Placeholders */}
-                            {Array.from({ length: Math.max(0, numPeople - joinedParticipants.length) }).map((_, i) => (
-                                <View key={`empty-${i}`} style={{ alignItems: 'center', gap: 6, opacity: 0.5 }}>
-                                    <View style={{ width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed' }}>
-                                        <Ionicons name="person-add" size={20} color="#94A3B8" />
-                                    </View>
-                                    <Text style={{ fontSize: scaleFont(11), color: '#94A3B8' }}>Waiting</Text>
-                                </View>
-                            ))}
-                        </ScrollView>
-                    </View>
+                    {/* SELF PROMISE: Progress Overview instead of Meeting Room */}
+                    {isSelfPromise && renderProgressOverview()}
 
-                    {/* WAITING FOR TEAM BLOCKER */}
-                    {realParticipantCount < numPeople && (
+                    {/* GROUP PROMISE: MEETING ROOM */}
+                    {!isSelfPromise && (
+                        <View style={styles.section}>
+                            <View style={styles.sectionHeader}>
+                                <Text style={styles.sectionTitle}>Participants</Text>
+                                <Text style={styles.sectionSub}>Member Status ({joinedParticipants.length}/{numPeople})</Text>
+                            </View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: scaleFont(12), paddingHorizontal: scaleFont(4) }}>
+                                {joinedParticipants.map((p, i) => (
+                                    <Animated.View key={`participant-${i}`} entering={FadeInRight.delay(i * 100)} style={{ alignItems: 'center', gap: 6 }}>
+                                        <View style={{ width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#DBEAFE', overflow: 'hidden' }}>
+                                            {p.avatar_url ? (
+                                                <Image source={{ uri: p.avatar_url }} style={{ width: '100%', height: '100%' }} />
+                                            ) : (
+                                                <Text style={{ fontSize: scaleFont(18), fontWeight: '800', color: '#3B82F6' }}>{p.name.charAt(0).toUpperCase()}</Text>
+                                            )}
+                                        </View>
+                                        <Text style={{ fontSize: scaleFont(11), color: '#475569', fontWeight: '600' }}>{p.name}</Text>
+                                    </Animated.View>
+                                ))}
+                                {/* Placeholders */}
+                                {Array.from({ length: Math.max(0, numPeople - joinedParticipants.length) }).map((_, i) => (
+                                    <View key={`empty-${i}`} style={{ alignItems: 'center', gap: 6, opacity: 0.5 }}>
+                                        <View style={{ width: scaleFont(52), height: scaleFont(52), borderRadius: scaleFont(26), backgroundColor: '#F8FAFC', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#E2E8F0', borderStyle: 'dashed' }}>
+                                            <Ionicons name="person-add" size={20} color="#94A3B8" />
+                                        </View>
+                                        <Text style={{ fontSize: scaleFont(11), color: '#94A3B8' }}>Waiting</Text>
+                                    </View>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
+
+                    {/* WAITING FOR TEAM BLOCKER (Group only) */}
+                    {!isSelfPromise && realParticipantCount < numPeople && (
                         <Animated.View entering={FadeInUp} style={styles.waitCard}>
                             <View style={styles.waitIconBox}>
                                 <Ionicons name="time" size={32} color="#D97706" />
@@ -955,8 +1112,8 @@ export default function PromiseDetailScreen() {
                         </Animated.View>
                     )}
 
-                    {/* Show Journey Loop ONLY if Full Team OR if Promise is somehow already active/completed */}
-                    {(realParticipantCount >= numPeople || currentPromiseStatus !== 'active') && (
+                    {/* Show Journey Loop — for self promises always show, for group only when full team */}
+                    {(isSelfPromise || realParticipantCount >= numPeople || currentPromiseStatus !== 'active') && (
                         <>
                             {renderCompletion()}
                             {renderJourneyMap()}

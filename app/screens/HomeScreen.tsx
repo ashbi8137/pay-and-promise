@@ -38,9 +38,11 @@ interface PromiseItem {
     status: 'active' | 'completed' | 'failed' | 'active_waiting';
     days_completed: number;
     created_at: string;
+    promise_type?: 'self' | 'group';
 }
 
 const HAS_SEEN_TOOLTIP_KEY = 'HAS_SEEN_ONBOARDING_TOOLTIP';
+const PROMISE_MODE_KEY = 'PROMISE_MODE_PREFERENCE';
 
 export default function HomeScreen() {
     const router = useRouter();
@@ -57,6 +59,7 @@ export default function HomeScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [ppStats, setPpStats] = useState({ balance: 0, streak: 0, level: 1 });
+    const [activeMode, setActiveMode] = useState<'self' | 'group'>('group');
 
     // Tooltip & Tutorial State
     const [showTooltip, setShowTooltip] = useState(false);
@@ -65,6 +68,18 @@ export default function HomeScreen() {
 
     // Swing Animation for Date Tag
     const rotation = useSharedValue(0);
+
+    // Load saved mode preference
+    useEffect(() => {
+        AsyncStorage.getItem(PROMISE_MODE_KEY).then(mode => {
+            if (mode === 'self' || mode === 'group') setActiveMode(mode);
+        }).catch(() => { });
+    }, []);
+
+    const handleModeSwitch = async (mode: 'self' | 'group') => {
+        setActiveMode(mode);
+        await AsyncStorage.setItem(PROMISE_MODE_KEY, mode);
+    };
 
     useEffect(() => {
         checkTooltip();
@@ -144,7 +159,7 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            fetchData();
+            fetchData(activeMode);
 
             const onBackPress = () => {
                 showAlert({
@@ -182,7 +197,8 @@ export default function HomeScreen() {
         }
     };
 
-    const fetchData = async () => {
+    const fetchData = async (mode?: 'self' | 'group') => {
+        const currentMode = mode || activeMode;
         // Don't set loading=true here to avoid flashing the empty state/spinner on every focus
         // Only use strict loading for initial mount if needed, or rely on existing data
         // setLoading(true); 
@@ -211,7 +227,7 @@ export default function HomeScreen() {
                     });
                 }
 
-                // 1. Fetch Promsie IDs where user is a participant
+                // 1. Fetch Promise IDs where user is a participant
                 const { data: myParticipations, error: partError } = await supabase
                     .from('promise_participants')
                     .select('promise_id')
@@ -236,7 +252,11 @@ export default function HomeScreen() {
                     if (promiseError) console.error('Promise details error:', promiseError);
 
                     if (fetchedPromises) {
-                        promises = fetchedPromises;
+                        // Filter by promise_type based on active mode
+                        promises = fetchedPromises.filter(p => {
+                            const type = p.promise_type || 'group';
+                            return type === currentMode;
+                        });
                     }
                 }
 
@@ -307,11 +327,16 @@ export default function HomeScreen() {
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
-        fetchData();
-    }, []);
+        fetchData(activeMode);
+    }, [activeMode]);
+
+    // Re-fetch when mode changes
+    useEffect(() => {
+        fetchData(activeMode);
+    }, [activeMode]);
 
     const handleCreatePromise = () => {
-        router.push('/screens/CreatePromiseScreen');
+        router.push({ pathname: '/screens/CreatePromiseScreen', params: { mode: activeMode } });
     };
 
     const getGoalIcon = (description?: string, status?: string) => {
@@ -351,6 +376,7 @@ export default function HomeScreen() {
             numPeople: item.number_of_people,
             commitmentLevel: item.commitment_level || 'medium',
             lockedPoints: item.locked_points || 10,
+            promise_type: item.promise_type || 'group',
         };
 
         router.push({
@@ -413,7 +439,7 @@ export default function HomeScreen() {
                                     </View>
                                 )}
                                 <View style={styles.metaItem}>
-                                    <Text style={[styles.cardMeta, { color: theme.icon }]}>{item.number_of_people} friends</Text>
+                                    <Text style={[styles.cardMeta, { color: theme.icon }]}>{(item.promise_type || 'group') === 'self' ? 'Solo' : `${item.number_of_people} friends`}</Text>
                                 </View>
                                 <View style={styles.metaItem}>
                                     <View style={[styles.dotSeparator, { backgroundColor: theme.border }]} />
@@ -490,34 +516,75 @@ export default function HomeScreen() {
 
                     {/* PP STATS BANNER REMOVED */}
 
+                    {/* MODE TOGGLE */}
+                    <View style={styles.modeToggleOuter}>
+                        <TouchableOpacity
+                            style={[styles.modeToggleBtn, activeMode === 'self' && styles.modeToggleBtnActive]}
+                            onPress={() => handleModeSwitch('self')}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="shield-checkmark" size={16} color={activeMode === 'self' ? '#FFF' : '#64748B'} />
+                            <Text style={[styles.modeToggleText, activeMode === 'self' && styles.modeToggleTextActive]}>Self Promise</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.modeToggleBtn, activeMode === 'group' && styles.modeToggleBtnActive]}
+                            onPress={() => handleModeSwitch('group')}
+                            activeOpacity={0.7}
+                        >
+                            <Ionicons name="people" size={16} color={activeMode === 'group' ? '#FFF' : '#64748B'} />
+                            <Text style={[styles.modeToggleText, activeMode === 'group' && styles.modeToggleTextActive]}>Group Promise</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     {/* Hero Action Card */}
                     <Animated.View entering={FadeInDown.delay(200).springify()}>
                         <LinearGradient
-                            colors={['#4F46E5', '#7C3AED']} // Vibrant Violet/Indigo
+                            colors={activeMode === 'self' ? ['#7C3AED', '#A855F7'] : ['#4F46E5', '#7C3AED']}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 1, y: 1 }}
                             style={styles.heroCard}
                         >
                             <View style={styles.heroContent}>
                                 <View style={styles.heroTextContainer}>
-                                    <Text style={styles.heroTitle} allowFontScaling={false}>Expand your circle!</Text>
-                                    <Text style={styles.heroSubtitle} allowFontScaling={false}>
-                                        Have a code? Join an existing promise and start building trust today.
-                                    </Text>
-                                    <TouchableOpacity
-                                        style={styles.heroButton}
-                                        onPress={() => router.push('/screens/JoinPromiseScreen')}
-                                        activeOpacity={0.8}
-                                    >
-                                        <Text style={styles.heroButtonText} allowFontScaling={false}>
-                                            Join Promise
-                                        </Text>
-                                        <Ionicons name="arrow-forward" size={16} color="#4F46E5" style={{ marginLeft: 6 }} />
-                                    </TouchableOpacity>
+                                    {activeMode === 'self' ? (
+                                        <>
+                                            <Text style={styles.heroTitle} allowFontScaling={false}>Personal Discipline</Text>
+                                            <Text style={styles.heroSubtitle} allowFontScaling={false}>
+                                                Make a commitment to yourself. Track it daily, build your streak.
+                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.heroButton}
+                                                onPress={handleCreatePromise}
+                                                activeOpacity={0.8}
+                                            >
+                                                <Text style={[styles.heroButtonText, { color: '#7C3AED' }]} allowFontScaling={false}>
+                                                    Create Self Promise
+                                                </Text>
+                                                <Ionicons name="arrow-forward" size={16} color="#7C3AED" style={{ marginLeft: 6 }} />
+                                            </TouchableOpacity>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Text style={styles.heroTitle} allowFontScaling={false}>Expand your circle!</Text>
+                                            <Text style={styles.heroSubtitle} allowFontScaling={false}>
+                                                Have a code? Join an existing promise and start building trust today.
+                                            </Text>
+                                            <TouchableOpacity
+                                                style={styles.heroButton}
+                                                onPress={() => router.push('/screens/JoinPromiseScreen')}
+                                                activeOpacity={0.8}
+                                            >
+                                                <Text style={styles.heroButtonText} allowFontScaling={false}>
+                                                    Join Promise
+                                                </Text>
+                                                <Ionicons name="arrow-forward" size={16} color="#4F46E5" style={{ marginLeft: 6 }} />
+                                            </TouchableOpacity>
+                                        </>
+                                    )}
                                 </View>
-                                {/* Decorative Icon with glow effect */}
+                                {/* Decorative Icon */}
                                 <View style={{ position: 'absolute', right: -5, bottom: -5 }}>
-                                    <Ionicons name="people" size={90} color="rgba(255,255,255,0.35)" />
+                                    <Ionicons name={activeMode === 'self' ? "shield-checkmark" : "people"} size={90} color="rgba(255,255,255,0.35)" />
                                 </View>
                             </View>
                         </LinearGradient>
@@ -1059,5 +1126,42 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         letterSpacing: scaleFont(-0.5),
         fontFamily: 'Outfit_700Bold',
+    },
+    // MODE TOGGLE — Rounded Pill
+    modeToggleOuter: {
+        flexDirection: 'row',
+        backgroundColor: '#F1F5F9',
+        borderRadius: scaleFont(50),
+        padding: scaleFont(4),
+        marginBottom: scaleFont(20),
+        gap: scaleFont(4),
+        borderWidth: 1,
+        borderColor: '#E2E8F0',
+    },
+    modeToggleBtn: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: scaleFont(7),
+        paddingVertical: scaleFont(12),
+        borderRadius: scaleFont(50),
+    },
+    modeToggleBtnActive: {
+        backgroundColor: '#5B2DAD',
+        shadowColor: '#5B2DAD',
+        shadowOffset: { width: 0, height: scaleFont(4) },
+        shadowOpacity: 0.35,
+        shadowRadius: scaleFont(10),
+        elevation: scaleFont(6),
+    },
+    modeToggleText: {
+        fontSize: scaleFont(13),
+        fontWeight: '700',
+        color: '#64748B',
+        fontFamily: 'Outfit_700Bold',
+    },
+    modeToggleTextActive: {
+        color: '#FFFFFF',
     },
 });

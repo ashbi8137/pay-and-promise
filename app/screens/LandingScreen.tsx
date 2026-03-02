@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 
 import MaskedView from '@react-native-masked-view/masked-view';
+import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
 import Animated, {
     Easing,
@@ -41,6 +42,61 @@ import { scaleFont } from '../../utils/layout';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // --- LUXURY COMPONENTS ---
+
+const SparkleBackground = () => {
+    const sparkles = Array.from({ length: 30 }).map((_, i) => ({
+        id: i,
+        size: Math.random() * 4 + 2,
+        x: Math.random() * SCREEN_WIDTH,
+        y: Math.random() * SCREEN_HEIGHT,
+        delay: Math.random() * 5000,
+        duration: 3000 + Math.random() * 4000,
+    }));
+
+    return (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+            {sparkles.map((s) => (
+                <SparklePoint key={s.id} sparkle={s} />
+            ))}
+        </View>
+    );
+};
+
+const SparklePoint = ({ sparkle }: { sparkle: any }) => {
+    const opacity = useSharedValue(0);
+    const scale = useSharedValue(0.5);
+
+    useEffect(() => {
+        opacity.value = withRepeat(
+            withTiming(Math.random() * 0.7 + 0.2, { duration: sparkle.duration, easing: Easing.inOut(Easing.quad) }),
+            -1,
+            true
+        );
+        scale.value = withRepeat(
+            withTiming(1.5, { duration: sparkle.duration * 1.2, easing: Easing.inOut(Easing.quad) }),
+            -1,
+            true
+        );
+    }, []);
+
+    const animatedStyle = useAnimatedStyle(() => ({
+        position: 'absolute',
+        left: sparkle.x,
+        top: sparkle.y,
+        width: sparkle.size,
+        height: sparkle.size,
+        borderRadius: sparkle.size / 2,
+        backgroundColor: '#FFFFFF',
+        opacity: opacity.value,
+        transform: [{ scale: scale.value }],
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 4,
+    }));
+
+    return <Animated.View style={animatedStyle} />;
+};
 
 
 
@@ -219,7 +275,7 @@ export default function LandingScreen() {
             id: 1,
             title: "Make A Promise",
             highlight: "Action",
-            subtitle: "Set a goal. Commit to it.",
+            subtitle: "Set a goal and make it happen",
             icon: "flash-outline",
             color: "#5B2DAD",
         },
@@ -227,7 +283,7 @@ export default function LandingScreen() {
             id: 2,
             title: "Friends Verify",
             highlight: "Trust",
-            subtitle: "Your friends confirm your progress.",
+            subtitle: "Friends help you stay on track",
             icon: "people-circle-outline",
             color: "#7C3AED",
         },
@@ -235,62 +291,101 @@ export default function LandingScreen() {
             id: 3,
             title: "Build Trust",
             highlight: "Legacy",
-            subtitle: "Keep promises. Earn points. Grow.",
+            subtitle: "Keep promises and grow your trust",
             icon: "ribbon-outline",
             color: "#6366F1",
         }
     ];
 
     const SlideItem = ({ item, index }: { item: any, index: number }) => {
-        // 3D Glassmorphism Carousel
         const animatedContainerStyle = useAnimatedStyle(() => {
             const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
 
-            // 3D ROTATION & DEPTH
-            // Scale: Active is big, sides are smaller
+            // Perspective & Scale for 3D feel
             const scale = interpolate(scrollX.value, inputRange, [0.85, 1, 0.85], Extrapolation.CLAMP);
-
-            // Opacity: Sides fade out slightly
-            const opacity = interpolate(scrollX.value, inputRange, [0.6, 1, 0.6], Extrapolation.CLAMP);
-
-            // Perspective Rotate: Simulate flipping through a deck
-            const rotateY = interpolate(scrollX.value, inputRange, [45, 0, -45], Extrapolation.CLAMP);
-
-            // TranslateX: Bring sides closer to center for "stack" feel? Or keep standard?
-            // Standard parallax spacing feels safer for now, but let's add slight negative margin?
-            // No, keep standard spacing but use perspective to sell the depth.
+            const rotateY = interpolate(scrollX.value, inputRange, [30, 0, -30], Extrapolation.CLAMP);
+            const opacity = interpolate(scrollX.value, inputRange, [0.4, 1, 0.4], Extrapolation.CLAMP);
 
             return {
                 transform: [
                     { perspective: 1000 },
                     { scale },
-                    { rotateY: `${rotateY}deg` },
+                    { rotateY: `${rotateY}deg` }
                 ],
                 opacity
             };
         });
 
+        // Floating animation for icon
+        const floatingAnim = useSharedValue(0);
+        useEffect(() => {
+            floatingAnim.value = withRepeat(
+                withTiming(1, { duration: 2500, easing: Easing.inOut(Easing.sin) }),
+                -1,
+                true
+            );
+        }, []);
+
+        const animatedIconStyle = useAnimatedStyle(() => ({
+            transform: [{ translateY: interpolate(floatingAnim.value, [0, 1], [0, -8]) }]
+        }));
+
+        const isSecondSlide = index === 1;
+
         return (
             <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                <Animated.View style={[styles.showcaseContainer, animatedContainerStyle]}>
+                    <BlurView intensity={70} tint="light" style={StyleSheet.absoluteFill} />
 
-                {/* SHOWCASE CONTAINER */}
-                <Animated.View
-                    style={[
-                        styles.showcaseContainer,
-                        animatedContainerStyle
-                    ]}
-                >
-                    {/* Icon */}
-                    <View style={styles.iconWrapper}>
-                        <Ionicons
-                            name={item.icon as any}
-                            size={scaleFont(100)}
-                            color={item.color}
+                    {/* THIN WHITE GLASS BORDER */}
+                    <View style={[StyleSheet.absoluteFill, {
+                        borderWidth: 1.5,
+                        borderColor: 'rgba(255, 255, 255, 0.6)',
+                        borderRadius: scaleFont(32)
+                    }]} />
+
+                    {/* INTERNAL CARD SURFACE WITH SOFT TOP GRADING */}
+                    <View style={[StyleSheet.absoluteFill, { margin: 1, backgroundColor: 'rgba(255, 255, 255, 0.2)', borderRadius: scaleFont(31) }]}>
+                        <LinearGradient
+                            colors={[item.color + '10', 'rgba(255, 255, 255, 0)']}
+                            style={{ height: '35%', width: '100%', borderRadius: scaleFont(31) }}
                         />
                     </View>
 
+                    <Animated.View style={[styles.iconWrapper, animatedIconStyle]}>
+                        <View style={styles.iconGlowContainer}>
+                            <LinearGradient
+                                colors={[item.color + '30', 'transparent']}
+                                style={styles.iconGlow}
+                            />
+                        </View>
+
+                        {/* FLOATING AVATARS (Only for Slide 2) */}
+                        {isSecondSlide && (
+                            <View style={StyleSheet.absoluteFill}>
+                                <View style={[styles.floatingAvatar, { top: -20, left: -40, opacity: 0.4 }]}>
+                                    <Ionicons name="person-circle" size={scaleFont(36)} color="rgba(255,255,255,0.8)" />
+                                </View>
+                                <View style={[styles.floatingAvatar, { top: 10, left: 130, opacity: 0.3 }]}>
+                                    <Ionicons name="person-circle" size={scaleFont(32)} color="rgba(255,255,255,0.8)" />
+                                </View>
+                                <View style={[styles.floatingAvatar, { top: 70, left: -60, opacity: 0.2 }]}>
+                                    <Ionicons name="person-circle" size={scaleFont(40)} color="rgba(255,255,255,0.8)" />
+                                </View>
+                            </View>
+                        )}
+
+                        <View style={[styles.iconCircle, { backgroundColor: 'rgba(255,255,255,0.4)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' }]}>
+                            <Ionicons
+                                name={item.icon as any}
+                                size={scaleFont(64)}
+                                color={item.color}
+                            />
+                        </View>
+                    </Animated.View>
+
                     <GradientText
-                        colors={[item.color, '#0F172A']}
+                        colors={[item.color, '#1E293B']}
                         style={styles.slideTitle}
                         allowFontScaling={false}
                     >
@@ -301,6 +396,10 @@ export default function LandingScreen() {
                         <Text style={styles.slideSubtitle} allowFontScaling={false}>
                             {item.subtitle}
                         </Text>
+                    </View>
+
+                    <View style={styles.cardPagination}>
+                        <Pagination />
                     </View>
                 </Animated.View>
             </View>
@@ -314,14 +413,13 @@ export default function LandingScreen() {
             {slides.map((_, index) => {
                 const dotStyle = useAnimatedStyle(() => {
                     const inputRange = [(index - 1) * SCREEN_WIDTH, index * SCREEN_WIDTH, (index + 1) * SCREEN_WIDTH];
-                    const width = interpolate(scrollX.value, inputRange, [scaleFont(8), scaleFont(32), scaleFont(8)], Extrapolation.CLAMP);
-                    const opacity = interpolate(scrollX.value, inputRange, [0.35, 1, 0.35], Extrapolation.CLAMP);
-                    const scale = interpolate(scrollX.value, inputRange, [0.9, 1.1, 0.9], Extrapolation.CLAMP);
+                    // Active is elongated pill, inactive is small circle
+                    const width = interpolate(scrollX.value, inputRange, [scaleFont(8), scaleFont(24), scaleFont(8)], Extrapolation.CLAMP);
+                    const opacity = interpolate(scrollX.value, inputRange, [0.3, 1, 0.3], Extrapolation.CLAMP);
                     return {
                         width,
                         opacity,
-                        backgroundColor: '#5B2DAD',
-                        transform: [{ scale }]
+                        backgroundColor: '#6C5CE7',
                     };
                 });
                 return <Animated.View key={index} style={[styles.dot, dotStyle]} />;
@@ -333,7 +431,7 @@ export default function LandingScreen() {
         const backgroundColor = interpolateColor(
             scrollX.value,
             [0, SCREEN_WIDTH, SCREEN_WIDTH * 2],
-            ['#F8FAFC', '#EEF2FF', '#E0E7FF'] // Lighter tints of slide colors
+            ['#F6F7FB', '#F8F9FF', '#EEF1FF'] // Soft neutral and blue-tinted gradients
         );
         return { backgroundColor };
     });
@@ -362,6 +460,7 @@ export default function LandingScreen() {
             <Animated.View style={[StyleSheet.absoluteFill, backgroundAnimatedStyle]} />
 
             <GridOverlay />
+            <SparkleBackground />
 
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.content}>
@@ -394,57 +493,64 @@ export default function LandingScreen() {
                         </View> */}
 
                         <Animated.View style={styles.unifiedNavContainer} pointerEvents="box-none">
-                            {/* Slide 1: Only Next */}
-                            {currentIndex === 0 && (
-                                <TouchableOpacity onPress={goToNextSlide} style={styles.lightRoundButton}>
-                                    <Ionicons name="chevron-forward" size={scaleFont(24)} color="#4F46E5" />
-                                </TouchableOpacity>
+                            {/* Slide 1 & 2: Normal Arrows */}
+                            {currentIndex < 2 && (
+                                <View style={styles.navRow}>
+                                    {currentIndex > 0 && (
+                                        <TouchableOpacity onPress={goToPrevSlide} style={styles.secondaryNavButton}>
+                                            <Ionicons name="arrow-back" size={scaleFont(24)} color="#64748B" />
+                                        </TouchableOpacity>
+                                    )}
+                                    <TouchableOpacity onPress={goToNextSlide} style={styles.primaryNavButton}>
+                                        <LinearGradient
+                                            colors={['#6C5CE7', '#8E7CFF']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                            style={[StyleSheet.absoluteFill, { borderRadius: scaleFont(26) }]}
+                                        />
+                                        <Ionicons name="arrow-forward" size={scaleFont(24)} color="#FFFFFF" />
+                                    </TouchableOpacity>
+                                </View>
                             )}
 
-                            {/* Slide 2: Prev & Next */}
-                            {currentIndex === 1 && (
-                                <>
-                                    <TouchableOpacity onPress={goToPrevSlide} style={styles.lightRoundButton}>
-                                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#4F46E5" />
-                                    </TouchableOpacity>
-                                    <TouchableOpacity onPress={goToNextSlide} style={styles.lightRoundButton}>
-                                        <Ionicons name="chevron-forward" size={scaleFont(24)} color="#4F46E5" />
-                                    </TouchableOpacity>
-                                </>
-                            )}
-
-                            {/* Slide 3: Prev & Auth Navigate (looks like Next) */}
+                            {/* Slide 3: Get Started CTA (No Prev button) */}
                             {currentIndex === 2 && (
-                                <>
-                                    <TouchableOpacity onPress={goToPrevSlide} style={styles.lightRoundButton}>
-                                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#4F46E5" />
-                                    </TouchableOpacity>
+                                <View style={styles.navRow}>
                                     <TouchableOpacity
                                         onPress={() => {
                                             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
                                             router.replace('/screens/AuthScreen');
                                         }}
-                                        style={styles.lightRoundButton}
-                                        activeOpacity={0.7}
+                                        style={styles.ctaButton}
+                                        activeOpacity={0.8}
                                     >
-                                        <Ionicons name="chevron-forward" size={scaleFont(24)} color="#4F46E5" />
+                                        <LinearGradient
+                                            colors={['#6C5CE7', '#8E7CFF']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 1 }}
+                                            style={[StyleSheet.absoluteFill, { borderRadius: scaleFont(26) }]}
+                                        />
+                                        <Text style={styles.ctaText}>Get Started</Text>
+                                        <Ionicons name="chevron-forward" size={scaleFont(18)} color="#FFFFFF" style={{ marginLeft: 8 }} />
                                     </TouchableOpacity>
-                                </>
+                                </View>
                             )}
                         </Animated.View>
-                    </Animated.View>
 
-                    <TouchableOpacity
-                        style={styles.skipButton}
-                        onPress={() => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            router.replace('/screens/AuthScreen');
-                        }}
-                        hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
-                    >
-                        <Text style={styles.skipText}>Skip</Text>
-                    </TouchableOpacity>
+
+                    </Animated.View>
                 </View>
+
+                <TouchableOpacity
+                    style={styles.skipButton}
+                    onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.replace('/screens/AuthScreen');
+                    }}
+                    hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+                >
+                    <Text style={styles.skipText}>Skip</Text>
+                </TouchableOpacity>
             </SafeAreaView>
         </View>
     );
@@ -470,69 +576,82 @@ const styles = StyleSheet.create({
     sliderContainer: {
         ...StyleSheet.absoluteFillObject,
     },
-    controlsContainer: {
-        position: 'absolute',
-        bottom: scaleFont(170), // Move Pagination UP further
-        width: '100%',
-        alignItems: 'center',
-        zIndex: 30,
-    },
-    slideCard: {
-        width: SCREEN_WIDTH,
-        height: '100%',
-        backgroundColor: 'transparent',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    slideContent: {
-        width: '100%',
-        alignItems: 'center', // Back to Center
-        justifyContent: 'center',
+    showcaseContainer: {
+        width: SCREEN_WIDTH * 0.85,
+        borderRadius: scaleFont(32),
+        paddingVertical: scaleFont(48),
         paddingHorizontal: scaleFont(24),
-        paddingBottom: scaleFont(80), // Lift content slightly above center
+        alignItems: 'center',
+        shadowColor: 'rgba(108, 92, 231, 0.2)',
+        shadowOffset: { width: 0, height: 20 },
+        shadowOpacity: 1,
+        shadowRadius: 40,
+        elevation: 15,
+        backgroundColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        overflow: 'hidden',
     },
-    newIconWrapper: {
-        marginBottom: scaleFont(80),
+    iconWrapper: {
+        marginBottom: scaleFont(40),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    iconGlowContainer: {
+        position: 'absolute',
+        top: -scaleFont(20),
+        width: scaleFont(160),
+        height: scaleFont(160),
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    iconGlow: {
+        width: '100%',
+        height: '100%',
+        borderRadius: scaleFont(80),
+    },
+    iconCircle: {
+        width: scaleFont(120),
+        height: scaleFont(120),
+        borderRadius: scaleFont(60),
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#FFFFFF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.3,
+        shadowRadius: 15,
+    },
+    floatingAvatar: {
+        position: 'absolute',
         alignItems: 'center',
         justifyContent: 'center',
     },
     slideTitle: {
-        fontSize: scaleFont(32), // Reduced to fit on a single line
+        fontSize: scaleFont(34),
         fontWeight: '900',
         color: '#1E293B',
-        textAlign: 'center', // Back to Center
+        textAlign: 'center',
         fontFamily: 'Outfit_800ExtraBold',
-        marginBottom: scaleFont(16),
-        textShadowColor: 'rgba(255,255,255,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 10,
+        marginBottom: scaleFont(12),
+        letterSpacing: -0.5,
     },
     subtitleWrapper: {
-        width: '85%',
+        width: '90%',
         alignSelf: 'center',
+        marginTop: scaleFont(4),
     },
     slideSubtitle: {
-        fontSize: scaleFont(18),
-        color: '#475569',
-        textAlign: 'center', // Back to Center
+        fontSize: scaleFont(16),
+        color: '#64748B',
+        textAlign: 'center',
         fontFamily: 'Outfit_400Regular',
-        lineHeight: scaleFont(28),
+        lineHeight: scaleFont(24),
+        letterSpacing: 0.3,
     },
-    glassEffect: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(255,255,255,0.4)',
-        opacity: 0.7,
-    },
-    pagination: {
-        flexDirection: 'row',
-        justifyContent: 'center',
+    cardPagination: {
+        marginTop: scaleFont(40),
+        width: '100%',
         alignItems: 'center',
-        // Removed marginTop
-    },
-    dot: {
-        height: scaleFont(8),
-        borderRadius: scaleFont(4),
-        marginHorizontal: scaleFont(6),
     },
     unifiedNavContainer: {
         position: 'absolute',
@@ -544,50 +663,80 @@ const styles = StyleSheet.create({
         gap: scaleFont(24),
         zIndex: 15,
     },
+    navRow: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: scaleFont(24),
+    },
+    primaryNavButton: {
+        width: scaleFont(52),
+        height: scaleFont(52),
+        borderRadius: scaleFont(26),
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 12,
+        shadowColor: 'rgba(108, 92, 231, 0.4)',
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.4,
+        shadowRadius: 20,
+        overflow: 'hidden',
+    },
+    secondaryNavButton: {
+        width: scaleFont(52),
+        height: scaleFont(52),
+        borderRadius: scaleFont(26),
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 10,
+        shadowColor: 'rgba(0, 0, 0, 0.1)',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.1,
+        shadowRadius: 15,
+    },
+    ctaButton: {
+        width: scaleFont(180),
+        height: scaleFont(52),
+        borderRadius: scaleFont(26),
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 15,
+        shadowColor: 'rgba(108, 92, 231, 0.4)',
+        shadowOffset: { width: 0, height: 15 },
+        shadowOpacity: 0.4,
+        shadowRadius: 25,
+        overflow: 'hidden',
+    },
+    ctaText: {
+        color: '#FFFFFF',
+        fontSize: scaleFont(16),
+        fontFamily: 'Outfit_600SemiBold',
+    },
+    pagination: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    dot: {
+        height: scaleFont(8),
+        borderRadius: scaleFont(4),
+        marginHorizontal: scaleFont(6),
+    },
     skipButton: {
         position: 'absolute',
-        top: scaleFont(60), // Adjust for status bar
+        top: scaleFont(60),
         right: scaleFont(24),
         zIndex: 50,
         padding: scaleFont(8),
-        backgroundColor: 'rgba(255,255,255,0.8)',
+        backgroundColor: 'rgba(255, 255, 255, 0.8)',
         borderRadius: scaleFont(20),
     },
     skipText: {
         fontSize: scaleFont(14),
         fontFamily: 'Outfit_600SemiBold',
         color: '#64748B',
-    },
-    lightRoundButton: {
-        width: scaleFont(52),
-        height: scaleFont(52),
-        borderRadius: scaleFont(26),
-        backgroundColor: '#FFFFFF', // Light colored, not dark
-        alignItems: 'center',
-        justifyContent: 'center',
-        elevation: 8,
-        shadowColor: 'rgba(79, 70, 229, 0.4)',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 8,
-        borderWidth: scaleFont(1),
-        borderColor: 'rgba(79, 70, 229, 0.1)',
-    },
-    startButton: {
-        borderWidth: scaleFont(2),
-        borderColor: 'rgba(79, 70, 229, 0.3)', // Extra simple design for init button
-        backgroundColor: '#EEF2FF', // Very subtle tint to distinguish it slightly but maintain light theme
-    },
-    // New Luxury Styles
-    showcaseContainer: {
-        width: SCREEN_WIDTH * 0.9,
-        alignItems: 'center',
-        paddingVertical: scaleFont(20),
-    },
-    iconWrapper: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: scaleFont(48),
     },
 });
 

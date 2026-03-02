@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -30,6 +31,9 @@ export default function SettingsScreen() {
                     text: 'Sign Out',
                     style: 'destructive',
                     onPress: async () => {
+                        // Clear tutorial status so a different user on this device sees it
+                        await AsyncStorage.multiRemove(['HAS_COMPLETED_TUTORIAL', 'HAS_SEEN_ONBOARDING_TOOLTIP']);
+
                         const { error } = await supabase.auth.signOut();
                         if (error) {
                             showAlert({

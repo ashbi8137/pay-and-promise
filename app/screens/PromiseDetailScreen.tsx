@@ -53,10 +53,31 @@ export default function PromiseDetailScreen() {
         );
     }
 
-    const { title, duration, numPeople, commitment_level, locked_points, invite_code } = promiseData;
+    const { title, duration, numPeople, commitment_level, locked_points, invite_code, deadline_time } = promiseData;
     const commitmentLevel = commitment_level || promiseData.commitmentLevel || 'medium';
     const lockedPoints = locked_points || promiseData.lockedPoints || 10;
     const isSelfPromise = (promiseData.promise_type || 'group') === 'self';
+
+    // Parse and check deadline
+    const [isPastDeadline, setIsPastDeadline] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!deadline_time) return;
+
+        const checkDeadline = () => {
+            const now = new Date();
+            const [hours, minutes] = deadline_time.split(':').map(Number);
+
+            const deadline = new Date();
+            deadline.setHours(hours, minutes, 0, 0);
+
+            setIsPastDeadline(now > deadline);
+        };
+
+        checkDeadline();
+        const interval = setInterval(checkDeadline, 60000); // Check every minute
+        return () => clearInterval(interval);
+    }, [deadline_time]);
 
     const [updating, setUpdating] = React.useState(false);
     const [showMoodModal, setShowMoodModal] = React.useState(false);
@@ -215,9 +236,6 @@ export default function PromiseDetailScreen() {
     };
 
     const fetchParticipantCount = async () => {
-        // DEBUG: Explicitly show we are trying to fetch
-        // console.log('[MeetingRoom] Fetching for:', promiseData.id);
-
         try {
             const { data, error } = await supabase
                 .from('promise_participants')
@@ -228,7 +246,6 @@ export default function PromiseDetailScreen() {
             if (error) {
                 console.log('[MeetingRoom] RLS blocked access, fetching fresh cache.');
 
-                // Fetch fresh promise data to get latest cache
                 const { data: freshPromise } = await supabase
                     .from('promises')
                     .select('participants')
@@ -238,10 +255,29 @@ export default function PromiseDetailScreen() {
                 const fallbackList = freshPromise?.participants || promiseData.participants;
 
                 if (fallbackList) {
+                    // Even for cache fallback, try to fetch fresh avatars from profiles
+                    const cachedIds = fallbackList.map((p: any) => p.id).filter((id: string) => id && id !== 'unknown');
+                    let freshAvatars: Record<string, string> = {};
+                    if (cachedIds.length > 0) {
+                        try {
+                            const { data: profiles } = await supabase
+                                .from('profiles')
+                                .select('id, avatar_url')
+                                .in('id', cachedIds);
+                            if (profiles) {
+                                profiles.forEach((p: any) => {
+                                    if (p.avatar_url) freshAvatars[p.id] = p.avatar_url;
+                                });
+                            }
+                        } catch (e) {
+                            console.log('[MeetingRoom] Fresh avatar fetch skipped', e);
+                        }
+                    }
+
                     const mapped = fallbackList.map((p: any) => ({
                         name: p.name || 'User',
-                        id: 'unknown',
-                        avatar_url: p.avatar_url || null
+                        id: p.id || 'unknown',
+                        avatar_url: freshAvatars[p.id] || p.avatar_url || null
                     }));
                     setJoinedParticipants(mapped);
                     setRealParticipantCount(mapped.length);
@@ -261,7 +297,7 @@ export default function PromiseDetailScreen() {
                         console.error('[MeetingRoom] RPC Error:', rpcError);
                     }
 
-                    // 2. Try Fetching Profiles for Avatars
+                    // 2. Fetch fresh avatars from profiles table (always use latest uploaded avatar)
                     let avatarMap: Record<string, string> = {};
                     try {
                         const { data: profiles } = await supabase
@@ -285,13 +321,13 @@ export default function PromiseDetailScreen() {
                             avatar_url: avatarMap[n.user_id] || null
                         }));
 
-                        // CRITICAL FIX: Merge with cache if RLS hides people
+                        // If RLS hides some people, merge with cache but use FRESH avatars
                         if (promiseData.participants && promiseData.participants.length > formatted.length) {
                             console.log('[MeetingRoom] Using Cache for Display (RLS Gap detected)');
                             const cached = promiseData.participants.map((p: any) => ({
                                 name: p.name || 'User',
                                 id: p.id || 'unknown',
-                                avatar_url: p.avatar_url || null
+                                avatar_url: avatarMap[p.id] || p.avatar_url || null
                             }));
                             setJoinedParticipants(cached);
                         } else {
@@ -299,13 +335,31 @@ export default function PromiseDetailScreen() {
                         }
                     }
                 } else {
-                    // RLS returned empty? Use cache
+                    // RLS returned empty? Use cache with fresh avatars
                     if (promiseData.participants && promiseData.participants.length > 0) {
                         console.log('[MeetingRoom] Data Empty, Using Cache');
+                        // Fetch fresh avatars for cached participants
+                        const cachedIds = promiseData.participants.map((p: any) => p.id).filter((id: string) => id && id !== 'unknown');
+                        let freshAvatars: Record<string, string> = {};
+                        if (cachedIds.length > 0) {
+                            try {
+                                const { data: profiles } = await supabase
+                                    .from('profiles')
+                                    .select('id, avatar_url')
+                                    .in('id', cachedIds);
+                                if (profiles) {
+                                    profiles.forEach((p: any) => {
+                                        if (p.avatar_url) freshAvatars[p.id] = p.avatar_url;
+                                    });
+                                }
+                            } catch (e) {
+                                console.log('[MeetingRoom] Fresh avatar fetch skipped', e);
+                            }
+                        }
                         const cached = promiseData.participants.map((p: any) => ({
                             name: p.name || 'User',
                             id: p.id || 'unknown',
-                            avatar_url: p.avatar_url || null
+                            avatar_url: freshAvatars[p.id] || p.avatar_url || null
                         }));
                         setJoinedParticipants(cached);
                     } else {
@@ -323,7 +377,6 @@ export default function PromiseDetailScreen() {
             }
         } catch (err) {
             console.error('[MeetingRoom] Unexpected:', err);
-            // Last resort fallback
             if (promiseData.participants) {
                 setJoinedParticipants(promiseData.participants.map((p: any) => ({
                     name: p.name,
@@ -928,26 +981,51 @@ export default function PromiseDetailScreen() {
                     </Animated.View>
                 ) : (
                     todayStatus !== 'failed' ? (
-                        <Animated.View entering={FadeInDown} style={styles.uploadCard}>
-                            <Text style={styles.uploadTitle}>Ready for today?</Text>
-                            <Text style={styles.uploadSub}>Capture your progress and share it.</Text>
-                            <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn} disabled={updating}>
-                                {updating ? (
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                        <ActivityIndicator color="#FFF" />
-                                        <Text style={styles.mainActionText}>Uploading...</Text>
+                        isPastDeadline ? (
+                            <Animated.View entering={FadeInDown} style={[styles.uploadCard, { borderColor: '#EF4444', backgroundColor: '#FEF2F2' }]}>
+                                <Ionicons name="time" size={32} color="#EF4444" style={{ marginBottom: 8, alignSelf: 'center' }} />
+                                <Text style={[styles.uploadTitle, { color: '#EF4444', textAlign: 'center' }]}>Deadline Passed</Text>
+                                <Text style={[styles.uploadSub, { textAlign: 'center' }]}>
+                                    It's past the daily deadline of {new Date(`2000-01-01T${deadline_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                                </Text>
+                                <Text style={[styles.uploadSub, { textAlign: 'center', marginTop: 4, fontWeight: '700' }]}>
+                                    You can no longer submit for today.
+                                </Text>
+                            </Animated.View>
+                        ) : (
+                            <Animated.View entering={FadeInDown} style={styles.uploadCard}>
+                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.uploadTitle}>Ready for today?</Text>
+                                        <Text style={styles.uploadSub}>Capture your progress and share it.</Text>
                                     </View>
-                                ) : (
-                                    <>
-                                        <Ionicons name="camera" size={24} color="#FFF" />
-                                        <Text style={styles.mainActionText}>Submit Proof</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleCheckIn('failed')}>
-                                <Text style={styles.failLink}>I missed it today</Text>
-                            </TouchableOpacity>
-                        </Animated.View>
+                                    {deadline_time && (
+                                        <View style={{ backgroundColor: '#FEF9C3', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#FDE047' }}>
+                                            <Text style={{ fontSize: scaleFont(11), fontWeight: '800', color: '#CA8A04', fontFamily: 'Outfit_800ExtraBold' }}>DEADLINE</Text>
+                                            <Text style={{ fontSize: scaleFont(14), fontWeight: '900', color: '#854D0E', fontFamily: 'Outfit_800ExtraBold' }}>
+                                                {new Date(`2000-01-01T${deadline_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
+                                <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn} disabled={updating}>
+                                    {updating ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                            <ActivityIndicator color="#FFF" />
+                                            <Text style={styles.mainActionText}>Uploading...</Text>
+                                        </View>
+                                    ) : (
+                                        <>
+                                            <Ionicons name="camera" size={24} color="#FFF" />
+                                            <Text style={styles.mainActionText}>Submit Proof</Text>
+                                        </>
+                                    )}
+                                </TouchableOpacity>
+                                <TouchableOpacity onPress={() => handleCheckIn('failed')}>
+                                    <Text style={styles.failLink}>I missed it today</Text>
+                                </TouchableOpacity>
+                            </Animated.View>
+                        )
                     ) : (
                         <View style={styles.actionCard}>
                             <View style={styles.failPlaceholder}>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Tabs, useRouter, useSegments } from 'expo-router';
@@ -282,6 +283,7 @@ export default function TabLayout() {
                                                             text: 'Sign Out',
                                                             style: 'destructive',
                                                             onPress: async () => {
+                                                                await AsyncStorage.multiRemove(['HAS_COMPLETED_TUTORIAL', 'HAS_SEEN_ONBOARDING_TOOLTIP']);
                                                                 const { error } = await supabase.auth.signOut();
                                                                 if (!error) {
                                                                     router.replace('/screens/AuthScreen');

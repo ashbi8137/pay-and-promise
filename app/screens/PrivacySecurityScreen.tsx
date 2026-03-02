@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import { Linking, Platform, SafeAreaView, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -24,6 +25,7 @@ export default function PrivacySecurityScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                        await AsyncStorage.multiRemove(['HAS_COMPLETED_TUTORIAL', 'HAS_SEEN_ONBOARDING_TOOLTIP']);
                         const { error } = await supabase.auth.signOut();
                         if (error) {
                             showAlert({

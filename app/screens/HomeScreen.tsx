@@ -39,6 +39,7 @@ interface PromiseItem {
     days_completed: number;
     created_at: string;
     promise_type?: 'self' | 'group';
+    deadline_time?: string;
 }
 
 const HAS_SEEN_TOOLTIP_KEY = 'HAS_SEEN_ONBOARDING_TOOLTIP';
@@ -86,9 +87,6 @@ export default function HomeScreen() {
         checkTooltip();
         startPulse();
 
-        // Check for tutorial flag in user metadata
-        checkTutorialStatus();
-
         // Start swinging animation
         rotation.value = withRepeat(
             withSequence(
@@ -127,10 +125,26 @@ export default function HomeScreen() {
 
     const handleTutorialComplete = async () => {
         setShouldShowTutorial(false);
-        // User requested tutorial shows every login. Do not save has_seen_tutorial to true anymore.
-        setTimeout(() => {
-            setShowWelcomeBonus(true);
-        }, 500);
+        setShowTooltip(false);
+        await AsyncStorage.setItem('HAS_COMPLETED_TUTORIAL', 'true');
+        await AsyncStorage.setItem(HAS_SEEN_TOOLTIP_KEY, 'true');
+        // Only show bonus modal if not already claimed
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: ledger } = await supabase
+                    .from('promise_point_ledger')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('reason', 'signup_bonus')
+                    .limit(1);
+                if (!ledger || ledger.length === 0) {
+                    setTimeout(() => setShowWelcomeBonus(true), 500);
+                }
+            }
+        } catch (e) {
+            console.log('Error checking bonus status', e);
+        }
     };
 
 
@@ -153,6 +167,9 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
+            // Check tutorial status every time screen gains focus
+            checkTutorialStatus();
+
             if (modeLoaded) {
                 fetchData(activeMode);
             }
@@ -187,8 +204,14 @@ export default function HomeScreen() {
 
 
     const checkTutorialStatus = async () => {
-        // ALWAYS show tutorial on Home Screen load as requested for testing
-        setShouldShowTutorial(true);
+        try {
+            const hasSeen = await AsyncStorage.getItem('HAS_COMPLETED_TUTORIAL');
+            if (!hasSeen) {
+                setShouldShowTutorial(true);
+            }
+        } catch (e) {
+            console.log('Error checking tutorial status', e);
+        }
     };
 
     const fetchData = async (mode?: 'self' | 'group') => {
@@ -223,6 +246,40 @@ export default function HomeScreen() {
                         streak: ppData.current_streak || 0,
                         level: ppData.level || 1,
                     });
+                }
+
+                // Auto-claim signup bonus ONLY as fallback for users who completed
+                // the tutorial but somehow missed claiming (e.g. app crash during modal).
+                // For fresh users, the Welcome Bonus Modal handles the claim flow.
+                const tutorialDone = await AsyncStorage.getItem('HAS_COMPLETED_TUTORIAL');
+                if (tutorialDone) {
+                    const { data: bonusCheck } = await supabase
+                        .from('promise_point_ledger')
+                        .select('id')
+                        .eq('user_id', user.id)
+                        .eq('reason', 'signup_bonus')
+                        .limit(1);
+
+                    if (!bonusCheck || bonusCheck.length === 0) {
+                        console.log('Auto-claiming signup bonus (fallback)...');
+                        const { error: claimError } = await supabase.rpc('claim_signup_bonus');
+                        if (!claimError) {
+                            const { data: updatedPP } = await supabase
+                                .from('profiles')
+                                .select('promise_points, current_streak, level')
+                                .eq('id', user.id)
+                                .single();
+                            if (updatedPP) {
+                                setPpStats({
+                                    balance: updatedPP.promise_points || 0,
+                                    streak: updatedPP.current_streak || 0,
+                                    level: updatedPP.level || 1,
+                                });
+                            }
+                        } else {
+                            console.log('Auto-claim failed (non-critical):', claimError.message);
+                        }
+                    }
                 }
 
                 // 1. Fetch Promise IDs where user is a participant
@@ -393,6 +450,21 @@ export default function HomeScreen() {
         const progressPercent = Math.min(Math.max(rawProgress, 0), 100);
         const isFailed = item.status === 'failed';
 
+        // Calculate deadline date
+        const endDate = new Date(startLocal);
+        endDate.setDate(startLocal.getDate() + totalDays);
+        const daysLeft = Math.max(0, Math.ceil((endDate.getTime() - todayLocal.getTime()) / (1000 * 60 * 60 * 24)));
+        const deadlineLabel = endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+        // Format deadline time if available
+        let deadlineTimeLabel = '';
+        if (item.deadline_time) {
+            const [h, m] = item.deadline_time.split(':').map(Number);
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hour12 = h % 12 || 12;
+            deadlineTimeLabel = ` · ${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;
+        }
+
         return (
             <Animated.View
                 entering={FadeInDown.delay(isHistory ? 400 : 300).springify()}
@@ -431,15 +503,13 @@ export default function HomeScreen() {
                         <View style={styles.cardContent}>
                             <View style={styles.cardHeader}>
                                 <Text style={[styles.cardTitle, { color: theme.text }, isHistory && styles.completedText]} numberOfLines={1}>{item.title}</Text>
+                                {item.deadline_time && item.status === 'active' && (
+                                    <Text style={styles.deadlineTimeInline}>by {deadlineTimeLabel.replace(' · ', '')}</Text>
+                                )}
                                 <Ionicons name="chevron-forward" size={16} color={theme.icon} style={{ opacity: 0.5 }} />
                             </View>
 
                             <View style={styles.cardFooter}>
-                                {item.status === 'active' && (
-                                    <View style={[styles.daysTag, { backgroundColor: '#F8FAFC' }]}>
-                                        <Text style={[styles.daysTagText, { color: theme.icon }]}>{item.duration_days} Days</Text>
-                                    </View>
-                                )}
                                 <View style={styles.metaItem}>
                                     <Text style={[styles.cardMeta, { color: theme.icon }]}>{(item.promise_type || 'group') === 'self' ? 'Solo' : `${item.number_of_people} friends`}</Text>
                                 </View>
@@ -687,11 +757,6 @@ export default function HomeScreen() {
 
             </SafeAreaView>
 
-            {/* First-Time Walkthrough Overlay */}
-            <WalkthroughOverlay
-                initialVisible={shouldShowTutorial}
-                onComplete={handleTutorialComplete}
-            />
             {/* Celebration Modal */}
             <WelcomeBonusModal
                 visible={showWelcomeBonus}
@@ -714,6 +779,11 @@ export default function HomeScreen() {
                         throw error;
                     }
                 }}
+            />
+
+            <WalkthroughOverlay
+                initialVisible={shouldShowTutorial}
+                onComplete={handleTutorialComplete}
             />
         </View>
     );
@@ -968,6 +1038,13 @@ const styles = StyleSheet.create({
         marginRight: scaleFont(12),
         fontFamily: 'Outfit_700Bold', // Enforce Outfit
         color: '#1E293B',
+    },
+    deadlineTimeInline: {
+        fontSize: scaleFont(11),
+        fontWeight: '600',
+        color: '#7C3AED',
+        fontFamily: 'Outfit_700Bold',
+        marginRight: scaleFont(4),
     },
     cardFooter: {
         flexDirection: 'row',

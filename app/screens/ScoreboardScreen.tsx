@@ -28,7 +28,7 @@ interface LeaderboardUser {
     user_id: string;
     full_name: string;
     avatar_url: string | null;
-    lifetime_points: number;
+    integrity_score: number;
     level: number;
     current_streak: number;
     completed_promises_count: number;
@@ -56,42 +56,59 @@ export default function ScoreboardScreen() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) setCurrentUserId(user.id);
+            if (!user) return;
 
-            // Try the RPC first
-            const { data, error } = await supabase.rpc('get_leaderboard', { p_limit: 50 });
+            // 1. Get all promise IDs the current user participates in
+            const { data: myPromises } = await supabase
+                .from('promise_participants')
+                .select('promise_id')
+                .eq('user_id', user.id);
+
+            if (!myPromises || myPromises.length === 0) {
+                setLeaderboard([]);
+                setMyRank(null);
+                return;
+            }
+
+            const promiseIds = myPromises.map(p => p.promise_id);
+
+            // 2. Get all user IDs who are in any of those promises (promise circle)
+            const { data: coParticipants } = await supabase
+                .from('promise_participants')
+                .select('user_id')
+                .in('promise_id', promiseIds);
+
+            const circleUserIds = [...new Set(coParticipants?.map(p => p.user_id) || [])];
+
+            if (circleUserIds.length === 0) {
+                setLeaderboard([]);
+                setMyRank(null);
+                return;
+            }
+
+            // 3. Fetch profiles for only those users in the promise circle
+            const { data: profiles, error } = await supabase
+                .from('profiles')
+                .select('id, full_name, avatar_url, integrity_score, level, current_streak, completed_promises_count')
+                .in('id', circleUserIds)
+                .order('integrity_score', { ascending: false })
+                .limit(50);
 
             if (error) {
-                console.error('Leaderboard RPC error:', error);
-                // Fallback: direct query
-                const { data: fallback } = await supabase
-                    .from('profiles')
-                    .select('id, full_name, avatar_url, lifetime_points, level, current_streak, completed_promises_count')
-                    .gt('lifetime_points', 0)
-                    .order('lifetime_points', { ascending: false })
-                    .limit(50);
-
-                if (fallback) {
-                    const mapped = fallback.map(p => ({
-                        user_id: p.id,
-                        full_name: p.full_name || 'Anonymous',
-                        avatar_url: p.avatar_url,
-                        lifetime_points: p.lifetime_points || 0,
-                        level: p.level || 1,
-                        current_streak: p.current_streak || 0,
-                        completed_promises_count: p.completed_promises_count || 0,
-                    }));
-                    setLeaderboard(mapped);
-                    if (user) {
-                        const idx = mapped.findIndex(u => u.user_id === user.id);
-                        setMyRank(idx >= 0 ? idx + 1 : null);
-                    }
-                }
-            } else if (data) {
-                setLeaderboard(data);
-                if (user) {
-                    const idx = data.findIndex((u: LeaderboardUser) => u.user_id === user.id);
-                    setMyRank(idx >= 0 ? idx + 1 : null);
-                }
+                console.error('Leaderboard query error:', error);
+            } else if (profiles) {
+                const mapped = profiles.map(p => ({
+                    user_id: p.id,
+                    full_name: p.full_name || 'Anonymous',
+                    avatar_url: p.avatar_url,
+                    integrity_score: p.integrity_score || 0,
+                    level: p.level || 1,
+                    current_streak: p.current_streak || 0,
+                    completed_promises_count: p.completed_promises_count || 0,
+                }));
+                setLeaderboard(mapped);
+                const idx = mapped.findIndex(u => u.user_id === user.id);
+                setMyRank(idx >= 0 ? idx + 1 : null);
             }
         } catch (e) {
             console.error('Error loading leaderboard:', e);
@@ -151,7 +168,7 @@ export default function ScoreboardScreen() {
                             <Text style={styles.podiumName} numberOfLines={1}>
                                 {isMe ? 'You' : (user.full_name?.split(' ')[0] || 'User')}
                             </Text>
-                            <Text style={styles.podiumPoints}>{user.lifetime_points} PP</Text>
+                            <Text style={styles.podiumPoints}>{Number(user.integrity_score).toFixed(0)}</Text>
                         </Animated.View>
                     );
                 })}
@@ -171,7 +188,7 @@ export default function ScoreboardScreen() {
             >
                 <View style={styles.listLeft}>
                     <Text style={[styles.listRank, rank <= 3 && { color: RANK_COLORS[rank - 1] }]}>
-                        {rank <= 3 ? '' : rank}
+                        {rank}
                     </Text>
                     {rank <= 3 && (
                         <Ionicons name={RANK_ICONS[rank - 1]} size={scaleFont(18)} color={RANK_COLORS[rank - 1]} />
@@ -204,9 +221,9 @@ export default function ScoreboardScreen() {
                 </View>
                 <View style={styles.listRight}>
                     <Text style={[styles.listPoints, isMe && { color: '#5B2DAD' }]}>
-                        {user.lifetime_points}
+                        {Number(user.integrity_score).toFixed(0)}
                     </Text>
-                    <Text style={styles.listPointsLabel}>PP</Text>
+                    <Text style={[styles.listPointsLabel, { fontSize: scaleFont(10) }]}>Score</Text>
                 </View>
             </Animated.View>
         );

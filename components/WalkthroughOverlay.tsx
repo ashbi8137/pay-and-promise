@@ -75,17 +75,12 @@ const COACH_MARKS = [
     {
         id: 'mode_toggle',
         text: 'Toggle between Self and Group Promises',
-        top: scaleFont(270), // Positioned below the header, above the cards
+        top: scaleFont(260), // Positioned below the header, above the cards
         horizontalAlign: 'center',
         arrowDirection: 'up',
         arrowOffset: scaleFont(0),
     },
 ];
-
-interface CoachMarksProps {
-    onComplete?: () => void;
-    forceShow?: boolean;
-}
 
 interface CoachMarksProps {
     onComplete?: () => void;

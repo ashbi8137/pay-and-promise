@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -106,12 +107,31 @@ export default function AuthScreen() {
                 const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
                 const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
 
-                await supabase.from('profiles').upsert({
-                  id: user.id,
-                  full_name: googleName,
-                  avatar_url: avatarUrl,
-                  updated_at: new Date().toISOString(),
-                });
+                // Check if profile already exists — preserve custom avatar for returning users
+                const { data: existingProfile } = await supabase
+                  .from('profiles')
+                  .select('id, avatar_url')
+                  .eq('id', user.id)
+                  .single();
+
+                if (existingProfile) {
+                  // Existing user: update name only, preserve their uploaded avatar
+                  await supabase.from('profiles').update({
+                    full_name: googleName,
+                    updated_at: new Date().toISOString(),
+                  }).eq('id', user.id);
+                } else {
+                  // New user: set Google avatar as default
+                  await supabase.from('profiles').insert({
+                    id: user.id,
+                    full_name: googleName,
+                    avatar_url: avatarUrl,
+                    updated_at: new Date().toISOString(),
+                  });
+
+                  // Ensure tutorial shows for a brand new user regardless of device state
+                  await AsyncStorage.removeItem('HAS_COMPLETED_TUTORIAL');
+                }
 
                 // Show full-screen loading overlay during navigation
                 setNavigating(true);

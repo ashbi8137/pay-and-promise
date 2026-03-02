@@ -1,4 +1,5 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,6 +12,7 @@ import {
     SafeAreaView,
     ScrollView,
     StyleSheet,
+    Switch,
     Text,
     TextInput,
     TouchableOpacity,
@@ -62,6 +64,11 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
     const [dailyCreatesRemaining, setDailyCreatesRemaining] = useState<number | null>(null);
     const [groupCompletions, setGroupCompletions] = useState<number>(0);
 
+    // Deadline State
+    const [useDeadline, setUseDeadline] = useState(false);
+    const [deadlineTime, setDeadlineTime] = useState(new Date());
+    const [showTimePicker, setShowTimePicker] = useState(false);
+
     // Reset state when screen is focused
     useFocusEffect(
         useCallback(() => {
@@ -75,6 +82,11 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
             fetchUserPP();
             fetchDailyLimit();
             if (!isSelfMode) fetchGroupCompletions();
+            // Reset deadline state Default 7:00 AM
+            setUseDeadline(false);
+            const defaultTime = new Date();
+            defaultTime.setHours(7, 0, 0, 0);
+            setDeadlineTime(defaultTime);
         }, [isSelfMode])
     );
 
@@ -170,6 +182,14 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                 return;
             }
 
+            // Format deadline if enabled (HH:mm:ss local time)
+            let formattedDeadline = null;
+            if (useDeadline) {
+                const hours = deadlineTime.getHours().toString().padStart(2, '0');
+                const mins = deadlineTime.getMinutes().toString().padStart(2, '0');
+                formattedDeadline = `${hours}:${mins}:00`;
+            }
+
             // Single atomic RPC call — handles PP lock, participant insert, daily limit, all in one transaction
             const { data: result, error: rpcError } = await supabase.rpc('create_promise_atomic', {
                 p_title: title,
@@ -181,6 +201,7 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                 p_promise_type: isSelfMode ? 'self' : 'group',
                 p_creator_name: user.user_metadata?.full_name || 'Creator',
                 p_creator_avatar: user.user_metadata?.avatar_url || null,
+                p_deadline_time: formattedDeadline
             });
 
             if (rpcError) {
@@ -424,6 +445,61 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                     <Text style={styles.counterHint}>Min 2 • Max 10</Text>
                 </View>
             )}
+            {/* Optional Deadline Feature */}
+            <View style={styles.detailBox}>
+                <View style={styles.deadlineHeader}>
+                    <Text style={[styles.boxLabel, { marginBottom: 0 }]}>DAILY DEADLINE (OPTIONAL)</Text>
+                    <Switch
+                        value={useDeadline}
+                        onValueChange={setUseDeadline}
+                        trackColor={{ false: '#E2E8F0', true: '#5B2DAD' }}
+                        thumbColor="#FFF"
+                    />
+                </View>
+                {useDeadline && (
+                    <View style={styles.deadlineContentContainer}>
+                        <Text style={styles.deadlineExplanation}>Require photo uploads before this time each day.</Text>
+
+                        {Platform.OS === 'ios' ? (
+                            <View style={{ alignItems: 'flex-start', marginTop: scaleFont(10) }}>
+                                <DateTimePicker
+                                    value={deadlineTime}
+                                    mode="time"
+                                    display="default"
+                                    onChange={(event: any, selectedDate: any) => {
+                                        if (selectedDate) setDeadlineTime(selectedDate);
+                                    }}
+                                />
+                            </View>
+                        ) : (
+                            <View>
+                                <TouchableOpacity
+                                    style={styles.timePickerButton}
+                                    onPress={() => setShowTimePicker(true)}
+                                >
+                                    <Ionicons name="time-outline" size={scaleFont(20)} color="#5B2DAD" />
+                                    <Text style={styles.timePickerButtonText}>
+                                        {deadlineTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {showTimePicker && (
+                                    <DateTimePicker
+                                        value={deadlineTime}
+                                        mode="time"
+                                        is24Hour={false}
+                                        display="default"
+                                        onChange={(event: any, selectedDate: any) => {
+                                            setShowTimePicker(false);
+                                            if (selectedDate) setDeadlineTime(selectedDate);
+                                        }}
+                                    />
+                                )}
+                            </View>
+                        )}
+                    </View>
+                )}
+            </View>
 
 
 
@@ -660,6 +736,11 @@ const styles = StyleSheet.create({
     counterAction: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(14), backgroundColor: '#FFF', alignItems: 'center', justifyContent: 'center', elevation: scaleFont(2) },
     counterVal: { fontSize: scaleFont(24), fontWeight: '900', color: '#1E293B', fontFamily: 'Outfit_800ExtraBold' },
     counterHint: { fontSize: scaleFont(12), color: '#94A3B8', textAlign: 'center', marginTop: scaleFont(10), fontWeight: '600', fontFamily: 'Outfit_400Regular' },
+    deadlineHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: scaleFont(8) },
+    deadlineContentContainer: { backgroundColor: '#F8FAFC', padding: scaleFont(16), borderRadius: scaleFont(16), borderWidth: 1, borderColor: '#E2E8F0', marginTop: scaleFont(12) },
+    deadlineExplanation: { fontSize: scaleFont(13), color: '#64748B', fontFamily: 'Outfit_400Regular' },
+    timePickerButton: { flexDirection: 'row', alignItems: 'center', gap: scaleFont(8), backgroundColor: '#EEF2FF', alignSelf: 'flex-start', paddingHorizontal: scaleFont(16), paddingVertical: scaleFont(12), borderRadius: scaleFont(12), marginTop: scaleFont(12) },
+    timePickerButtonText: { fontSize: scaleFont(16), fontWeight: '800', color: '#5B2DAD', fontFamily: 'Outfit_800ExtraBold' },
     // SUCCESS
     successContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: scaleFont(140) },
     successIconBox: { width: scaleFont(120), height: scaleFont(120), borderRadius: scaleFont(60), alignItems: 'center', justifyContent: 'center', marginBottom: scaleFont(32), elevation: scaleFont(15), shadowColor: '#5B2DAD', shadowOffset: { width: 0, height: scaleFont(12) }, shadowOpacity: 0.3, shadowRadius: scaleFont(20), overflow: 'hidden' },

@@ -135,9 +135,9 @@ export default function ProfileScreen() {
                 if (!user) return;
 
                 const uri = result.assets[0].uri;
-                const fileExt = uri.split('.').pop()?.toLowerCase() || 'jpg';
-                const fileName = `${user.id}/avatar.${fileExt}`;
-                const mimeType = result.assets[0].mimeType || `image/${fileExt}`;
+                const mimeType = result.assets[0].mimeType || 'image/jpeg';
+                // Always use a fixed filename to avoid stale files with different extensions
+                const fileName = `${user.id}/avatar.jpg`;
 
                 const formData = new FormData();
                 formData.append('file', {
@@ -146,7 +146,17 @@ export default function ProfileScreen() {
                     type: mimeType
                 } as any);
 
-                await supabase.storage.from('profile').remove([fileName]);
+                // Remove ALL existing avatar files in user's folder (handles different extensions)
+                try {
+                    const { data: existingFiles } = await supabase.storage.from('profile').list(user.id);
+                    if (existingFiles && existingFiles.length > 0) {
+                        const filesToRemove = existingFiles.map(f => `${user.id}/${f.name}`);
+                        await supabase.storage.from('profile').remove(filesToRemove);
+                    }
+                } catch (e) {
+                    console.log('Cleanup skipped:', e);
+                }
+
                 const { error: uploadError } = await supabase.storage.from('profile').upload(fileName, formData, {
                     contentType: mimeType,
                     upsert: true
@@ -159,7 +169,7 @@ export default function ProfileScreen() {
 
                 const { data: urlData } = supabase.storage.from('profile').getPublicUrl(fileName);
                 const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-                await supabase.from('profiles').upsert({ id: user.id, avatar_url: publicUrl });
+                await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
                 setAvatarUrl(publicUrl);
                 showAlert({ title: 'Success', message: 'Profile photo updated!', type: 'success' });
             }
@@ -171,7 +181,7 @@ export default function ProfileScreen() {
     };
 
     const levelConfig = LEVEL_CONFIG[Math.min(ppStats.level, 5)] || LEVEL_CONFIG[1];
-    const nextLevelPP = ppStats.level >= 5 ? null : [100, 300, 600, 1000][ppStats.level - 1];
+    const nextLevelPP = ppStats.level >= 5 ? null : [75, 150, 225, 300][ppStats.level - 1];
     const levelProgress = nextLevelPP ? Math.min(ppStats.lifetime / nextLevelPP, 1) : 1;
 
     if (loading) {

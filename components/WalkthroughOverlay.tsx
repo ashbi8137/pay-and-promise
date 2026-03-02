@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
     Dimensions,
     StyleSheet,
@@ -89,17 +89,11 @@ interface CoachMarksProps {
 }
 
 export default function WalkthroughOverlay({ onComplete, forceShow = false, initialVisible = false }: CoachMarksProps) {
-    const [visible, setVisible] = useState(false);
+    const [dismissed, setDismissed] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
 
-    useEffect(() => {
-        if (forceShow) {
-            setVisible(true);
-        } else if (initialVisible) {
-            // Delay slightly for smooth entrance
-            setTimeout(() => setVisible(true), 1500);
-        }
-    }, [forceShow, initialVisible]);
+    // Show if parent says to show AND user hasn't dismissed yet
+    const visible = (forceShow || initialVisible) && !dismissed;
 
     const handleNext = () => {
         if (currentStep < COACH_MARKS.length - 1) {
@@ -110,7 +104,7 @@ export default function WalkthroughOverlay({ onComplete, forceShow = false, init
     };
 
     const completeCoachMarks = async () => {
-        setVisible(false);
+        setDismissed(true);
         onComplete?.(); // Parent handles Supabase update
     };
 

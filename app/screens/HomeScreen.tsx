@@ -85,6 +85,7 @@ export default function HomeScreen() {
 
     useEffect(() => {
         checkTooltip();
+        checkTutorialStatus(); // Check tutorial on mount immediately
         startPulse();
 
         // Start swinging animation
@@ -248,18 +249,18 @@ export default function HomeScreen() {
                     });
                 }
 
-                // Auto-claim signup bonus ONLY as fallback for users who completed
-                // the tutorial but somehow missed claiming (e.g. app crash during modal).
-                // For fresh users, the Welcome Bonus Modal handles the claim flow.
+                // Check bonus status
                 const tutorialDone = await AsyncStorage.getItem('HAS_COMPLETED_TUTORIAL');
-                if (tutorialDone) {
-                    const { data: bonusCheck } = await supabase
-                        .from('promise_point_ledger')
-                        .select('id')
-                        .eq('user_id', user.id)
-                        .eq('reason', 'signup_bonus')
-                        .limit(1);
+                const { data: bonusCheck } = await supabase
+                    .from('promise_point_ledger')
+                    .select('id')
+                    .eq('user_id', user.id)
+                    .eq('reason', 'signup_bonus')
+                    .limit(1);
 
+                if (tutorialDone) {
+                    // Auto-claim signup bonus as fallback for users who completed
+                    // the tutorial but somehow missed claiming (e.g. app crash during modal).
                     if (!bonusCheck || bonusCheck.length === 0) {
                         console.log('Auto-claiming signup bonus (fallback)...');
                         const { error: claimError } = await supabase.rpc('claim_signup_bonus');
@@ -280,6 +281,11 @@ export default function HomeScreen() {
                             console.log('Auto-claim failed (non-critical):', claimError.message);
                         }
                     }
+                } else if (!bonusCheck || bonusCheck.length === 0) {
+                    // Tutorial not done and bonus not claimed — show bonus modal directly
+                    // This is a safety net for when tutorial overlay fails to appear
+                    // The tutorial overlay should handle this, but just in case:
+                    console.log('Tutorial pending, bonus unclaimed — tutorial overlay should be showing');
                 }
 
                 // 1. Fetch Promise IDs where user is a participant

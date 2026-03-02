@@ -128,10 +128,11 @@ export default function AuthScreen() {
                     avatar_url: avatarUrl,
                     updated_at: new Date().toISOString(),
                   });
-
-                  // Ensure tutorial shows for a brand new user regardless of device state
-                  await AsyncStorage.removeItem('HAS_COMPLETED_TUTORIAL');
                 }
+
+                // Always ensure tutorial shows after fresh authentication
+                // Sign-out should have cleared this, but this is a safety net
+                await AsyncStorage.multiRemove(['HAS_COMPLETED_TUTORIAL', 'HAS_SEEN_ONBOARDING_TOOLTIP']);
 
                 // Show full-screen loading overlay during navigation
                 setNavigating(true);

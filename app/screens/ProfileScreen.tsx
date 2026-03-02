@@ -270,13 +270,8 @@ export default function ProfileScreen() {
                         <TouchableOpacity
                             style={[styles.redeemCard, { marginBottom: scaleFont(12) }]}
                             onPress={() => {
-                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                                showAlert({
-                                    title: "Hold Tight! 🎁",
-                                    message: "Redemption feature coming soon",
-                                    type: 'info',
-                                    buttons: [{ text: "I'm Ready", onPress: () => null }]
-                                });
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                                router.push('/screens/BazaarScreen' as any);
                             }}
                             activeOpacity={0.8}
                         >

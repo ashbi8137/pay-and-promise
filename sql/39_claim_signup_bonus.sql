@@ -11,7 +11,7 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
   current_user_id uuid;
-  bonus_amount integer := 100;
+  bonus_amount integer := 25;
   already_claimed boolean;
 BEGIN
   -- Get current user ID
@@ -35,6 +35,7 @@ BEGIN
   -- 1. Update Profile Points
   UPDATE public.profiles
   SET promise_points = COALESCE(promise_points, 0) + bonus_amount,
+      lifetime_points = COALESCE(lifetime_points, 0) + bonus_amount,
       updated_at = now()
   WHERE id = current_user_id;
 

@@ -170,75 +170,41 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
                 return;
             }
 
-            // Check daily creation limit
-            if (dailyCreatesRemaining !== null && dailyCreatesRemaining <= 0) {
-                showAlert({
-                    title: 'Daily Limit Reached',
-                    message: isSelfMode
-                        ? 'You can create max 2 self promises per day. Try again tomorrow!'
-                        : 'You can create max 1 group promise per day. Try again tomorrow!',
-                    type: 'warning'
-                });
+            // Single atomic RPC call — handles PP lock, participant insert, daily limit, all in one transaction
+            const { data: result, error: rpcError } = await supabase.rpc('create_promise_atomic', {
+                p_title: title,
+                p_description: category,
+                p_duration_days: parseInt(duration),
+                p_number_of_people: isSelfMode ? 1 : parseInt(numPeople),
+                p_commitment_level: commitmentLevel,
+                p_locked_points: selectedLevel.points,
+                p_promise_type: isSelfMode ? 'self' : 'group',
+                p_creator_name: user.user_metadata?.full_name || 'Creator',
+                p_creator_avatar: user.user_metadata?.avatar_url || null,
+            });
+
+            if (rpcError) {
+                const msg = rpcError.message || 'Failed to launch promise.';
+                if (msg.includes('Daily creation limit')) {
+                    showAlert({
+                        title: 'Daily Limit Reached',
+                        message: isSelfMode
+                            ? 'You can create max 2 self promises per day. Try again tomorrow!'
+                            : 'You can create max 1 group promise per day. Try again tomorrow!',
+                        type: 'warning'
+                    });
+                } else if (msg.includes('Insufficient Promise Points')) {
+                    showAlert({ title: 'Not Enough Points', message: `You need ${selectedLevel.points} PP to create this promise.`, type: 'warning' });
+                } else {
+                    showAlert({ title: 'Error', message: msg, type: 'error' });
+                }
                 setLoading(false);
                 return;
             }
 
-            // Check user has enough PP
-            if (userPP !== null && userPP < selectedLevel.points) {
-                showAlert({ title: 'Not Enough Points', message: `You need ${selectedLevel.points} PP but only have ${userPP} PP.`, type: 'warning' });
-                setLoading(false);
-                return;
+            if (result?.invite_code) {
+                setInviteCode(result.invite_code);
             }
-
-            const code = isSelfMode ? null : Math.random().toString(36).substring(2, 8).toUpperCase();
-            if (code) setInviteCode(code);
-
-            const insertData: any = {
-                title,
-                description: category,
-                duration_days: parseInt(duration),
-                number_of_people: isSelfMode ? 1 : parseInt(numPeople),
-                commitment_level: commitmentLevel,
-                locked_points: selectedLevel.points,
-                participants: [{
-                    name: user.user_metadata?.full_name || 'Creator',
-                    id: user.id,
-                    avatar_url: user.user_metadata?.avatar_url || null
-                }],
-                created_by: user.id,
-                status: 'active',
-                promise_type: isSelfMode ? 'self' : 'group',
-            };
-
-            if (code) insertData.invite_code = code;
-
-            const { data: promiseData, error: promiseError } = await supabase
-                .from('promises')
-                .insert(insertData)
-                .select()
-                .single();
-
-            if (promiseError) throw promiseError;
-
-            await supabase.from('promise_participants').insert({
-                promise_id: promiseData.id,
-                user_id: user.id
-            });
-
-            // Lock PP: deduct from user balance and log in ledger
-            await supabase.rpc('award_promise_points', {
-                p_user_id: user.id,
-                p_promise_id: promiseData.id,
-                p_points: -selectedLevel.points,
-                p_reason: 'commitment_lock',
-                p_description: `PP locked for: ${title}`
-            });
-
-            // Increment daily creation counter
-            await supabase.rpc('increment_daily_create', {
-                p_user_id: user.id,
-                p_mode: isSelfMode ? 'self' : 'group'
-            });
 
             setStep(3);
         } catch (e) {

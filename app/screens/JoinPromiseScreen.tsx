@@ -69,107 +69,37 @@ export default function JoinPromiseScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) return;
 
-            // 1. Check if already joined
-            const { data: existing } = await supabase
-                .from('promise_participants')
-                .select('id')
-                .eq('promise_id', promise.id)
-                .eq('user_id', user.id)
-                .single();
+            const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+            const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
 
-            if (existing) {
-                showAlert({ title: 'Already In', message: 'You are already in this promise.', type: 'info' });
-                router.replace('/(tabs)');
-                return;
-            }
+            // Single atomic RPC call — handles all checks, participant insert, JSON cache, and PP lock
+            const { data: result, error: rpcError } = await supabase.rpc('join_promise_atomic', {
+                p_invite_code: code,
+                p_joiner_name: googleName,
+                p_joiner_avatar: avatarUrl || null,
+            });
 
-            // 2. Check if promise is full
-            const { count: currentCount } = await supabase
-                .from('promise_participants')
-                .select('*', { count: 'exact', head: true })
-                .eq('promise_id', promise.id);
-
-            if ((currentCount || 0) >= promise.number_of_people) {
-                showAlert({ title: 'Promise Full', message: `This promise already has ${promise.number_of_people} participants.`, type: 'warning' });
+            if (rpcError) {
+                const msg = rpcError.message || 'Failed to join.';
+                if (msg.includes('Already joined')) {
+                    showAlert({ title: 'Already In', message: 'You are already in this promise.', type: 'info' });
+                    router.replace('/(tabs)');
+                    return;
+                } else if (msg.includes('full')) {
+                    showAlert({ title: 'Promise Full', message: `This promise is already full.`, type: 'warning' });
+                } else if (msg.includes('Insufficient')) {
+                    showAlert({ title: 'Not Enough PP', message: `You need more PP to join this promise.`, type: 'warning' });
+                } else if (msg.includes('not found')) {
+                    showAlert({ title: 'Not Found', message: 'Promise not found or expired.', type: 'error' });
+                } else {
+                    showAlert({ title: 'Error', message: msg, type: 'error' });
+                }
                 setLoading(false);
                 return;
-            }
-
-            // 3. Check user has enough PP to lock
-            const ppRequired = promise.locked_points || 10;
-            const { data: ppData } = await supabase
-                .from('profiles')
-                .select('promise_points')
-                .eq('id', user.id)
-                .single();
-
-            if ((ppData?.promise_points || 0) < ppRequired) {
-                showAlert({ title: 'Not Enough PP', message: `You need ${ppRequired} PP to join but only have ${ppData?.promise_points || 0} PP.`, type: 'warning' });
-                setLoading(false);
-                return;
-            }
-
-            // 3. Insert into participants table
-            const { error: joinError } = await supabase
-                .from('promise_participants')
-                .insert({
-                    promise_id: promise.id,
-                    user_id: user.id
-                });
-
-            if (joinError) throw joinError;
-
-            // 3. CRITICAL: Update Cache for RLS Fallback
-            // Append self to the public 'participants' array in promises table
-            try {
-                // Fetch FRESH participants list to avoid overwriting others
-                const { data: freshData } = await supabase
-                    .from('promises')
-                    .select('participants')
-                    .eq('id', promise.id)
-                    .single();
-
-                const currentParticipants = freshData?.participants || [];
-
-                // Get my details
-                const googleName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
-                const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture;
-
-                const newEntry = {
-                    name: googleName,
-                    id: user.id,
-                    avatar_url: avatarUrl
-                };
-
-                const updatedList = [...currentParticipants, newEntry];
-
-                const { error: updateError } = await supabase
-                    .from('promises')
-                    .update({ participants: updatedList })
-                    .eq('id', promise.id);
-
-                if (updateError) console.log('[JoinPromise] Cache update failed (expected if RLS strict):', updateError);
-                else console.log('[JoinPromise] Cache updated successfully with', updatedList.length, 'participants');
-
-            } catch (cacheErr) {
-                console.log('[JoinPromise] Cache logic failed', cacheErr);
             }
 
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-            // Lock PP: deduct from user balance and log in ledger
-            await supabase.rpc('award_promise_points', {
-                p_user_id: user.id,
-                p_promise_id: promise.id,
-                p_points: -(promise.locked_points || 10),
-                p_reason: 'commitment_lock',
-                p_description: `PP locked for: ${promise.title || 'Promise'}`
-            });
-
             showAlert({ title: 'Success', message: 'You have joined the promise!', type: 'success' });
-
-            // Navigate home/tabs
-            console.log('[JoinPromise] Navigating to Home/Tabs');
             router.replace('/(tabs)');
 
         } catch (e: any) {

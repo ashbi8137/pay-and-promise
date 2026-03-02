@@ -54,7 +54,7 @@ export default function WelcomeBonusModal({ visible, onClose, onClaim }: Welcome
 
                         {/* Reward */}
                         <View style={styles.rewardBox}>
-                            <Text style={styles.rewardText}>100 PP</Text>
+                            <Text style={styles.rewardText}>25 PP</Text>
                         </View>
 
                         <Text style={styles.description}>

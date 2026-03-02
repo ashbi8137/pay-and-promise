@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Dimensions,
     Image,
+    Modal,
     Platform,
     RefreshControl,
     SafeAreaView,
@@ -58,6 +59,7 @@ export default function PromiseDetailScreen() {
     const isSelfPromise = (promiseData.promise_type || 'group') === 'self';
 
     const [updating, setUpdating] = React.useState(false);
+    const [showMoodModal, setShowMoodModal] = React.useState(false);
     const [checkins, setCheckins] = React.useState<{ date: string, status: string }[]>([]);
     const [todayStatus, setTodayStatus] = React.useState<'done' | 'failed' | null>(null);
     const [realParticipantCount, setRealParticipantCount] = React.useState(numPeople);
@@ -518,59 +520,7 @@ export default function PromiseDetailScreen() {
 
         // Self promise: confirmation before marking completed
         if (isSelfPromise && status === 'done') {
-            showAlert({
-                title: 'Mark as Completed?',
-                message: 'Confirm that you completed your commitment for today.',
-                type: 'info',
-                buttons: [
-                    { text: 'Cancel', style: 'cancel' },
-                    {
-                        text: 'Yes, I Did It!',
-                        style: 'default',
-                        onPress: async () => {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                            setUpdating(true);
-                            try {
-                                const { data: { user } } = await supabase.auth.getUser();
-                                if (!user) return;
-
-                                const dateStr = getLocalTodayDate();
-
-                                // Insert daily_checkin
-                                const { error: checkinError } = await supabase.from('daily_checkins').insert({
-                                    promise_id: promiseData.id,
-                                    user_id: user.id,
-                                    date: dateStr,
-                                    status: 'done'
-                                });
-                                if (checkinError && checkinError.code !== '23505') throw checkinError;
-
-                                // Insert submission as verified directly (no peer review)
-                                const { error: subError } = await supabase.from('promise_submissions').upsert({
-                                    promise_id: promiseData.id,
-                                    user_id: user.id,
-                                    date: dateStr,
-                                    image_url: 'self_completed',
-                                    status: 'verified'
-                                }, { onConflict: 'promise_id,user_id,date' });
-                                if (subError) throw subError;
-
-                                // Trigger the verification RPC to evaluate end-of-promise redistribution
-                                await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
-
-                                setTodayStatus('done');
-                                showAlert({ title: "Done!", message: "Great job! Day marked as completed.", type: "success" });
-                                fetchCheckins();
-                            } catch (e) {
-                                console.error(e);
-                                showAlert({ title: 'Error', message: 'Could not mark as completed.', type: 'error' });
-                            } finally {
-                                setUpdating(false);
-                            }
-                        }
-                    }
-                ]
-            });
+            setShowMoodModal(true);
             return;
         }
 
@@ -687,6 +637,49 @@ export default function PromiseDetailScreen() {
                 }
             ]
         });
+    };
+
+    const handleMoodSelect = async (mood: string) => {
+        setShowMoodModal(false);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        setUpdating(true);
+        try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const dateStr = getLocalTodayDate();
+
+            // Insert daily_checkin
+            const { error: checkinError } = await supabase.from('daily_checkins').insert({
+                promise_id: promiseData.id,
+                user_id: user.id,
+                date: dateStr,
+                status: 'done'
+            });
+            if (checkinError && checkinError.code !== '23505') throw checkinError;
+
+            // Insert submission as verified directly. Save mood in image_url!
+            const { error: subError } = await supabase.from('promise_submissions').upsert({
+                promise_id: promiseData.id,
+                user_id: user.id,
+                date: dateStr,
+                image_url: `self_completed_${mood}`,
+                status: 'verified'
+            }, { onConflict: 'promise_id,user_id,date' });
+            if (subError) throw subError;
+
+            // Trigger the verification RPC to evaluate end-of-promise redistribution
+            await supabase.rpc('check_and_finalize_verification', { p_promise_id: promiseData.id, p_date: dateStr });
+
+            setTodayStatus('done');
+            showAlert({ title: "Recorded!", message: "Your progress and mood have been saved.", type: "success" });
+            fetchCheckins();
+        } catch (e) {
+            console.error(e);
+            showAlert({ title: 'Error', message: 'Could not record check-in.', type: 'error' });
+        } finally {
+            setUpdating(false);
+        }
     };
 
     const renderHero = () => {
@@ -1110,6 +1103,38 @@ export default function PromiseDetailScreen() {
         );
     }
 
+    const renderMoodModal = () => (
+        <Modal visible={showMoodModal} transparent animationType="fade">
+            <View style={styles.modalOverlay}>
+                <Animated.View entering={FadeInUp} style={styles.modalContent}>
+                    <Text style={styles.modalTitle}>How did today feel?</Text>
+                    <Text style={styles.modalSub}>This helps track your journey's difficulty.</Text>
+
+                    <View style={styles.moodGrid}>
+                        <TouchableOpacity style={[styles.moodBtn, { backgroundColor: '#ECFDF5', borderColor: '#10B981' }]} onPress={() => handleMoodSelect('great')}>
+                            <Text style={styles.moodEmoji}>😁</Text>
+                            <Text style={[styles.moodText, { color: '#059669' }]}>Great</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.moodBtn, { backgroundColor: '#F8FAFC', borderColor: '#94A3B8' }]} onPress={() => handleMoodSelect('normal')}>
+                            <Text style={styles.moodEmoji}>😐</Text>
+                            <Text style={[styles.moodText, { color: '#475569' }]}>Normal</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={[styles.moodBtn, { backgroundColor: '#FEF2F2', borderColor: '#EF4444' }]} onPress={() => handleMoodSelect('struggled')}>
+                            <Text style={styles.moodEmoji}>😫</Text>
+                            <Text style={[styles.moodText, { color: '#DC2626' }]}>Struggled</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    <TouchableOpacity style={styles.modalCancel} onPress={() => setShowMoodModal(false)}>
+                        <Text style={styles.modalCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                </Animated.View>
+            </View>
+        </Modal>
+    );
+
     return (
         <View style={styles.container}>
             <GridOverlay />
@@ -1196,6 +1221,7 @@ export default function PromiseDetailScreen() {
                     <View style={{ height: scaleFont(40) }} />
                 </ScrollView>
             </SafeAreaView>
+            {isSelfPromise && renderMoodModal()}
         </View>
     );
 }
@@ -1416,6 +1442,72 @@ const styles = StyleSheet.create({
     dayFailed: {
         backgroundColor: '#EF4444',
         borderColor: '#EF4444',
+    },
+    // MOOD MODAL
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(15, 23, 42, 0.6)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: scaleFont(24),
+    },
+    modalContent: {
+        backgroundColor: '#FFF',
+        width: '100%',
+        borderRadius: scaleFont(24),
+        padding: scaleFont(24),
+        elevation: 10,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.2,
+        shadowRadius: 20,
+    },
+    modalTitle: {
+        fontSize: scaleFont(20),
+        fontWeight: '800',
+        fontFamily: 'Outfit_800ExtraBold',
+        color: '#1E293B',
+        textAlign: 'center',
+        marginBottom: scaleFont(4),
+    },
+    modalSub: {
+        fontSize: scaleFont(14),
+        color: '#64748B',
+        fontFamily: 'Outfit_400Regular',
+        textAlign: 'center',
+        marginBottom: scaleFont(24),
+    },
+    moodGrid: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        gap: scaleFont(12),
+        marginBottom: scaleFont(24),
+    },
+    moodBtn: {
+        flex: 1,
+        borderWidth: 2,
+        borderRadius: scaleFont(16),
+        paddingVertical: scaleFont(16),
+        alignItems: 'center',
+        gap: scaleFont(8),
+    },
+    moodEmoji: {
+        fontSize: scaleFont(32),
+    },
+    moodText: {
+        fontSize: scaleFont(12),
+        fontWeight: '700',
+        fontFamily: 'Outfit_700Bold',
+    },
+    modalCancel: {
+        paddingVertical: scaleFont(12),
+        alignItems: 'center',
+    },
+    modalCancelText: {
+        fontSize: scaleFont(14),
+        fontWeight: '600',
+        color: '#94A3B8',
+        fontFamily: 'Outfit_700Bold',
     },
     dayToday: {
         borderColor: '#5B2DAD',

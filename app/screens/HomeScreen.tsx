@@ -127,17 +127,10 @@ export default function HomeScreen() {
 
     const handleTutorialComplete = async () => {
         setShouldShowTutorial(false);
-        try {
-            await supabase.auth.updateUser({
-                data: { has_seen_tutorial: true }
-            });
-            // Show celebration after tutorial
-            setTimeout(() => {
-                setShowWelcomeBonus(true);
-            }, 500);
-        } catch (e) {
-            console.log('Error updating tutorial flag:', e);
-        }
+        // User requested tutorial shows every login. Do not save has_seen_tutorial to true anymore.
+        setTimeout(() => {
+            setShowWelcomeBonus(true);
+        }, 500);
     };
 
 
@@ -194,16 +187,20 @@ export default function HomeScreen() {
 
 
     const checkTutorialStatus = async () => {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && !user.user_metadata?.has_seen_tutorial) {
-            setShouldShowTutorial(true);
-        }
+        // ALWAYS show tutorial on Home Screen load as requested for testing
+        setShouldShowTutorial(true);
     };
 
     const fetchData = async (mode?: 'self' | 'group') => {
         const currentMode = mode || activeMode;
         setLoading(true);
         try {
+            // Finalize any expired promises on the backend FIRST
+            // This ensures points are redistributed and statuses are correct
+            await supabase.rpc('finalize_expired_promises').then(({ error }) => {
+                if (error) console.log('Finalize RPC (non-critical):', error.message);
+            });
+
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 // Set Name
@@ -294,19 +291,14 @@ export default function HomeScreen() {
                             continue;
                         }
 
-                        // 1b. If promise is 'active' but past its duration, treat as expired/completed
-                        const startDate = new Date(p.created_at);
-                        const endDate = new Date(startDate);
-                        endDate.setDate(startDate.getDate() + (p.duration_days || 7));
-                        if (new Date() > endDate) {
-                            done.push({ ...p, status: 'completed' });
-                            continue;
-                        }
+                        // 1b. Expired promises are now handled by the backend RPC
+                        // finalize_expired_promises() was called above, so any expired
+                        // promise should already have status != 'active' at this point.
 
                         // 2. Active promise — check if user already checked in today
                         if (todayCheckinMap.has(p.id)) {
-                            // User checked in — waiting for peers
-                            pending.push({ ...p, status: 'active_waiting' });
+                            // User checked in — move it to the completed/history tab temporarily
+                            done.push({ ...p, status: 'active_waiting' });
                         } else {
                             // User hasn't checked in yet
                             pending.push(p);
@@ -643,7 +635,23 @@ export default function HomeScreen() {
                         {/* Promise Cards based on selected tab */}
                         {promiseListTab === 'in_progress' ? (
                             // In Progress Promises
-                            activePromises.length > 0 ? (
+                            loading ? (
+                                // Skeleton loader while data loads
+                                <View style={{ gap: 12 }}>
+                                    {[1, 2].map(i => (
+                                        <View key={i} style={{
+                                            backgroundColor: 'rgba(148, 163, 184, 0.08)',
+                                            borderRadius: 20,
+                                            padding: 20,
+                                            height: 100,
+                                        }}>
+                                            <View style={{ backgroundColor: 'rgba(148, 163, 184, 0.12)', borderRadius: 8, height: 14, width: '60%', marginBottom: 10 }} />
+                                            <View style={{ backgroundColor: 'rgba(148, 163, 184, 0.08)', borderRadius: 6, height: 10, width: '40%', marginBottom: 12 }} />
+                                            <View style={{ backgroundColor: 'rgba(148, 163, 184, 0.06)', borderRadius: 10, height: 6, width: '100%' }} />
+                                        </View>
+                                    ))}
+                                </View>
+                            ) : activePromises.length > 0 ? (
                                 activePromises.map(item => renderCard(item, false))
                             ) : (
                                 <View style={[styles.emptyStateContainer]}>
@@ -654,17 +662,14 @@ export default function HomeScreen() {
                             )
                         ) : (
                             // Completed Promises
-                            completedPromises.filter(p => p.status === 'completed' || p.status === 'failed').length > 0 ? (
-                                completedPromises.filter(p => p.status === 'completed' || p.status === 'failed').map(item => (
+                            completedPromises.filter(p => p.status === 'completed' || p.status === 'failed' || p.status === 'active_waiting').length > 0 ? (
+                                completedPromises.filter(p => p.status === 'completed' || p.status === 'failed' || p.status === 'active_waiting').map(item => (
                                     <TouchableOpacity
-                                        key={`completed-${item.id}`}
+                                        key={item.status === 'active_waiting' ? `waiting-${item.id}` : `completed-${item.id}`}
                                         activeOpacity={0.9}
-                                        onPress={() => router.push({
-                                            pathname: '/screens/PromiseReportScreen',
-                                            params: { promiseId: item.id }
-                                        })}
+                                        onPress={() => handlePromisePress(item)}
                                     >
-                                        {renderCard(item, true)}
+                                        {renderCard(item, item.status !== 'active_waiting')}
                                     </TouchableOpacity>
                                 ))
                             ) : (

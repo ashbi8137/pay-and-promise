@@ -72,6 +72,14 @@ const COACH_MARKS = [
         arrowDirection: 'down',
         arrowOffset: scaleFont(200),
     },
+    {
+        id: 'mode_toggle',
+        text: 'Toggle between Self and Group Promises',
+        top: scaleFont(270), // Positioned below the header, above the cards
+        horizontalAlign: 'center',
+        arrowDirection: 'up',
+        arrowOffset: scaleFont(0),
+    },
 ];
 
 interface CoachMarksProps {

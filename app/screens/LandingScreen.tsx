@@ -4,7 +4,7 @@ import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import * as SplashScreenModule from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Dimensions,
     Image,
@@ -50,7 +50,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const GradientText = ({ colors, style, children, ...props }: any) => {
     return (
         <MaskedView
-            style={{ height: scaleFont(120), width: '100%', flexDirection: 'row', justifyContent: 'center' }}
+            style={{ height: scaleFont(60), width: '100%', flexDirection: 'row', justifyContent: 'center' }}
             maskElement={
                 <View style={{ backgroundColor: 'transparent', flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={[style, { opacity: 1 }]} {...props}>
@@ -79,7 +79,24 @@ export default function LandingScreen() {
     const [isImageReady, setIsImageReady] = useState(false);
     const [step, setStep] = useState(0); // 0 = Splash, 1 = Content
     const [isButtonActive, setIsButtonActive] = useState(false); // Controls footer interactivity
-    const [showSwipeHint, setShowSwipeHint] = useState(true);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const scrollViewRef = useRef<any>(null);
+
+    const goToNextSlide = () => {
+        if (currentIndex < 2) {
+            const nextIndex = currentIndex + 1;
+            setCurrentIndex(nextIndex);
+            scrollViewRef.current?.scrollTo({ x: nextIndex * SCREEN_WIDTH, animated: true });
+        }
+    };
+
+    const goToPrevSlide = () => {
+        if (currentIndex > 0) {
+            const prevIndex = currentIndex - 1;
+            setCurrentIndex(prevIndex);
+            scrollViewRef.current?.scrollTo({ x: prevIndex * SCREEN_WIDTH, animated: true });
+        }
+    };
 
     // Animation Values
     const scrollX = useSharedValue(0);
@@ -101,14 +118,8 @@ export default function LandingScreen() {
             if (shouldBeActive !== isButtonActive) {
                 runOnJS(setIsButtonActive)(shouldBeActive);
             }
-
-            // Swipe Hint Logic (Hide as soon as we start scrolling significanlty)
-            const shouldShowHint = currentScrollX < 20;
-            if (shouldShowHint !== showSwipeHint) {
-                runOnJS(setShowSwipeHint)(shouldShowHint);
-            }
         },
-        [isButtonActive, showSwipeHint]
+        [isButtonActive]
     );
 
     useEffect(() => {
@@ -262,36 +273,31 @@ export default function LandingScreen() {
         return (
             <View style={{ width: SCREEN_WIDTH, height: '100%', alignItems: 'center', justifyContent: 'center' }}>
 
-                {/* GLASS CARD CONTAINER */}
+                {/* SHOWCASE CONTAINER */}
                 <Animated.View
                     style={[
-                        styles.glassCard,
-                        { shadowColor: item.color },
+                        styles.showcaseContainer,
                         animatedContainerStyle
                     ]}
                 >
-                    {/* Inner Gradient Tint */}
-                    <LinearGradient
-                        colors={[item.color, 'transparent']}
-                        style={[StyleSheet.absoluteFill, { opacity: 0.15 }]}
-                        start={{ x: 0.5, y: 0 }}
-                        end={{ x: 0.5, y: 0.6 }}
-                    />
+                    {/* Icon */}
+                    <View style={styles.iconWrapper}>
+                        <Ionicons
+                            name={item.icon as any}
+                            size={scaleFont(100)}
+                            color={item.color}
+                        />
+                    </View>
 
-                    {/* CONTENT */}
-                    <View style={styles.cardContent}>
-                        <View style={[styles.iconCircle, { backgroundColor: item.color + '20' }]}>
-                            <Ionicons name={item.icon as any} size={scaleFont(64)} color={item.color} />
-                        </View>
+                    <GradientText
+                        colors={[item.color, '#0F172A']}
+                        style={styles.slideTitle}
+                        allowFontScaling={false}
+                    >
+                        {item.title}
+                    </GradientText>
 
-                        <GradientText
-                            colors={[item.color, '#0F172A']}
-                            style={styles.slideTitle}
-                            allowFontScaling={false}
-                        >
-                            {item.title}
-                        </GradientText>
-
+                    <View style={styles.subtitleWrapper}>
                         <Text style={styles.slideSubtitle} allowFontScaling={false}>
                             {item.subtitle}
                         </Text>
@@ -363,16 +369,18 @@ export default function LandingScreen() {
 
                     <Animated.View entering={FadeInDown.delay(400).springify()} style={styles.sliderContainer}>
                         <Animated.ScrollView
+                            ref={scrollViewRef}
                             style={StyleSheet.absoluteFill}
                             horizontal
                             pagingEnabled
+                            scrollEnabled={false}
                             showsHorizontalScrollIndicator={false}
                             onScroll={scrollHandler}
                             scrollEventThrottle={16}
                             contentContainerStyle={{ alignItems: 'center' }}
                             decelerationRate="fast"
-                            bounces={true}
-                            overScrollMode="always"
+                            bounces={false}
+                            overScrollMode="never"
                             removeClippedSubviews={Platform.OS === 'android'}
                         >
                             {slides.map((item, index) => (
@@ -380,65 +388,50 @@ export default function LandingScreen() {
                             ))}
                         </Animated.ScrollView>
 
-                        <View style={styles.controlsContainer} pointerEvents="box-none">
+                        {/* PAGINATIONNNNNNNNNNNNNN */}
+                        {/* <View style={styles.controlsContainer} pointerEvents="box-none">
                             <Pagination />
-                        </View>
+                        </View> */}
 
-                        <Animated.View
-                            style={[
-                                styles.swipeHintContainer,
-                                {
-                                    opacity: interpolate(
-                                        scrollX.value,
-                                        [0, SCREEN_WIDTH * 0.2, SCREEN_WIDTH * 0.8, SCREEN_WIDTH, SCREEN_WIDTH * 1.2, SCREEN_WIDTH * 2],
-                                        [0.8, 0, 0, 0.8, 0, 0],
-                                        Extrapolation.CLAMP
-                                    )
-                                }
-                            ]}
-                            pointerEvents="none"
-                        >
-                            <Text style={styles.swipeHintText} allowFontScaling={false}>Swipe left to explore</Text>
-                            <Ionicons name="arrow-forward" size={scaleFont(16)} color="#64748B" style={{ opacity: 0.3 }} />
-                        </Animated.View>
-                    </Animated.View>
-
-                    <Animated.View
-                        style={[styles.footer, footerAnimatedStyle]}
-                        pointerEvents="box-none" // Allow swipes in empty areas
-                    >
-                        <View
-                            style={styles.portalWrapper}
-                            pointerEvents={isButtonActive ? 'auto' : 'none'} // Only button catches touches when active
-                        >
-                            <Animated.View style={[styles.portalHalo, animatedHaloStyle]} />
-                            <Animated.View style={animatedPortalStyle}>
-                                <TouchableOpacity
-                                    style={styles.portalAction}
-                                    onPress={() => {
-                                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-                                        router.replace('/screens/AuthScreen');
-                                    }}
-                                    activeOpacity={0.7}
-                                    disabled={!isButtonActive}
-                                >
-                                    <LinearGradient
-                                        colors={['#5B2DAD', '#312E81']}
-                                        style={styles.portalGradient}
-                                    >
-                                        <Ionicons name="arrow-forward" size={scaleFont(22)} color="#FFF" />
-                                    </LinearGradient>
-                                    <View style={styles.portalInnerRing} />
+                        <Animated.View style={styles.unifiedNavContainer} pointerEvents="box-none">
+                            {/* Slide 1: Only Next */}
+                            {currentIndex === 0 && (
+                                <TouchableOpacity onPress={goToNextSlide} style={styles.lightRoundButton}>
+                                    <Ionicons name="chevron-forward" size={scaleFont(24)} color="#4F46E5" />
                                 </TouchableOpacity>
-                            </Animated.View>
-                        </View>
-                        <Text
-                            style={styles.portalLabel}
-                            allowFontScaling={false}
-                            pointerEvents="none" // Pass swipe touches through text
-                        >
-                            INITIATE JOURNEY
-                        </Text>
+                            )}
+
+                            {/* Slide 2: Prev & Next */}
+                            {currentIndex === 1 && (
+                                <>
+                                    <TouchableOpacity onPress={goToPrevSlide} style={styles.lightRoundButton}>
+                                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#4F46E5" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity onPress={goToNextSlide} style={styles.lightRoundButton}>
+                                        <Ionicons name="chevron-forward" size={scaleFont(24)} color="#4F46E5" />
+                                    </TouchableOpacity>
+                                </>
+                            )}
+
+                            {/* Slide 3: Prev & Auth Navigate (looks like Next) */}
+                            {currentIndex === 2 && (
+                                <>
+                                    <TouchableOpacity onPress={goToPrevSlide} style={styles.lightRoundButton}>
+                                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#4F46E5" />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+                                            router.replace('/screens/AuthScreen');
+                                        }}
+                                        style={styles.lightRoundButton}
+                                        activeOpacity={0.7}
+                                    >
+                                        <Ionicons name="chevron-forward" size={scaleFont(24)} color="#4F46E5" />
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                        </Animated.View>
                     </Animated.View>
 
                     <TouchableOpacity
@@ -504,7 +497,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     slideTitle: {
-        fontSize: scaleFont(40),
+        fontSize: scaleFont(32), // Reduced to fit on a single line
         fontWeight: '900',
         color: '#1E293B',
         textAlign: 'center', // Back to Center
@@ -541,22 +534,15 @@ const styles = StyleSheet.create({
         borderRadius: scaleFont(4),
         marginHorizontal: scaleFont(6),
     },
-    swipeHintContainer: {
+    unifiedNavContainer: {
         position: 'absolute',
-        bottom: scaleFont(100), // Move Swipe Hint DOWN clearly below pagination
+        bottom: scaleFont(90),
         width: '100%',
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: scaleFont(8),
+        gap: scaleFont(24),
         zIndex: 15,
-    },
-    swipeHintText: {
-        fontSize: scaleFont(14),
-        color: '#64748B',
-        fontFamily: 'Outfit_500Medium',
-        letterSpacing: 0.3,
-        opacity: 0.3,
     },
     skipButton: {
         position: 'absolute',
@@ -572,99 +558,36 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_600SemiBold',
         color: '#64748B',
     },
-    footer: {
-        position: 'absolute',
-        bottom: 0,
-        width: '100%',
+    lightRoundButton: {
+        width: scaleFont(52),
+        height: scaleFont(52),
+        borderRadius: scaleFont(26),
+        backgroundColor: '#FFFFFF', // Light colored, not dark
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        paddingBottom: '8%',
-        zIndex: 30,
-    },
-    portalWrapper: {
-        width: scaleFont(80),
-        height: scaleFont(80),
         justifyContent: 'center',
-        alignItems: 'center',
+        elevation: 8,
+        shadowColor: 'rgba(79, 70, 229, 0.4)',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        borderWidth: scaleFont(1),
+        borderColor: 'rgba(79, 70, 229, 0.1)',
     },
-    portalHalo: {
-        position: 'absolute',
-        width: scaleFont(72),
-        height: scaleFont(72),
-        borderRadius: scaleFont(36),
+    startButton: {
         borderWidth: scaleFont(2),
-        borderColor: '#4F46E5',
-        borderStyle: 'dashed',
-        opacity: 0.2,
-    },
-    portalAction: {
-        width: scaleFont(56),
-        height: scaleFont(56),
-        borderRadius: scaleFont(28),
-        justifyContent: 'center',
-        alignItems: 'center',
-        elevation: scaleFont(20),
-        shadowColor: '#4F46E5',
-        shadowOffset: { width: 0, height: scaleFont(8) },
-        shadowRadius: scaleFont(16),
-    },
-    portalGradient: {
-        width: scaleFont(56),
-        height: scaleFont(56),
-        borderRadius: scaleFont(28),
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 2,
-    },
-    portalInnerRing: {
-        position: 'absolute',
-        width: scaleFont(68),
-        height: scaleFont(68),
-        borderRadius: scaleFont(34),
-        borderWidth: scaleFont(1.5),
-        borderColor: 'rgba(79, 70, 229, 0.2)',
-        zIndex: 1,
-    },
-    portalLabel: {
-        fontSize: scaleFont(12),
-        fontWeight: '900',
-        color: '#4F46E5',
-        marginTop: scaleFont(24),
-        letterSpacing: scaleFont(2),
-        opacity: 0.9,
-        textTransform: 'uppercase',
+        borderColor: 'rgba(79, 70, 229, 0.3)', // Extra simple design for init button
+        backgroundColor: '#EEF2FF', // Very subtle tint to distinguish it slightly but maintain light theme
     },
     // New Luxury Styles
-    glassCard: {
-        width: SCREEN_WIDTH * 0.82,
-        height: SCREEN_HEIGHT * 0.6,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderRadius: scaleFont(32),
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.8)',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: scaleFont(20) },
-        shadowOpacity: 0.15,
-        shadowRadius: scaleFont(30),
-        elevation: 10,
-        overflow: 'hidden',
+    showcaseContainer: {
+        width: SCREEN_WIDTH * 0.9,
         alignItems: 'center',
-        paddingVertical: scaleFont(40),
+        paddingVertical: scaleFont(20),
     },
-    cardContent: {
-        flex: 1,
+    iconWrapper: {
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: scaleFont(24),
-        width: '100%',
-    },
-    iconCircle: {
-        width: scaleFont(120),
-        height: scaleFont(120),
-        borderRadius: scaleFont(60),
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: scaleFont(40),
+        marginBottom: scaleFont(48),
     },
 });
 

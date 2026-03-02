@@ -132,6 +132,7 @@ export default function AuthScreen() {
           });
         } else {
           setLoading(false);
+          showAlert({ title: 'Cancelled', message: 'Sign-in was cancelled. Tap to try again.', type: 'info' });
         }
       }
     } catch (err) {

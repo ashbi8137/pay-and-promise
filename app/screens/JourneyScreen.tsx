@@ -95,6 +95,13 @@ export default function JourneyScreen() {
                 .in('promise_id', promiseIds)
                 .eq('user_id', user.id);
 
+            // Fetch REAL PP from ledger for accuracy
+            const { data: ledgerEntries } = await supabase
+                .from('promise_point_ledger')
+                .select('promise_id, points, reason')
+                .in('promise_id', promiseIds)
+                .eq('user_id', user.id);
+
             const processed: JourneyItem[] = promises.map((p: any) => {
                 const pCheckins = checkins?.filter((c: Checkin) => c.promise_id === p.id) || [];
                 const daysData: string[] = [];
@@ -113,12 +120,15 @@ export default function JourneyScreen() {
                 const lockedPoints = p.locked_points || 10;
                 const commitmentLevel = p.commitment_level || 'medium';
                 const failedDaysCount = daysData.filter(d => d === 'failed').length;
-                const doneDaysCount = daysData.filter(d => d === 'done').length;
 
-                // Calculate PP based on check-in performance
-                const ppPerDay = lockedPoints / (p.duration_days || 1);
-                const ppEarned = Math.round(doneDaysCount * ppPerDay * 2);
-                const ppLost = Math.round(failedDaysCount * ppPerDay);
+                // Use REAL ledger data for PP calculations
+                const pLedger = ledgerEntries?.filter(l => l.promise_id === p.id) || [];
+                const ppEarned = pLedger
+                    .filter(l => l.points > 0)
+                    .reduce((sum, l) => sum + l.points, 0);
+                const ppLost = Math.abs(pLedger
+                    .filter(l => l.points < 0)
+                    .reduce((sum, l) => sum + l.points, 0));
                 const ppNet = ppEarned - ppLost;
 
                 return {

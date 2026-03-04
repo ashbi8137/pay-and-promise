@@ -505,7 +505,8 @@ export default function PromiseDetailScreen() {
                     // Update the image and reset status to 'pending' to restart verification
                     const { error } = await supabase.from('promise_submissions').update({
                         image_url: publicUrl,
-                        status: 'pending'
+                        status: 'pending',
+                        proof_uploaded_at: new Date().toISOString()
                     }).eq('id', existing.id);
                     if (error) throw error;
 
@@ -535,7 +536,8 @@ export default function PromiseDetailScreen() {
                         user_id: user.id,
                         date: dateStr,
                         image_url: publicUrl,
-                        status: 'pending'
+                        status: 'pending',
+                        proof_uploaded_at: new Date().toISOString()
                     });
                     if (error) throw error;
 
@@ -940,42 +942,40 @@ export default function PromiseDetailScreen() {
                                 <Text style={styles.failText}>Marked as Failed</Text>
                             </View>
                         ) : (
-                            <View>
+                            <View style={{ position: 'relative' }}>
                                 <Image
                                     key={mySub.image_url}
                                     source={{ uri: mySub.image_url }}
                                     style={styles.submissionImage}
                                 />
-
-                                {mySub.status === 'rejected' && (
-                                    <View style={{ marginTop: 16 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF2F2', padding: 12, borderRadius: 12 }}>
-                                            <Ionicons name="alert-circle" size={20} color="#EF4444" />
-                                            <Text style={{ color: '#EF4444', fontWeight: '700', fontSize: scaleFont(13), flex: 1 }}>
-                                                Submission Rejected.
-                                            </Text>
-                                        </View>
-                                        <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn}>
-                                            <Ionicons name="refresh" size={20} color="#FFF" />
-                                            <Text style={styles.mainActionText}>Retry Submission</Text>
-                                        </TouchableOpacity>
+                                {mySub.proof_uploaded_at && (
+                                    <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                                        <Text style={{ color: '#FFF', fontSize: scaleFont(10), fontWeight: '600', fontFamily: 'Outfit_600SemiBold' }}>
+                                            Uploaded at: {new Date(mySub.proof_uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </Text>
                                     </View>
                                 )}
+                            </View>
+                        )}
 
-                                {mySub.status === 'pending' && (
-                                    <View style={{ marginTop: 16 }}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF9C3', padding: 12, borderRadius: 12 }}>
-                                            <ActivityIndicator size="small" color="#CA8A04" />
-                                            <Text style={{ color: '#CA8A04', fontWeight: '700', fontSize: scaleFont(13), flex: 1 }}>
-                                                Waiting for peers...
-                                            </Text>
-                                        </View>
-                                        <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#5B2DAD' }]} onPress={handlePhotoCheckIn} disabled={updating}>
-                                            <Ionicons name="camera-reverse" size={20} color="#5B2DAD" />
-                                            <Text style={[styles.mainActionText, { color: '#5B2DAD' }]}>Change Proof</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
+                        {mySub.status === 'rejected' && (
+                            <View style={{ marginTop: 16 }}>
+                                {/* Removing redundant banner based on user feedback. The status pill already shows REJECTED. */}
+                            </View>
+                        )}
+
+                        {mySub.status === 'pending' && (
+                            <View style={{ marginTop: 16 }}>
+                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF9C3', padding: 12, borderRadius: 12 }}>
+                                    <ActivityIndicator size="small" color="#CA8A04" />
+                                    <Text style={{ color: '#CA8A04', fontWeight: '700', fontSize: scaleFont(13), flex: 1 }}>
+                                        Waiting for peers...
+                                    </Text>
+                                </View>
+                                <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#5B2DAD' }]} onPress={handlePhotoCheckIn} disabled={updating}>
+                                    <Ionicons name="camera-reverse" size={20} color="#5B2DAD" />
+                                    <Text style={[styles.mainActionText, { color: '#5B2DAD' }]}>Change Proof</Text>
+                                </TouchableOpacity>
                             </View>
                         )}
                     </Animated.View>
@@ -1034,63 +1034,74 @@ export default function PromiseDetailScreen() {
                             </View>
                         </View>
                     )
-                )}
+                )
+                }
 
                 {/* OTHERS TASK */}
-                {othersSubmissions.length > 0 && (
-                    <View style={{ marginTop: 24 }}>
-                        <Text style={styles.subSectionTitle}>Peer Review Requests</Text>
-                        {othersSubmissions.map((sub, idx) => {
-                            const isVoted = myVotes.includes(sub.id);
-                            const name = userNames[sub.user_id] || "Participant";
-                            const isAutoFail = sub.image_url === 'manual_fail';
+                {
+                    othersSubmissions.length > 0 && (
+                        <View style={{ marginTop: 24 }}>
+                            <Text style={styles.subSectionTitle}>Peer Review Requests</Text>
+                            {othersSubmissions.map((sub, idx) => {
+                                const isVoted = myVotes.includes(sub.id);
+                                const name = userNames[sub.user_id] || "Participant";
+                                const isAutoFail = sub.image_url === 'manual_fail';
 
-                            return (
-                                <Animated.View key={sub.id} entering={FadeInDown.delay(idx * 100)} style={styles.peerCard}>
-                                    <View style={styles.peerHeader}>
-                                        <View style={styles.peerAvatar}>
-                                            <Text style={styles.avatarChar}>{name[0]}</Text>
+                                return (
+                                    <Animated.View key={sub.id} entering={FadeInDown.delay(idx * 100)} style={styles.peerCard}>
+                                        <View style={styles.peerHeader}>
+                                            <View style={styles.peerAvatar}>
+                                                <Text style={styles.avatarChar}>{name[0]}</Text>
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.peerName}>{name}</Text>
+                                                <Text style={styles.peerStatus}>{sub.status === 'verified' ? 'Verified' : (sub.status === 'rejected' ? 'Rejected' : 'Awaiting Review')}</Text>
+                                            </View>
                                         </View>
-                                        <View style={{ flex: 1 }}>
-                                            <Text style={styles.peerName}>{name}</Text>
-                                            <Text style={styles.peerStatus}>{sub.status === 'verified' ? 'Verified' : (sub.status === 'rejected' ? 'Rejected' : 'Awaiting Review')}</Text>
-                                        </View>
-                                    </View>
 
-                                    {isAutoFail ? (
-                                        <View style={styles.peerFailBox}>
-                                            <Ionicons name="warning" size={20} color="#EF4444" />
-                                            <Text style={styles.peerFailText}>User admitted failure</Text>
-                                        </View>
-                                    ) : (
-                                        <>
-                                            <Image source={{ uri: sub.image_url }} style={styles.peerImage} />
-                                            {!isVoted && sub.status === 'pending' && (
-                                                <View style={styles.voteBar}>
-                                                    <TouchableOpacity
-                                                        style={[styles.voteBtn, styles.btnReject]}
-                                                        onPress={() => handleVote(sub.id, 'reject')}
-                                                    >
-                                                        <Ionicons name="close" size={20} color="#EF4444" />
-                                                        <Text style={styles.btnRejectText}>Reject</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        style={[styles.voteBtn, styles.btnConfirm]}
-                                                        onPress={() => handleVote(sub.id, 'confirm')}
-                                                    >
-                                                        <Ionicons name="checkmark" size={20} color="#FFF" />
-                                                        <Text style={styles.btnConfirmText}>Verify</Text>
-                                                    </TouchableOpacity>
+                                        {isAutoFail ? (
+                                            <View style={styles.peerFailBox}>
+                                                <Ionicons name="warning" size={20} color="#EF4444" />
+                                                <Text style={styles.peerFailText}>User admitted failure</Text>
+                                            </View>
+                                        ) : (
+                                            <>
+                                                <View style={{ position: 'relative' }}>
+                                                    <Image source={{ uri: sub.image_url }} style={styles.peerImage} />
+                                                    {sub.proof_uploaded_at && (
+                                                        <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
+                                                            <Text style={{ color: '#FFF', fontSize: scaleFont(10), fontWeight: '600', fontFamily: 'Outfit_600SemiBold' }}>
+                                                                {new Date(sub.proof_uploaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                            </Text>
+                                                        </View>
+                                                    )}
                                                 </View>
-                                            )}
-                                            {isVoted && <Text style={styles.votedFeedback}>Voted</Text>}
-                                        </>
-                                    )}
-                                </Animated.View>
-                            );
-                        })}
-                    </View>
-                )}
+                                                {!isVoted && sub.status === 'pending' && (
+                                                    <View style={styles.voteBar}>
+                                                        <TouchableOpacity
+                                                            style={[styles.voteBtn, styles.btnReject]}
+                                                            onPress={() => handleVote(sub.id, 'reject')}
+                                                        >
+                                                            <Ionicons name="close" size={20} color="#EF4444" />
+                                                            <Text style={styles.btnRejectText}>Reject</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={[styles.voteBtn, styles.btnConfirm]}
+                                                            onPress={() => handleVote(sub.id, 'confirm')}
+                                                        >
+                                                            <Ionicons name="checkmark" size={20} color="#FFF" />
+                                                            <Text style={styles.btnConfirmText}>Verify</Text>
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                )}
+                                                {isVoted && <Text style={styles.votedFeedback}>Voted</Text>}
+                                            </>
+                                        )}
+                                    </Animated.View>
+                                );
+                            })}
+                        </View>
+                    )}
             </View>
         );
     };
@@ -1137,33 +1148,34 @@ export default function PromiseDetailScreen() {
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Progress Overview</Text>
                 </View>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: scaleFont(12) }}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: scaleFont(12), paddingRight: scaleFont(20) }}>
                     {[
-                        { label: 'Total Days', value: totalDays, icon: 'calendar-outline', color: '#4F46E5' },
-                        { label: 'Current Day', value: currentDay, icon: 'today-outline', color: '#7C3AED' },
-                        { label: 'Completed', value: completedDays, icon: 'checkmark-circle-outline', color: '#10B981' },
-                        { label: 'Missed', value: missedDays, icon: 'close-circle-outline', color: '#EF4444' },
+                        { label: 'Total', value: totalDays, icon: 'calendar-outline', color: '#4F46E5' },
+                        { label: 'Day', value: currentDay, icon: 'today-outline', color: '#7C3AED' },
+                        { label: 'Done', value: completedDays, icon: 'checkmark-circle-outline', color: '#10B981' },
+                        { label: 'Miss', value: missedDays, icon: 'close-circle-outline', color: '#EF4444' },
                     ].map((stat, idx) => (
                         <Animated.View key={idx} entering={FadeInDown.delay(idx * 80)} style={{
-                            width: '47%',
+                            width: scaleFont(90),
                             backgroundColor: '#FFF',
                             borderRadius: scaleFont(16),
-                            padding: scaleFont(16),
+                            padding: scaleFont(14),
                             borderWidth: 1,
                             borderColor: '#F1F5F9',
+                            alignItems: 'center'
                         }}>
                             <Ionicons name={stat.icon as any} size={20} color={stat.color} />
-                            <Text style={{ fontSize: scaleFont(24), fontWeight: '800', color: stat.color, marginTop: 8, fontFamily: 'Outfit_800ExtraBold' }}>{stat.value}</Text>
-                            <Text style={{ fontSize: scaleFont(12), color: '#64748B', fontFamily: 'Outfit_400Regular', marginTop: 2 }}>{stat.label}</Text>
+                            <Text style={{ fontSize: scaleFont(20), fontWeight: '800', color: stat.color, marginTop: 8, fontFamily: 'Outfit_800ExtraBold' }}>{stat.value}</Text>
+                            <Text style={{ fontSize: scaleFont(11), color: '#64748B', fontFamily: 'Outfit_400Regular', marginTop: 2 }}>{stat.label}</Text>
                         </Animated.View>
                     ))}
-                    {/* Points Locked */}
-                    <View style={{ width: '100%', backgroundColor: '#F5F3FF', borderRadius: scaleFont(16), padding: scaleFont(16), flexDirection: 'row', alignItems: 'center', gap: scaleFont(12) }}>
-                        <Ionicons name="diamond" size={20} color="#5B2DAD" />
-                        <View style={{ flex: 1 }}>
-                            <Text style={{ fontSize: scaleFont(14), fontWeight: '700', color: '#5B2DAD', fontFamily: 'Outfit_700Bold' }}>Points Locked</Text>
-                            <Text style={{ fontSize: scaleFont(12), color: '#64748B', fontFamily: 'Outfit_400Regular' }}>{lockedPoints} PP at stake</Text>
-                        </View>
+                </ScrollView>
+                {/* Points Locked */}
+                <View style={{ width: '100%', backgroundColor: '#F5F3FF', borderRadius: scaleFont(16), padding: scaleFont(16), flexDirection: 'row', alignItems: 'center', gap: scaleFont(12), marginTop: scaleFont(12) }}>
+                    <Ionicons name="diamond" size={20} color="#5B2DAD" />
+                    <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: scaleFont(14), fontWeight: '700', color: '#5B2DAD', fontFamily: 'Outfit_700Bold' }}>Points Locked</Text>
+                        <Text style={{ fontSize: scaleFont(12), color: '#64748B', fontFamily: 'Outfit_400Regular' }}>{lockedPoints} PP at stake</Text>
                     </View>
                 </View>
             </View>

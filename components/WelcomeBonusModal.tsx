@@ -49,7 +49,7 @@ export default function WelcomeBonusModal({ visible, onClose, onClaim }: Welcome
 
                         <Text style={styles.title}>Welcome Aboard!</Text>
                         <Text style={styles.subtitle}>
-                            Here's a little something to start your journey.
+                            Here are some Promise Points to start your journey.
                         </Text>
 
                         {/* Reward */}
@@ -58,7 +58,7 @@ export default function WelcomeBonusModal({ visible, onClose, onClaim }: Welcome
                         </View>
 
                         <Text style={styles.description}>
-                            Use these points to stake on your first promise.
+                            Use them to create your first promise.
                         </Text>
 
                         <TouchableOpacity
@@ -70,7 +70,7 @@ export default function WelcomeBonusModal({ visible, onClose, onClaim }: Welcome
                             {loading ? (
                                 <ActivityIndicator color="#FFF" />
                             ) : (
-                                <Text style={styles.buttonText}>Claim Gift</Text>
+                                <Text style={styles.buttonText}>Let's Start</Text>
                             )}
                         </TouchableOpacity>
                     </View>

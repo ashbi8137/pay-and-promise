@@ -335,6 +335,30 @@ export default function HomeScreen() {
                     const todayCheckinMap = new Map();
                     checkins?.forEach(c => todayCheckinMap.set(c.promise_id, c.status));
 
+                    // 2b. Fetch pending submissions from OTHERS needing my vote today
+                    const { data: othersSubs } = await supabase
+                        .from('promise_submissions')
+                        .select('id, promise_id, user_id')
+                        .in('promise_id', promises.map(p => p.id))
+                        .eq('date', today)
+                        .eq('status', 'pending')
+                        .neq('user_id', user.id);
+
+                    // Fetch my votes today to see if I already verified these
+                    const { data: myVotes } = await supabase
+                        .from('submission_verifications')
+                        .select('submission_id')
+                        .eq('verifier_user_id', user.id)
+                        .in('submission_id', othersSubs?.map(s => s.id) || []);
+
+                    const votedSubmissionIds = new Set(myVotes?.map(v => v.submission_id));
+                    const pendingReviewMap = new Map(); // promise_id -> has_pending_review
+                    othersSubs?.forEach(s => {
+                        if (!votedSubmissionIds.has(s.id)) {
+                            pendingReviewMap.set(s.promise_id, true);
+                        }
+                    });
+
                     const pending: PromiseItem[] = [];
                     const done: PromiseItem[] = [];
                     const justCompleted: PromiseItem[] = [];
@@ -354,16 +378,24 @@ export default function HomeScreen() {
                             continue;
                         }
 
-                        // 1b. Expired promises are now handled by the backend RPC
-                        // finalize_expired_promises() was called above, so any expired
-                        // promise should already have status != 'active' at this point.
+                        // 1b. Check if deadline has passed for today
+                        const now = new Date();
+                        const isPastDeadline = p.deadline_time ? (() => {
+                            const [h, m] = p.deadline_time.split(':').map(Number);
+                            const deadline = new Date();
+                            deadline.setHours(h, m, 0, 0);
+                            return now > deadline;
+                        })() : false;
 
-                        // 2. Active promise — check if user already checked in today
-                        if (todayCheckinMap.has(p.id)) {
-                            // User checked in — move it to the completed/history tab temporarily
+                        // 2. Active promise — check if user already checked in today OR if deadline passed
+                        const hasMyCheckin = todayCheckinMap.has(p.id);
+                        const hasPendingPeerReview = pendingReviewMap.has(p.id);
+
+                        if ((hasMyCheckin || isPastDeadline) && !hasPendingPeerReview) {
+                            // User checked in OR missed deadline AND no peer reviews pending — move it to the completed/history tab
                             done.push({ ...p, status: 'active_waiting' });
                         } else {
-                            // User hasn't checked in yet
+                            // User hasn't checked in yet OR peer review is pending (even if deadline passed)
                             pending.push(p);
                         }
                     }

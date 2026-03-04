@@ -944,8 +944,8 @@ export default function PromiseDetailScreen() {
                         ) : (
                             <View style={{ position: 'relative' }}>
                                 <Image
-                                    key={mySub.image_url}
-                                    source={{ uri: mySub.image_url }}
+                                    key={`${mySub.image_url}-${mySub.proof_uploaded_at}`}
+                                    source={{ uri: `${mySub.image_url}${mySub.image_url.includes('?') ? '&' : '?'}t=${mySub.proof_uploaded_at ? new Date(mySub.proof_uploaded_at).getTime() : new Date().getTime()}` }}
                                     style={styles.submissionImage}
                                 />
                                 {mySub.proof_uploaded_at && (
@@ -966,12 +966,6 @@ export default function PromiseDetailScreen() {
 
                         {mySub.status === 'pending' && (
                             <View style={{ marginTop: 16 }}>
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12, backgroundColor: '#FEF9C3', padding: 12, borderRadius: 12 }}>
-                                    <ActivityIndicator size="small" color="#CA8A04" />
-                                    <Text style={{ color: '#CA8A04', fontWeight: '700', fontSize: scaleFont(13), flex: 1 }}>
-                                        Waiting for peers...
-                                    </Text>
-                                </View>
                                 <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#5B2DAD' }]} onPress={handlePhotoCheckIn} disabled={updating}>
                                     <Ionicons name="camera-reverse" size={20} color="#5B2DAD" />
                                     <Text style={[styles.mainActionText, { color: '#5B2DAD' }]}>Change Proof</Text>
@@ -994,19 +988,19 @@ export default function PromiseDetailScreen() {
                             </Animated.View>
                         ) : (
                             <Animated.View entering={FadeInDown} style={styles.uploadCard}>
-                                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.uploadTitle}>Ready for today?</Text>
-                                        <Text style={styles.uploadSub}>Capture your progress and share it.</Text>
+                                <View style={{ alignItems: 'center', width: '100%', marginBottom: scaleFont(24) }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: scaleFont(12), marginBottom: scaleFont(12), width: '100%' }}>
+                                        <Text style={[styles.uploadTitle, { marginBottom: 0 }]}>Ready for today?</Text>
+                                        {deadline_time && (
+                                            <View style={styles.deadlinePill}>
+                                                <Ionicons name="time-outline" size={scaleFont(12)} color="#5B2DAD" />
+                                                <Text style={styles.deadlinePillText}>
+                                                    {new Date(`2000-01-01T${deadline_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }).toLowerCase().replace(' ', '')}
+                                                </Text>
+                                            </View>
+                                        )}
                                     </View>
-                                    {deadline_time && (
-                                        <View style={{ backgroundColor: '#FEF9C3', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#FDE047' }}>
-                                            <Text style={{ fontSize: scaleFont(11), fontWeight: '800', color: '#CA8A04', fontFamily: 'Outfit_800ExtraBold' }}>DEADLINE</Text>
-                                            <Text style={{ fontSize: scaleFont(14), fontWeight: '900', color: '#854D0E', fontFamily: 'Outfit_800ExtraBold' }}>
-                                                {new Date(`2000-01-01T${deadline_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                            </Text>
-                                        </View>
-                                    )}
+                                    <Text style={[styles.uploadSub, { textAlign: 'center', marginBottom: 0 }]}>Capture your progress and share it.</Text>
                                 </View>
                                 <TouchableOpacity style={styles.mainActionBtn} onPress={handlePhotoCheckIn} disabled={updating}>
                                     {updating ? (
@@ -1067,7 +1061,11 @@ export default function PromiseDetailScreen() {
                                         ) : (
                                             <>
                                                 <View style={{ position: 'relative' }}>
-                                                    <Image source={{ uri: sub.image_url }} style={styles.peerImage} />
+                                                    <Image
+                                                        key={`${sub.image_url}-${sub.proof_uploaded_at}`}
+                                                        source={{ uri: `${sub.image_url}${sub.image_url.includes('?') ? '&' : '?'}t=${sub.proof_uploaded_at ? new Date(sub.proof_uploaded_at).getTime() : new Date().getTime()}` }}
+                                                        style={styles.peerImage}
+                                                    />
                                                     {sub.proof_uploaded_at && (
                                                         <View style={{ position: 'absolute', bottom: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 }}>
                                                             <Text style={{ color: '#FFF', fontSize: scaleFont(10), fontWeight: '600', fontFamily: 'Outfit_600SemiBold' }}>
@@ -1101,8 +1099,9 @@ export default function PromiseDetailScreen() {
                                 );
                             })}
                         </View>
-                    )}
-            </View>
+                    )
+                }
+            </View >
         );
     };
 
@@ -1690,13 +1689,35 @@ const styles = StyleSheet.create({
         fontFamily: 'Outfit_400Regular',
     },
     uploadCard: {
-        alignItems: 'center',
         padding: scaleFont(32),
-        backgroundColor: '#F8FAFC',
-        borderRadius: scaleFont(24),
-        borderStyle: 'dashed',
-        borderWidth: 2,
-        borderColor: '#CBD5E1',
+        backgroundColor: '#FFFFFF',
+        borderRadius: scaleFont(32),
+        shadowColor: '#5B2DAD',
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.1,
+        shadowRadius: 32,
+        elevation: 10,
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+        alignItems: 'center',
+        marginHorizontal: scaleFont(2), // Prevent shadow clipping
+    },
+    deadlinePill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: scaleFont(6),
+        backgroundColor: '#F5F3FF',
+        paddingHorizontal: scaleFont(12),
+        paddingVertical: scaleFont(6),
+        borderRadius: scaleFont(12),
+        borderWidth: 1,
+        borderColor: '#EDE9FE',
+    },
+    deadlinePillText: {
+        fontSize: scaleFont(13),
+        fontWeight: '800',
+        color: '#5B2DAD',
+        fontFamily: 'Outfit_800ExtraBold',
     },
     uploadTitle: {
         fontSize: scaleFont(20),
@@ -1738,6 +1759,8 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         textDecorationLine: 'underline',
         fontFamily: 'Outfit_700Bold',
+        textAlign: 'center',
+        width: '100%',
     },
     // PEER CARD
     peerCard: {

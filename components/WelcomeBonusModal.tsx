@@ -1,8 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, { Easing, FadeOutDown, ZoomIn, useAnimatedStyle, useSharedValue, withDelay, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { scaleFont } from '../utils/layout';
+
+const { width, height } = Dimensions.get('window');
+const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 interface WelcomeBonusProps {
     visible: boolean;
@@ -10,15 +14,108 @@ interface WelcomeBonusProps {
     onClaim: () => Promise<void>;
 }
 
-export default function WelcomeBonusModal({ visible, onClose, onClaim }: WelcomeBonusProps) {
-    const [loading, setLoading] = useState(false);
+const ConfettiPiece = ({ index }: { index: number }) => {
+    const translateX = useSharedValue(0);
+    const translateY = useSharedValue(0);
+    const rotation = useSharedValue(0);
+    const scale = useSharedValue(0);
+    const opacity = useSharedValue(1);
+    const shimmer = useSharedValue(1);
 
-    // Haptics on Mount
+    const color = COLORS[index % COLORS.length];
+    const size = Math.random() * 8 + 6;
+    const isCircle = Math.random() > 0.5;
+
+    useEffect(() => {
+        const angle = (Math.random() * Math.PI * 2);
+        const velocity = Math.random() * 250 + 100;
+        const x = Math.cos(angle) * velocity;
+        const y = -Math.abs(Math.sin(angle)) * velocity - 100;
+
+        scale.value = withTiming(1, { duration: 300 });
+
+        // Glitter effect (Shimmer)
+        shimmer.value = withRepeat(
+            withSequence(
+                withTiming(0.6, { duration: 200 }),
+                withTiming(1, { duration: 200 }),
+            ),
+            -1,
+            true
+        );
+
+        translateX.value = withTiming(x, { duration: 1200, easing: Easing.out(Easing.cubic) });
+
+        translateY.value = withSequence(
+            withTiming(y, { duration: 500, easing: Easing.out(Easing.cubic) }),
+            withTiming(height, { duration: 1500, easing: Easing.in(Easing.quad) })
+        );
+
+        rotation.value = withTiming(Math.random() * 360 * 5, { duration: 2000 });
+        opacity.value = withDelay(1200, withTiming(0, { duration: 800 }));
+    }, [scale, translateX, translateY, rotation, opacity, shimmer]);
+
+    const style = useAnimatedStyle(() => ({
+        transform: [
+            { translateX: translateX.value },
+            { translateY: translateY.value },
+            { rotate: `${rotation.value}deg` },
+            { scale: scale.value * shimmer.value }
+        ],
+        opacity: opacity.value,
+        position: 'absolute',
+        top: height / 2,
+        left: width / 2,
+        width: size,
+        height: size,
+        backgroundColor: color,
+        borderRadius: isCircle ? size / 2 : 0,
+        zIndex: 1000,
+    }));
+
+    return <Animated.View style={style} />;
+};
+
+const ConfettiExplosion = () => {
+    const pieces = Array.from({ length: 120 }).map((_, i) => i);
+    return (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 2000 }]} pointerEvents="none">
+            {pieces.map((i) => (
+                <ConfettiPiece key={i} index={i} />
+            ))}
+        </View>
+    );
+};
+
+const WelcomeBonusModal = ({ visible, onClose, onClaim }: WelcomeBonusProps) => {
+    const [loading, setLoading] = useState(false);
+    const [claimed, setClaimed] = useState(false);
+
+    // Pulsating animation for the gift icon
+    const iconScale = useSharedValue(1);
+
     useEffect(() => {
         if (visible) {
+            setClaimed(false);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+            // Start pulsating animation
+            iconScale.value = withRepeat(
+                withSequence(
+                    withTiming(1.1, { duration: 800, easing: Easing.inOut(Easing.sin) }),
+                    withTiming(1, { duration: 800, easing: Easing.inOut(Easing.sin) })
+                ),
+                -1,
+                true
+            );
+        } else {
+            iconScale.value = 1;
         }
-    }, [visible]);
+    }, [visible, iconScale]);
+
+    const iconAnimatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: iconScale.value }]
+    }));
 
     if (!visible) return null;
 
@@ -27,54 +124,65 @@ export default function WelcomeBonusModal({ visible, onClose, onClaim }: Welcome
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         try {
             await onClaim();
-            // Wait a small moment for effect? No, user wants instant update.
+            setClaimed(true);
+            setTimeout(() => {
+                onClose();
+            }, 500);
         } catch (e) {
             console.error(e);
         } finally {
             setLoading(false);
-            onClose();
         }
     };
 
     return (
         <Modal transparent animationType="fade" visible={visible}>
             <View style={styles.overlay}>
-                {/* Static Card as requested (No entering/exiting animations) */}
-                <View style={styles.card}>
+                {/* 1. Glassmorphism Card Container */}
+                <Animated.View
+                    entering={ZoomIn.duration(800).springify()}
+                    exiting={FadeOutDown}
+                    style={styles.card}
+                >
+                    {/* Background Decorative Gradient-like circle */}
+                    <View style={styles.decorCircle} />
+                    <View style={[styles.decorCircle, { left: -scaleFont(50), top: scaleFont(180), backgroundColor: '#EEF2FF', width: scaleFont(120), height: scaleFont(120) }]} />
+
                     <View style={styles.content}>
-                        {/* Icon */}
-                        <View style={styles.iconContainer}>
-                            <Ionicons name="gift" size={scaleFont(48)} color="#FFFFFF" />
-                        </View>
+                        {/* Pulsating Icon Wrapper */}
+                        <Animated.View style={[styles.iconWrapper, iconAnimatedStyle]}>
+                            <Ionicons name="gift" size={scaleFont(38)} color="#5B2DAD" />
+                        </Animated.View>
 
-                        <Text style={styles.title}>Welcome Aboard!</Text>
+                        <Text style={styles.title}>Welcome aboard!</Text>
                         <Text style={styles.subtitle}>
-                            Here are some Promise Points to start your journey.
+                            Here are some <Text style={styles.highlight}>Promise Points</Text> to{'\n'}start your journey
                         </Text>
 
-                        {/* Reward */}
-                        <View style={styles.rewardBox}>
-                            <Text style={styles.rewardText}>25 PP</Text>
+                        <View style={styles.rewardContainer}>
+                            <Text style={styles.rewardValue}>+25</Text>
+                            <Text style={styles.rewardUnit}>PP</Text>
                         </View>
-
-                        <Text style={styles.description}>
-                            Use them to create your first promise.
-                        </Text>
 
                         <TouchableOpacity
-                            style={styles.button}
+                            style={[styles.button, claimed && styles.buttonSuccess]}
                             onPress={handleClaim}
-                            activeOpacity={0.8}
-                            disabled={loading}
+                            activeOpacity={0.9}
+                            disabled={loading || claimed}
                         >
                             {loading ? (
                                 <ActivityIndicator color="#FFF" />
+                            ) : claimed ? (
+                                <Ionicons name="checkmark-done" size={24} color="#FFF" />
                             ) : (
-                                <Text style={styles.buttonText}>Let's Start</Text>
+                                <Text style={styles.buttonText}>Claim & Start</Text>
                             )}
                         </TouchableOpacity>
                     </View>
-                </View>
+                </Animated.View>
+
+                {/* 2. Confetti bursts in foreground */}
+                <ConfettiExplosion />
             </View>
         </Modal>
     );
@@ -83,86 +191,115 @@ export default function WelcomeBonusModal({ visible, onClose, onClaim }: Welcome
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.5)',
+        backgroundColor: 'rgba(15, 23, 42, 0.4)', // Sophisticated dark slate overlay
         justifyContent: 'center',
         alignItems: 'center',
-        padding: scaleFont(32),
+        padding: scaleFont(24),
     },
     card: {
         width: '100%',
-        backgroundColor: 'rgba(91, 45, 173, 0.95)',
-        borderRadius: scaleFont(24),
+        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+        borderRadius: scaleFont(32),
         padding: scaleFont(32),
         alignItems: 'center',
         shadowColor: '#5B2DAD',
-        shadowOffset: { width: 0, height: 8 },
-        shadowOpacity: 0.25,
-        shadowRadius: 16,
-        elevation: 8,
+        shadowOffset: { width: 0, height: 12 },
+        shadowOpacity: 0.1,
+        shadowRadius: 24,
+        elevation: 10,
+        overflow: 'hidden',
+        borderWidth: 1.5,
+        borderColor: 'rgba(255, 255, 255, 0.5)',
+        zIndex: 5,
+    },
+    decorCircle: {
+        position: 'absolute',
+        top: -scaleFont(60),
+        right: -scaleFont(40),
+        width: scaleFont(150),
+        height: scaleFont(150),
+        borderRadius: scaleFont(75),
+        backgroundColor: '#F5F3FF', // Very light purple
     },
     content: {
         alignItems: 'center',
         width: '100%',
+        zIndex: 1,
     },
-    iconContainer: {
-        marginBottom: scaleFont(20),
-        shadowColor: '#fff',
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 12,
+    iconWrapper: {
+        width: scaleFont(72),
+        height: scaleFont(72),
+        borderRadius: scaleFont(36),
+        backgroundColor: '#F5F3FF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: scaleFont(24),
+        borderWidth: 4,
+        borderColor: '#EDE9FE',
     },
     title: {
         fontSize: scaleFont(26),
         fontFamily: 'Outfit_800ExtraBold',
-        color: '#FFFFFF',
-        marginBottom: scaleFont(8),
+        color: '#0F172A',
+        marginBottom: scaleFont(12),
         textAlign: 'center',
     },
     subtitle: {
-        fontSize: scaleFont(16),
+        fontSize: scaleFont(14),
         fontFamily: 'Outfit_400Regular',
-        color: 'rgba(255,255,255,0.9)',
+        color: '#64748B',
         textAlign: 'center',
-        marginBottom: scaleFont(28),
+        marginBottom: scaleFont(32),
+        lineHeight: scaleFont(22),
     },
-    rewardBox: {
-        backgroundColor: '#FFFFFF',
-        paddingVertical: scaleFont(12),
-        paddingHorizontal: scaleFont(32),
-        borderRadius: scaleFont(50),
-        marginBottom: scaleFont(28),
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 2,
+    highlight: {
+        color: '#5B2DAD',
+        fontFamily: 'Outfit_700Bold',
     },
-    rewardText: {
-        fontSize: scaleFont(28),
+    rewardContainer: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        backgroundColor: '#F8FAFC',
+        paddingVertical: scaleFont(16),
+        paddingHorizontal: scaleFont(36),
+        borderRadius: scaleFont(20),
+        marginBottom: scaleFont(32),
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    rewardValue: {
+        fontSize: scaleFont(36),
         fontFamily: 'Outfit_800ExtraBold',
         color: '#5B2DAD',
     },
-    description: {
-        fontSize: scaleFont(14),
-        fontFamily: 'Outfit_400Regular',
-        color: 'rgba(255,255,255,0.7)',
-        textAlign: 'center',
-        marginBottom: scaleFont(32),
-        lineHeight: scaleFont(20),
+    rewardUnit: {
+        fontSize: scaleFont(16),
+        fontFamily: 'Outfit_700Bold',
+        color: '#7C3AED',
+        marginLeft: scaleFont(6),
     },
     button: {
         width: '100%',
-        backgroundColor: 'rgba(255,255,255,0.15)',
-        paddingVertical: scaleFont(16),
-        borderRadius: scaleFont(16),
+        backgroundColor: '#5B2DAD',
+        paddingVertical: scaleFont(18),
+        borderRadius: scaleFont(20),
         alignItems: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
+        shadowColor: '#5B2DAD',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    buttonSuccess: {
+        backgroundColor: '#5B2DAD',
+        shadowColor: '#5B2DAD',
     },
     buttonText: {
         fontSize: scaleFont(16),
         fontFamily: 'Outfit_700Bold',
         color: '#FFFFFF',
-        letterSpacing: 0.5,
+        letterSpacing: scaleFont(0.5),
     },
 });
+
+export default WelcomeBonusModal;

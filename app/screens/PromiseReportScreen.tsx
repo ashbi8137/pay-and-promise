@@ -279,21 +279,7 @@ export default function PromiseReportScreen() {
                         </Animated.View>
                     </View>
 
-                    {/* NET PP RESULT */}
-                    <Animated.View
-                        entering={FadeInDown.delay(400).duration(800).springify()}
-                        style={styles.netResultCard}
-                    >
-                        <View style={styles.netInfo}>
-                            <Text style={styles.netResultLabel}>Net Promise Points</Text>
-                            <Text style={[styles.netResultValue, { color: isGain ? '#15803D' : '#B91C1C' }]}>
-                                {isGain ? '+' : ''}{ppSummary.netResult} PP
-                            </Text>
-                        </View>
-                        <View style={[styles.netIndicator, { backgroundColor: isGain ? '#15803D' : '#B91C1C' }]}>
-                            <Text style={styles.netIndicatorText}>{isGain ? 'GAINED' : 'LOST'}</Text>
-                        </View>
-                    </Animated.View>
+
 
                     {/* PROGRESS BREAKDOWN */}
                     <Animated.View
@@ -368,7 +354,7 @@ export default function PromiseReportScreen() {
                                             {p.name} {p.isCurrentUser ? '(You)' : ''}
                                         </Text>
                                         <Text style={styles.participantStats}>
-                                            {p.daysCompleted}/{ppSummary.totalDays} days · {p.completionRate}%
+                                            {p.daysCompleted}/{ppSummary.totalDays} days
                                         </Text>
                                     </View>
                                     <View style={[

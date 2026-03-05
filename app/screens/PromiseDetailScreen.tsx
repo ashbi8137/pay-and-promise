@@ -887,6 +887,17 @@ export default function PromiseDetailScreen() {
                             <Ionicons name="close-circle" size={48} color="#EF4444" />
                             <Text style={{ fontSize: scaleFont(16), fontWeight: '700', color: '#EF4444', marginTop: 8, fontFamily: 'Outfit_700Bold' }}>Missed for Today</Text>
                         </View>
+                    ) : isPastDeadline ? (
+                        <Animated.View entering={FadeInDown} style={[styles.uploadCard, { borderColor: '#EF4444', backgroundColor: '#FEF2F2' }]}>
+                            <Ionicons name="time" size={32} color="#EF4444" style={{ marginBottom: 8, alignSelf: 'center' }} />
+                            <Text style={[styles.uploadTitle, { color: '#EF4444', textAlign: 'center' }]}>Deadline Passed</Text>
+                            <Text style={[styles.uploadSub, { textAlign: 'center' }]}>
+                                It's past the daily deadline of {new Date(`2000-01-01T${deadline_time}`).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.
+                            </Text>
+                            <Text style={[styles.uploadSub, { textAlign: 'center', marginTop: 4, fontWeight: '700' }]}>
+                                You can no longer mark progress for today.
+                            </Text>
+                        </Animated.View>
                     ) : (
                         <Animated.View entering={FadeInDown} style={styles.uploadCard}>
                             <Text style={styles.uploadTitle}>How did today go?</Text>

@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Dimensions,
     StyleSheet,
@@ -95,9 +95,16 @@ export default function WalkthroughOverlay({ onComplete, forceShow = false, init
     // Show if parent says to show AND user hasn't dismissed yet
     const visible = (forceShow || initialVisible) && !dismissed;
 
+    // Reset dismissed state when parent forces it (e.g. login as new user)
+    useEffect(() => {
+        if (initialVisible || forceShow) {
+            setDismissed(false);
+        }
+    }, [initialVisible, forceShow]);
+
     const handleNext = () => {
         if (currentStep < COACH_MARKS.length - 1) {
-            setCurrentStep(prev => prev + 1);
+            setCurrentStep((prev: number) => prev + 1);
         } else {
             completeCoachMarks();
         }

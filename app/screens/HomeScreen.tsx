@@ -23,6 +23,7 @@ import WelcomeBonusModal from '../../components/WelcomeBonusModal';
 import { Colors } from '../../constants/theme';
 import { useAlert } from '../../context/AlertContext';
 import { supabase } from '../../lib/supabase';
+import { getLocalTodayDate } from '../../utils/dateUtils';
 import { scaleFont } from '../../utils/layout';
 
 // Data Interface matching Supabase Schema
@@ -36,6 +37,7 @@ interface PromiseItem {
     locked_points?: number;
     participants: any[]; // jsonb 
     status: 'active' | 'completed' | 'failed' | 'active_waiting';
+    daily_status?: 'done' | 'failed' | 'pending';
     days_completed: number;
     created_at: string;
     promise_type?: 'self' | 'group';
@@ -85,7 +87,7 @@ export default function HomeScreen() {
 
     useEffect(() => {
         checkTooltip();
-        checkTutorialStatus(); // Check tutorial on mount immediately
+        // checkTutorialStatus(); // Removed: consolidated into useFocusEffect
         startPulse();
 
         // Start swinging animation
@@ -168,8 +170,10 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            // Check tutorial status every time screen gains focus
-            checkTutorialStatus();
+            // Delay check slightly to ensure UI is stable after navigation/auth
+            const timer = setTimeout(() => {
+                checkTutorialStatus();
+            }, 500);
 
             if (modeLoaded) {
                 fetchData(activeMode);
@@ -282,10 +286,8 @@ export default function HomeScreen() {
                         }
                     }
                 } else if (!bonusCheck || bonusCheck.length === 0) {
-                    // Tutorial not done and bonus not claimed — show bonus modal directly
-                    // This is a safety net for when tutorial overlay fails to appear
-                    // The tutorial overlay should handle this, but just in case:
-                    console.log('Tutorial pending, bonus unclaimed — tutorial overlay should be showing');
+                    // Tutorial not done and bonus not claimed — tutorial overlay will handle the sequence
+                    console.log('Onboarding: Tutorial pending, bonus unclaimed — waiting for walkthrough completion');
                 }
 
                 // 1. Fetch Promise IDs where user is a participant
@@ -322,7 +324,7 @@ export default function HomeScreen() {
                 }
 
                 // 2. Fetch Today's Checkins (My Status)
-                const today = new Date().toISOString().split('T')[0];
+                const today = getLocalTodayDate();
                 const { data: checkins, error: checkinError } = await supabase
                     .from('daily_checkins')
                     .select('promise_id, status')
@@ -389,14 +391,17 @@ export default function HomeScreen() {
 
                         // 2. Active promise — check if user already checked in today OR if deadline passed
                         const hasMyCheckin = todayCheckinMap.has(p.id);
+                        const myCheckinStatus = todayCheckinMap.get(p.id);
                         const hasPendingPeerReview = pendingReviewMap.has(p.id);
 
                         if ((hasMyCheckin || isPastDeadline) && !hasPendingPeerReview) {
                             // User checked in OR missed deadline AND no peer reviews pending — move it to the completed/history tab
-                            done.push({ ...p, status: 'active_waiting' });
+                            const dailyStatus = myCheckinStatus === 'done' ? 'done' : 'failed';
+                            done.push({ ...p, status: 'active_waiting', daily_status: dailyStatus });
                         } else {
                             // User hasn't checked in yet OR peer review is pending (even if deadline passed)
-                            pending.push(p);
+                            const dailyStatus = hasPendingPeerReview ? 'pending' : undefined;
+                            pending.push({ ...p, daily_status: dailyStatus });
                         }
                     }
 
@@ -541,10 +546,39 @@ export default function HomeScreen() {
                         <View style={styles.cardContent}>
                             <View style={styles.cardHeader}>
                                 <Text style={[styles.cardTitle, { color: theme.text }, isHistory && styles.completedText]} numberOfLines={1}>{item.title}</Text>
-                                {item.deadline_time && item.status === 'active' && (
-                                    <Text style={styles.deadlineTimeInline}>by {deadlineTimeLabel.replace(' · ', '')}</Text>
-                                )}
-                                <Ionicons name="chevron-forward" size={16} color={theme.icon} style={{ opacity: 0.5 }} />
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    {item.status === 'completed' && (
+                                        <View style={[styles.completedBadge, { backgroundColor: '#DCFCE7' }]}>
+                                            <Text style={[styles.completedBadgeText, { color: '#166534' }]}>COMPLETED</Text>
+                                        </View>
+                                    )}
+                                    {item.status === 'failed' && (
+                                        <View style={[styles.failedBadge]}>
+                                            <Text style={[styles.failedBadgeText]}>FAILED</Text>
+                                        </View>
+                                    )}
+                                    {item.status === 'active_waiting' && (
+                                        <>
+                                            {item.daily_status === 'done' ? (
+                                                <View style={[styles.completedBadge, { backgroundColor: '#DCFCE7' }]}>
+                                                    <Text style={[styles.completedBadgeText, { color: '#166534' }]}>DONE</Text>
+                                                </View>
+                                            ) : item.daily_status === 'failed' ? (
+                                                <View style={[styles.failedBadge]}>
+                                                    <Text style={[styles.failedBadgeText]}>MISSED</Text>
+                                                </View>
+                                            ) : (
+                                                <View style={[styles.waitingBadge]}>
+                                                    <Text style={[styles.waitingBadgeText]}>PENDING</Text>
+                                                </View>
+                                            )}
+                                        </>
+                                    )}
+                                    {item.deadline_time && item.status === 'active' && (
+                                        <Text style={styles.deadlineTimeInline}>by {deadlineTimeLabel.replace(' · ', '')}</Text>
+                                    )}
+                                    <Ionicons name="chevron-forward" size={16} color={theme.icon} style={{ opacity: 0.5, marginLeft: 4 }} />
+                                </View>
                             </View>
 
                             <View style={styles.cardFooter}>
@@ -777,7 +811,7 @@ export default function HomeScreen() {
                                         activeOpacity={0.9}
                                         onPress={() => handlePromisePress(item)}
                                     >
-                                        {renderCard(item, item.status !== 'active_waiting')}
+                                        {renderCard(item, true)}
                                     </TouchableOpacity>
                                 ))
                             ) : (

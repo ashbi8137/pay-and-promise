@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(20),
+        paddingHorizontal: scaleFont(28),
         paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
-        paddingBottom: scaleFont(20),
+        paddingBottom: scaleFont(24),
     },
     backButton: {
         width: scaleFont(44),

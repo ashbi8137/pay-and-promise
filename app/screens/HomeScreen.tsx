@@ -232,9 +232,9 @@ export default function HomeScreen() {
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 // Set Name
-                const metadataName = user.user_metadata?.full_name;
-                if (metadataName) {
-                    setFirstName(metadataName.split(' ')[0]);
+                const fullName = user.user_metadata?.full_name;
+                if (fullName) {
+                    setFirstName(fullName);
                 } else if (user.email) {
                     setFirstName(user.email.split('@')[0]);
                 }
@@ -635,7 +635,13 @@ export default function HomeScreen() {
                         <View style={styles.heroHeaderContainer}>
                             <View style={styles.typographyBlock}>
                                 <Text style={styles.greetingLight} allowFontScaling={false}>Welcome,</Text>
-                                <Text style={styles.userNameHero} allowFontScaling={false}>{firstName || 'Agent'}</Text>
+                                <Text
+                                    style={styles.userNameHero}
+                                    allowFontScaling={false}
+                                    numberOfLines={1}
+                                    adjustsFontSizeToFit
+                                    minimumFontScale={0.5}
+                                >{firstName || 'Agent'}</Text>
                                 <View style={styles.taglineContainer}>
                                     <View style={styles.taglineAccent} />
                                     <Text style={styles.taglineText} allowFontScaling={false}>YOUR WORD. YOUR LEGACY</Text>

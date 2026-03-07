@@ -975,14 +975,6 @@ export default function PromiseDetailScreen() {
                             </View>
                         )}
 
-                        {mySub.status === 'pending' && (
-                            <View style={{ marginTop: 16 }}>
-                                <TouchableOpacity style={[styles.mainActionBtn, { backgroundColor: '#FFF', borderWidth: 1, borderColor: '#5B2DAD' }]} onPress={handlePhotoCheckIn} disabled={updating}>
-                                    <Ionicons name="camera-reverse" size={20} color="#5B2DAD" />
-                                    <Text style={[styles.mainActionText, { color: '#5B2DAD' }]}>Change Proof</Text>
-                                </TouchableOpacity>
-                            </View>
-                        )}
                     </Animated.View>
                 ) : (
                     todayStatus !== 'failed' ? (
@@ -1144,7 +1136,7 @@ export default function PromiseDetailScreen() {
         if (!isSelfPromise) return null;
 
         const totalDays = duration || 7;
-        const completedDays = checkins.filter(c => c.status === 'done').length;
+        const completedDays = checkins.filter(c => c.status === 'done' || c.status === 'pending').length;
         const missedDays = checkins.filter(c => c.status === 'failed').length;
         const startRaw = actualStartDate ? new Date(actualStartDate) : (promiseData.created_at ? new Date(promiseData.created_at) : new Date());
         const startLocal = new Date(startRaw.getFullYear(), startRaw.getMonth(), startRaw.getDate());
@@ -1158,7 +1150,12 @@ export default function PromiseDetailScreen() {
                 <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Progress Overview</Text>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: scaleFont(12), paddingRight: scaleFont(20) }}>
+                <View style={{
+                    flexDirection: 'row',
+                    justifyContent: 'space-between',
+                    paddingRight: scaleFont(4), // Balanced padding
+                    gap: scaleFont(4)
+                }}>
                     {[
                         { label: 'Total', value: totalDays, icon: 'calendar-outline', color: '#4F46E5' },
                         { label: 'Day', value: currentDay, icon: 'today-outline', color: '#7C3AED' },
@@ -1166,20 +1163,21 @@ export default function PromiseDetailScreen() {
                         { label: 'Miss', value: missedDays, icon: 'close-circle-outline', color: '#EF4444' },
                     ].map((stat, idx) => (
                         <Animated.View key={idx} entering={FadeInDown.delay(idx * 80)} style={{
-                            width: scaleFont(90),
+                            flex: 1, // Use flex to distribute space evenly
                             backgroundColor: '#FFF',
                             borderRadius: scaleFont(16),
-                            padding: scaleFont(14),
+                            paddingVertical: scaleFont(14),
+                            paddingHorizontal: scaleFont(4), // Reduced horizontal padding
                             borderWidth: 1,
                             borderColor: '#F1F5F9',
                             alignItems: 'center'
                         }}>
-                            <Ionicons name={stat.icon as any} size={20} color={stat.color} />
-                            <Text style={{ fontSize: scaleFont(20), fontWeight: '800', color: stat.color, marginTop: 8, fontFamily: 'Outfit_800ExtraBold' }}>{stat.value}</Text>
-                            <Text style={{ fontSize: scaleFont(11), color: '#64748B', fontFamily: 'Outfit_400Regular', marginTop: 2 }}>{stat.label}</Text>
+                            <Ionicons name={stat.icon as any} size={18} color={stat.color} />
+                            <Text style={{ fontSize: scaleFont(18), fontWeight: '800', color: stat.color, marginTop: 8, fontFamily: 'Outfit_800ExtraBold' }}>{stat.value}</Text>
+                            <Text style={{ fontSize: scaleFont(10), color: '#64748B', fontFamily: 'Outfit_400Regular', marginTop: 2 }}>{stat.label}</Text>
                         </Animated.View>
                     ))}
-                </ScrollView>
+                </View>
                 {/* Points Locked */}
                 <View style={{ width: '100%', backgroundColor: '#F5F3FF', borderRadius: scaleFont(16), padding: scaleFont(16), flexDirection: 'row', alignItems: 'center', gap: scaleFont(12), marginTop: scaleFont(12) }}>
                     <Ionicons name="diamond" size={20} color="#5B2DAD" />
@@ -1241,7 +1239,7 @@ export default function PromiseDetailScreen() {
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={24} color="#1E293B" />
+                        <Ionicons name="chevron-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitleMain}>{isSelfPromise ? 'Self Promise' : 'Promise Detail'}</Text>
                     <View style={{ width: scaleFont(44) }} />
@@ -1335,9 +1333,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(24),
-        paddingTop: Platform.OS === 'android' ? scaleFont(48) : scaleFont(16),
-        paddingBottom: scaleFont(16),
+        paddingHorizontal: scaleFont(28),
+        paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
+        paddingBottom: scaleFont(24),
     },
     backButton: {
         width: scaleFont(44),
@@ -1348,10 +1346,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     headerTitleMain: {
-        fontSize: scaleFont(16),
-        fontWeight: '700',
-        color: '#1E293B',
-        fontFamily: 'Outfit_700Bold',
+        fontSize: scaleFont(18),
+        fontWeight: '800',
+        color: '#0F172A',
+        fontFamily: 'Outfit_800ExtraBold',
     },
     scrollContent: {
         paddingHorizontal: scaleFont(20),

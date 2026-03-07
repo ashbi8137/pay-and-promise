@@ -89,8 +89,8 @@ export default function JourneyScreen() {
                 return;
             }
 
-            const { data: checkins } = await supabase
-                .from('daily_checkins')
+            const { data: submissions } = await supabase
+                .from('promise_submissions')
                 .select('promise_id, status, date')
                 .in('promise_id', promiseIds)
                 .eq('user_id', user.id);
@@ -103,32 +103,38 @@ export default function JourneyScreen() {
                 .eq('user_id', user.id);
 
             const processed: JourneyItem[] = promises.map((p: any) => {
-                const pCheckins = checkins?.filter((c: Checkin) => c.promise_id === p.id) || [];
-                const daysData: string[] = [];
+                const pSubs = submissions?.filter((s: any) => s.promise_id === p.id) || [];
+                const daysData: string[] = Array(p.duration_days).fill('empty');
 
-                pCheckins.sort((a: Checkin, b: Checkin) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                // Align submissions with their specific day index
+                const startRaw = new Date(p.created_at);
+                const startDate = new Date(startRaw.getFullYear(), startRaw.getMonth(), startRaw.getDate());
 
-                pCheckins.forEach((c: Checkin) => {
-                    if (c.status === 'done') daysData.push('done');
-                    else if (c.status === 'failed') daysData.push('failed');
+                pSubs.forEach((s: any) => {
+                    const subRaw = new Date(s.date);
+                    const subDate = new Date(subRaw.getFullYear(), subRaw.getMonth(), subRaw.getDate());
+                    const dayIdx = Math.floor((subDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+
+                    if (dayIdx >= 0 && dayIdx < p.duration_days) {
+                        // Map statuses similarly to PromiseDetailScreen
+                        if (s.status === 'verified') daysData[dayIdx] = 'done';
+                        else if (s.status === 'rejected') daysData[dayIdx] = 'failed';
+                        else if (s.status === 'pending') daysData[dayIdx] = 'pending';
+                    }
                 });
-
-                while (daysData.length < p.duration_days) {
-                    daysData.push('empty');
-                }
 
                 const lockedPoints = p.locked_points || 10;
                 const commitmentLevel = p.commitment_level || 'medium';
                 const failedDaysCount = daysData.filter(d => d === 'failed').length;
 
                 // Use REAL ledger data for PP calculations
-                const pLedger = ledgerEntries?.filter(l => l.promise_id === p.id) || [];
+                const pLedger = ledgerEntries?.filter((l: any) => l.promise_id === p.id) || [];
                 const ppEarned = pLedger
-                    .filter(l => l.points > 0)
-                    .reduce((sum, l) => sum + l.points, 0);
+                    .filter((l: any) => l.points > 0)
+                    .reduce((sum: number, l: any) => sum + l.points, 0);
                 const ppLost = Math.abs(pLedger
-                    .filter(l => l.points < 0)
-                    .reduce((sum, l) => sum + l.points, 0));
+                    .filter((l: any) => l.points < 0)
+                    .reduce((sum: number, l: any) => sum + l.points, 0));
                 const ppNet = ppEarned - ppLost;
 
                 return {
@@ -173,7 +179,7 @@ export default function JourneyScreen() {
 
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
-        return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
     };
 
     const handleBack = () => {
@@ -192,7 +198,7 @@ export default function JourneyScreen() {
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
                         <Ionicons name="chevron-back" size={24} color="#0F172A" />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Journey Atlas</Text>
+                    <Text style={styles.headerTitle}>Journey Log</Text>
                     <View style={{ width: scaleFont(44) }} />
                 </View>
 
@@ -288,7 +294,8 @@ export default function JourneyScreen() {
                                                             style={[
                                                                 styles.storyBlock,
                                                                 dayStatus === 'done' ? styles.blockGreen :
-                                                                    dayStatus === 'failed' ? styles.blockRed : styles.blockGray
+                                                                    dayStatus === 'failed' ? styles.blockRed :
+                                                                        dayStatus === 'pending' ? styles.blockPending : styles.blockGray
                                                             ]}
                                                         />
                                                     ))}
@@ -298,7 +305,7 @@ export default function JourneyScreen() {
                                                     <View style={styles.statBox}>
                                                         <Text style={styles.statLabel}>STREAK</Text>
                                                         <Text style={[styles.statValue, { color: '#10B981' }]}>
-                                                            {item.days_data.filter(d => d === 'done').length}d
+                                                            {item.days_data.filter(d => d === 'done' || d === 'pending').length}d
                                                         </Text>
                                                     </View>
                                                     <View style={styles.statBox}>
@@ -345,7 +352,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: scaleFont(28), paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10), paddingBottom: scaleFont(24) },
     backButton: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(12), backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
-    headerTitle: { fontSize: scaleFont(24), fontWeight: '900', color: '#0F172A', letterSpacing: scaleFont(-1), fontFamily: 'Outfit_800ExtraBold' },
+    headerTitle: { fontSize: scaleFont(18), fontWeight: '800', color: '#0F172A', letterSpacing: scaleFont(-0.5), fontFamily: 'Outfit_800ExtraBold' },
     scrollContent: { paddingHorizontal: scaleFont(28), paddingBottom: scaleFont(40) },
     loaderContainer: { marginTop: scaleFont(100), alignItems: 'center' },
     loadingText: { marginTop: scaleFont(16), fontSize: scaleFont(14), fontWeight: '700', color: '#5B2DAD', fontFamily: 'Outfit_700Bold' },
@@ -392,6 +399,7 @@ const styles = StyleSheet.create({
     storyBlock: { width: scaleFont(20), height: scaleFont(20), borderRadius: scaleFont(6) },
     blockGreen: { backgroundColor: '#10B981' },
     blockRed: { backgroundColor: '#EF4444' },
+    blockPending: { backgroundColor: '#6366F1' }, // Indigo for pending
     blockGray: { backgroundColor: 'rgba(0,0,0,0.05)' },
     statsGrid: { flexDirection: 'row', alignItems: 'center', marginTop: scaleFont(10), marginBottom: scaleFont(10) },
     statBox: { flex: 1, alignItems: 'flex-start' },

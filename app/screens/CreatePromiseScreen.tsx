@@ -32,8 +32,8 @@ const { width } = Dimensions.get('window');
 // PP Commitment Level definitions
 const COMMITMENT_LEVELS_GROUP = [
     { id: 'low', label: 'Low', points: 5, earn: 10, icon: 'leaf-outline' as const, color: '#10B981', bgColor: '#ECFDF5', desc: 'Casual commitment' },
-    { id: 'medium', label: 'Medium', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge', requiresGroupCompleted: 4 },
-    { id: 'high', label: 'High', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes', requiresGroupCompleted: 4 },
+    { id: 'medium', label: 'Medium', points: 10, earn: 25, icon: 'flame-outline' as const, color: '#F59E0B', bgColor: '#FFFBEB', desc: 'Balanced challenge', requiresGroupCompleted: 5 },
+    { id: 'high', label: 'High', points: 20, earn: 50, icon: 'flash-outline' as const, color: '#EF4444', bgColor: '#FEF2F2', desc: 'Maximum stakes', requiresGroupCompleted: 10 },
 ];
 
 // Self mode: Fixed 2 PP (uses low tier internally but shown as "Self Stake")
@@ -598,7 +598,7 @@ export default function CreatePromiseScreen({ overrideMode }: { overrideMode?: s
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8FAFC' },
-    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: scaleFont(20), paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10), paddingBottom: scaleFont(20) },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: scaleFont(28), paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10), paddingBottom: scaleFont(24) },
     backBtn: { width: scaleFont(44), height: scaleFont(44), borderRadius: scaleFont(12), backgroundColor: '#F1F5F9', alignItems: 'center', justifyContent: 'center' },
     progressContainer: { flex: 1, marginLeft: scaleFont(20), height: scaleFont(4), borderRadius: scaleFont(2), overflow: 'hidden' },
     progressTrack: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(79, 70, 229, 0.1)' },

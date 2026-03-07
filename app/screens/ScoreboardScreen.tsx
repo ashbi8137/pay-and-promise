@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(24),
+        paddingHorizontal: scaleFont(28),
         paddingTop: Platform.OS === 'android' ? scaleFont(48) : scaleFont(16),
     },
     backButton: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: scaleFont(20),
+        fontSize: scaleFont(18),
         fontWeight: '800',
         color: '#FFFFFF',
         letterSpacing: scaleFont(0.5),

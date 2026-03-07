@@ -159,7 +159,7 @@ export default function TransactionHistoryScreen() {
             <SafeAreaView style={{ flex: 1 }}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#1E293B" />
+                        <Ionicons name="chevron-back" size={scaleFont(24)} color="#0F172A" />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Activity Log</Text>
                     <View style={{ width: scaleFont(44) }} />
@@ -239,9 +239,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: scaleFont(20),
+        paddingHorizontal: scaleFont(28),
         paddingTop: Platform.OS === 'android' ? scaleFont(40) : scaleFont(10),
-        paddingBottom: scaleFont(16)
+        paddingBottom: scaleFont(24)
     },
     backButton: {
         width: scaleFont(44),
@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: scaleFont(18),
         fontWeight: '800',
-        color: '#1E293B',
+        color: '#0F172A',
         letterSpacing: scaleFont(-0.5),
         fontFamily: 'Outfit_800ExtraBold'
     },
